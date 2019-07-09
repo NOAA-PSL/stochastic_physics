@@ -4,21 +4,21 @@ implicit none
 !!January 2018 adapted from Mathworkds "ISLANDS"
 
 !! plumes finds all islands of four-connected elements in a matrix.
-!! plumes returns a matrix the same size as the input matrix, with all of 
+!! plumes returns a matrix the same size as the input matrix, with all of
 !! the four-connected elements assigned an arbitrary island number. A second
-!! return argument is an nx3 matrix.  Each row of this matrix has 
-!! information about a particular island:  the first column is the island    
-!! number which corresponds to the numbers in the first return argument, the     
-!! second column is the number of elements in the island, the third column   
+!! return argument is an nx3 matrix.  Each row of this matrix has
+!! information about a particular island:  the first column is the island
+!! number which corresponds to the numbers in the first return argument, the
+!! second column is the number of elements in the island, the third column
 !! is the value of the elements in that island (the elements of the input
-!! matrix).  plumes will also return a binary matrix with ones in the 
-!! positions of the elements of the largest four-connected island.  The 
-!! largest four-connected island is determined first by value; for example  
-!! if there are 2 islands each with 5 elements, one of which is made up of   
-!! 6's and the other of which is made up of 4's, the island with the 6's  
-!! will be returned.  In the case where there are 2 islands with the same    
-!! number of elements and the same value, an arbitrary choice will be 
-!! returned.  
+!! matrix).  plumes will also return a binary matrix with ones in the
+!! positions of the elements of the largest four-connected island.  The
+!! largest four-connected island is determined first by value; for example
+!! if there are 2 islands each with 5 elements, one of which is made up of
+!! 6's and the other of which is made up of 4's, the island with the 6's
+!! will be returned.  In the case where there are 2 islands with the same
+!! number of elements and the same value, an arbitrary choice will be
+!! returned.
 
 integer, intent(in) :: row,col,kend
 integer, intent(in), dimension(row,col) :: a
@@ -44,7 +44,7 @@ L = V  !! Hold the number of elements in each island.
 cntr = 1  !! Label the individual islands by the order they are found.
 
 !! Notes on comments in the loops:  CRNT is the element of the matrix we are
-!! currently looking at.  RGHT is the element to the immediate right of 
+!! currently looking at.  RGHT is the element to the immediate right of
 !! CRNT.  RUD is the element to the right and up from the CRNT.
 !! The RUD element is directly above RGHT.
 
@@ -112,14 +112,14 @@ do ii = 2,row  !! Start on the second row.
                     cnt = 1 !! The counter.
                     if (idxx .ne. IDX)then !! They could already match!
                         !! These next do loops are faster than using find,
-                        !! indexing the whole matrix.  We are searching do 
+                        !! indexing the whole matrix.  We are searching do
                         !! the old island numbers to add to the updated isl.
                         do pp = ii+1,row !! Must search first column too.
                             if (AG(pp,1)==idxx)then
                                 AG(pp,1) = IDX  !! Assign island number.
                                 cnt = cnt + 1  !! Increment member counter.
                             else
-                                goto 100 !! Stop search if one mismatch found. 
+                                goto 100 !! Stop search if one mismatch found.
                             endif
                         enddo
 100                     do mm = ii,-1,1  !! Start at current row, work up.
@@ -167,8 +167,8 @@ do ii = 2,row  !! Start on the second row.
 enddo
 
 
-!    NSV = [(1:cntr-1)',L(1:cntr-1)',V(1:cntr-1)'] !!2nd output.                                                                                              
-!    NSV(NSV(:,2)==0,:)=[] !! Clear empty islands.                                                                                                             
+!    NSV = [(1:cntr-1)',L(1:cntr-1)',V(1:cntr-1)'] !!2nd output.
+!    NSV(NSV(:,2)==0,:)=[] !! Clear empty islands.
 
 
 end subroutine plumes

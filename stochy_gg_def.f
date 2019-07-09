@@ -1,7 +1,7 @@
       module stochy_gg_def
       use machine
       implicit none
-      
+
       real(kind=kind_dbl_prec), allocatable, dimension(:) ::  colrad_a,
      &                      wgt_a, wgtcs_a, rcs2_a, sinlat_a, coslat_a
 !

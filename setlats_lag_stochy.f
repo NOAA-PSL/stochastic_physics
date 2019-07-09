@@ -1,8 +1,14 @@
+      module setlats_lag_stochy_mod
+
+      implicit none
+
+      contains
+
       subroutine setlats_lag_stochy(lats_nodes_a, global_lats_a,
      &                       lats_nodes_h, global_lats_h, yhalo)
 !
       use stochy_resol_def, only : latg
-      use spectral_layout,   only : me,nodes
+      use spectral_layout_mod,   only : me,nodes
       implicit none
 !
       integer              yhalo
@@ -117,3 +123,5 @@
 !
       return
       end
+
+      end module setlats_lag_stochy_mod

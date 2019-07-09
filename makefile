@@ -4,11 +4,11 @@ inside_nems := $(wildcard ../../../conf/configure.nems)
 ifneq ($(strip $(inside_nems)),)
     include ../../../conf/configure.nems
 else
-    exist_configure_fv3 := $(wildcard ../conf/configure.fv3)
+    exist_configure_fv3 := $(wildcard ../FV3/conf/configure.fv3)
     ifneq ($(strip $(exist_configure_fv3)),)
-        include ../conf/configure.fv3
+        include ../FV3/conf/configure.fv3
     else
-        $(error "../conf/configure.fv3 file is missing. Run ./configure")
+        $(error "../FV3/conf/configure.fv3 file is missing. Run ./configure")
     endif
     $(info )
     $(info Build standalone FV3 stochastic_physics ...)
@@ -17,7 +17,7 @@ endif
 
 LIBRARY  = libstochastic_physics.a
 
-FFLAGS   += -I./include -I./mpp/include -I../gfsphysics/ -I../atmos_cubed_sphere -I$(FMS_DIR) -I../namphysics
+FFLAGS   += -I./include -I../FV3/gfsphysics/ -I../FV3/atmos_cubed_sphere -I$(FMS_DIR) -I../FV3/namphysics
 
 SRCS_F   =
 
@@ -27,7 +27,6 @@ SRCS_f90 =  \
                 ./plumes.f90
 
 SRCS_f   =  \
-		./spectral_layout.f                         \
 		./stochy_gg_def.f                           \
 		./stochy_resol_def.f                        \
 		./stochy_layout_lag.f                       \
@@ -44,9 +43,10 @@ SRCS_f   =  \
 		./getcon_lag_stochy.f                       \
 		./pln2eo_stochy.f                           \
 		./dozeuv_stochy.f                           \
-		./dezouv_stochy.f                           
+		./dezouv_stochy.f
 
 SRCS_F90 = \
+		./spectral_layout.F90                       \
 		./getcon_spectral.F90                       \
 		./stochy_namelist_def.F90                   \
 		./compns_stochy.F90                         \
@@ -55,9 +55,9 @@ SRCS_F90 = \
 		./stochy_patterngenerator.F90               \
 		./stochy_data_mod.F90                       \
 		./get_stochy_pattern.F90                    \
-		./initialize_spectral_mod.F90              
+		./initialize_spectral_mod.F90
 
-SRCS_c   = 
+SRCS_c   =
 
 DEPEND_FILES = $(SRCS_f) $(SRCS_f90) $(SRCS_F) $(SRCS_F90)
 
@@ -80,8 +80,8 @@ clean:
 	@echo
 	$(RM) -f $(LIBRARY) *__genmod.f90 *.o */*.o *.mod *.i90 *.lst *.i depend
 
-MKDEPENDS = ../mkDepends.pl
-include ../conf/make.rules
+MKDEPENDS = ../FV3/mkDepends.pl
+include ../FV3/conf/make.rules
 
 include ./depend
 

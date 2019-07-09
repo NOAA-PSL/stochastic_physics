@@ -6,5 +6,5 @@
       read(omp_threads,*,iostat=stat)number_of_openMP_threads
       num_parthds_stochy = number_of_openMP_threads
       return
-      end 
+      end
 

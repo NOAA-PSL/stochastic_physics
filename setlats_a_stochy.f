@@ -1,8 +1,14 @@
+      module setlats_a_stochy_mod
+
+      implicit none
+
+      contains
+
       subroutine setlats_a_stochy(lats_nodes_a,global_lats_a,
      &                         iprint,lonsperlat)
 !
       use stochy_resol_def , only : latg,lonf
-      use spectral_layout   , only : nodes,me
+      use spectral_layout_mod   , only : nodes,me
 !
       implicit none
 !
@@ -130,7 +136,7 @@
             lats_hold(jpt+1-i,ii) = latg+1-lats_hold(i,node)
           enddo
         enddo
-          
+
 
       endif
 !!
@@ -185,3 +191,5 @@
 
       return
       end
+
+      end module setlats_a_stochy_mod

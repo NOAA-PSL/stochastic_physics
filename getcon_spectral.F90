@@ -1,3 +1,9 @@
+module getcon_spectral_mod
+
+   implicit none
+
+   contains
+
       subroutine getcon_spectral ( ls_node,ls_nodes,max_ls_nodes,  &
                                   lats_nodes_a,global_lats_a,      &
                                   lonsperlat,latsmax,              &
@@ -6,12 +12,19 @@
                                   snnp1ev,snnp1od,                 &
                                   plnev_a,plnod_a,pddev_a,pddod_a, &
                                   plnew_a,plnow_a,colat1)
- 
+
 ! program log:
 ! 20110220    henry juang update code to fit mass_dp and ndslfv
 !
+      use epslon_stochy_mod, only: epslon_stochy
+      use get_lats_node_a_stochy_mod, only: get_lats_node_a_stochy
+      use get_ls_node_stochy_mod, only: get_ls_node_stochy
+      use glats_stochy_mod, only: glats_stochy
+      use gozrineo_a_stochy_mod, only: gozrineo_a_stochy
+      use pln2eo_a_stochy_mod, only: pln2eo_a_stochy
+      use setlats_a_stochy_mod, only: setlats_a_stochy
       use stochy_resol_def
-      use spectral_layout
+      use spectral_layout_mod
       use stochy_gg_def
       use stochy_internal_state_mod
 
@@ -32,7 +45,7 @@
       integer        global_lats_ext(latg+2*jintmx+2*nypt*(nodes-1))
 !
       real(kind=kind_dbl_prec), dimension(len_trie_ls) :: epse, epsedn, snnp1ev
-      real(kind=kind_dbl_prec), dimension(len_trio_ls) :: epso, epsodn, snnp1od 
+      real(kind=kind_dbl_prec), dimension(len_trio_ls) :: epso, epsodn, snnp1od
 !
       real(kind=kind_dbl_prec), dimension(len_trie_ls,latg2) :: plnev_a, pddev_a, plnew_a
       real(kind=kind_dbl_prec), dimension(len_trio_ls,latg2) :: plnod_a, pddod_a, plnow_a
@@ -69,7 +82,7 @@
          lonsperlat(latg+1-lat) = lonsperlat(lat)
       end do
       do node=1,nodes
-          call get_lats_node_a_stochy( node-1, global_lats_a,lats_nodes_a(node),& 
+          call get_lats_node_a_stochy( node-1, global_lats_a,lats_nodes_a(node),&
                                gl_lats_index,global_time_sort_index_a, iprint)
       enddo
       call setlats_a_stochy(lats_nodes_a,global_lats_a,iprint, lonsperlat)
@@ -108,7 +121,7 @@
         lats_node_a_max = max(lats_node_a_max, lats_nodes_a(i))
       enddo
       latsmax = lats_node_a_max
- 
+
 !
       ipt_lats_node_ext = 1
 !
@@ -248,7 +261,7 @@
   200    continue
       end do
 !
-      
+
       do j=1,lats_node_a
          lat = global_lats_a(ipt_lats_node_a-1+j)
          if ( lonsperlat(lat) == lonf ) then
@@ -260,3 +273,5 @@
 !
       return
       end
+
+end module getcon_spectral_mod

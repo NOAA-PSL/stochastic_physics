@@ -5,7 +5,7 @@
 !
       use machine
       implicit none
-      
+
       public
       integer nsskeb,lon_s,lat_s,ntrunc
 

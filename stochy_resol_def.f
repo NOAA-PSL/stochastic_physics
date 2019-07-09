@@ -37,7 +37,7 @@
 !
       integer   kdpphi, kzzphi, kdplam, kzzlam
 !
-      integer   kdtphi, kdrphi, kdtlam, kdrlam 
+      integer   kdtphi, kdrphi, kdtlam, kdrlam
       integer   kdulam, kdvlam, kduphi, kdvphi
 
 

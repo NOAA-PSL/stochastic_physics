@@ -1,10 +1,16 @@
+      module gozrineo_a_stochy_mod
+
+      implicit none
+
+      contains
+
       subroutine gozrineo_a_stochy(plnev_a,plnod_a,
      &                      pddev_a,pddod_a,
      &                      plnew_a,plnow_a,
      &                      epse,epso,rcs2_a,wgt_a,ls_node,num_lat)
 cc
       use stochy_resol_def
-      use spectral_layout
+      use spectral_layout_mod
       use machine
       implicit none
 cc
@@ -170,3 +176,5 @@ cc
 cc
       return
       end
+
+      end module gozrineo_a_stochy_mod

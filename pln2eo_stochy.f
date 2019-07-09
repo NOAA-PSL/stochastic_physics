@@ -1,3 +1,9 @@
+      module pln2eo_a_stochy_mod
+
+      implicit none
+
+      contains
+
       subroutine pln2eo_a_stochy(plnev_a,plnod_a,epse,epso,colrad_a,
      &                    ls_node,num_lat)
 !
@@ -5,7 +11,7 @@
 ! underflow and overflow if necessary by henry juang 2012 july
 !
       use stochy_resol_def
-      use spectral_layout
+      use spectral_layout_mod
       use machine
       implicit none
 !
@@ -277,3 +283,5 @@ cc
 cc
       return
       end
+
+      end module pln2eo_a_stochy_mod

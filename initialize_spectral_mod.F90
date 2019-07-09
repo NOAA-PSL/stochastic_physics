@@ -16,16 +16,19 @@
 !!uses:
 !
       use machine
-      use spectral_layout,      only : ipt_lats_node_a, lats_node_a_max,lon_dim_a,len_trie_ls,len_trio_ls &
-                                      ,nodes,ls_max_node,lats_dim_a,ls_dim,nodes_comp,lat1s_a
+      use spectral_layout_mod,      only : ipt_lats_node_a, lats_node_a_max,lon_dim_a,len_trie_ls,len_trio_ls &
+                                      ,nodes,ls_max_node,lats_dim_a,ls_dim,lat1s_a
       use stochy_layout_lag, only : lat1s_h
       use stochy_internal_state_mod
-      use spectral_layout,only:lon_dims_a
+      use spectral_layout_mod,only:lon_dims_a, num_parthds_stochy => ompthreads
       use stochy_resol_def
       use stochy_namelist_def
       use fv_mp_mod, only : is_master
       use stochy_gg_def, only : wgt_a,sinlat_a,coslat_a,colrad_a,wgtcs_a,rcs2_a,lats_nodes_h,global_lats_h
-      use mpp_mod
+      use getcon_spectral_mod, only: getcon_spectral
+      use get_ls_node_stochy_mod, only: get_ls_node_stochy
+      use getcon_lag_stochy_mod, only: getcon_lag_stochy
+      !use mpp_mod
 #ifndef IBM
       USE omp_lib
 #endif
@@ -58,26 +61,26 @@
 !      print*,'before allocate lonsperlat,',&
 !                   allocated(gis_stochy%lonsperlat),'latg=',latg
 !
-      gis_stochy%nodes=mpp_npes()
+!      gis_stochy%nodes=mpp_npes()
 !      print*,'mpp_npes=',mpp_npes()
       nodes  = gis_stochy%nodes
       npe_single_member = gis_stochy%npe_single_member
 
       lon_dim_a = lon_s + 2
       jcap=ntrunc
-      jcap1  = jcap+1 
-      jcap2  = jcap+2 
+      jcap1  = jcap+1
+      jcap2  = jcap+2
       latg   = lat_s
-      latg2  = latg/2 
+      latg2  = latg/2
       lonf   = lon_s
-      lnt    = jcap2*jcap1/2 
-      lnuv   = jcap2*jcap1 
-      lnt2   = lnt  + lnt 
-      lnt22  = lnt2 + 1 
-      lnte   = (jcap2/2)*((jcap2/2)+1)-1 
-      lnto   = (jcap2/2)*((jcap2/2)+1)-(jcap2/2) 
-      lnted  = lnte 
-      lntod  = lnto 
+      lnt    = jcap2*jcap1/2
+      lnuv   = jcap2*jcap1
+      lnt2   = lnt  + lnt
+      lnt22  = lnt2 + 1
+      lnte   = (jcap2/2)*((jcap2/2)+1)-1
+      lnto   = (jcap2/2)*((jcap2/2)+1)-(jcap2/2)
+      lnted  = lnte
+      lntod  = lnto
 
       gis_stochy%lnt2 = lnt2
 
@@ -88,12 +91,8 @@
       allocate(wgtcs_a(latg2))
       allocate(rcs2_a(latg2))
 
-!!      create io communicator and comp communicator
-!!
-      nodes_comp=nodes
-!
 !      if (is_master()) then
-!        print*,'number of threads is',num_parthds_stochy()
+!        print*,'number of threads is',num_parthds_stochy
 !        print*,'number of mpi procs is',nodes
 !      endif
 !
@@ -101,7 +100,7 @@
 !      print*,'allocating lonsperlat',latg
       allocate(gis_stochy%lonsperlat(latg))
 !      print*,'size=',size(gis_stochy%lonsperlat)
-      
+
 
       inquire (file="lonsperlat.dat", exist=file_exists)
       if ( .not. file_exists ) then
@@ -110,12 +109,20 @@
       else
         open (iunit,file='lonsperlat.dat',status='old',form='formatted',      &
                                           action='read',iostat=iret)
-        if (iret /= 0) call mpp_error(FATAL,'error while reading lonsperlat.dat')
+        if (iret /= 0) then
+           write(0,*) 'error while reading lonsperlat.dat'
+           rc = 1
+           return
+        end if
         rewind iunit
         read (iunit,*,iostat=iret) latghf,(gis_stochy%lonsperlat(i),i=1,latghf)
         if (latghf+latghf /= latg) then
            write(0,*)' latghf=',latghf,' not equal to latg/2=',latg/2
-           if (iret /= 0) call mpp_error(FATAL,'lonsperlat file has wrong size')
+           if (iret /= 0) then
+              write(0,*) 'lonsperlat file has wrong size'
+              rc = 1
+              return
+           end if
         endif
         do i=1,latghf
           gis_stochy%lonsperlat(latg-i+1) = gis_stochy%lonsperlat(i)
@@ -212,7 +219,11 @@
       allocate(coslat_a(latg))
       allocate(lat1s_h(0:jcap))
 !
-      if(gis_stochy%iret/=0) call mpp_error(FATAL,'incompatible namelist - aborted in stochy')
+      if(gis_stochy%iret/=0) then
+         write(0,*) 'incompatible namelist - aborted in stochy'
+         rc = 1
+         return
+      end if
 !!
       gis_stochy%lats_nodes_ext = 0
       call getcon_spectral(gis_stochy%ls_node,         gis_stochy%ls_nodes,           &
@@ -247,8 +258,9 @@
 
 !      if (gis_stochy%me == 0) then
 !        print*, ' lats_dim_a=', lats_dim_a, ' lats_node_a=', gis_stochy%lats_node_a
-!      endif  
+!      endif
       rc=0
 
       end subroutine initialize_spectral
+
 end module initialize_spectral_mod

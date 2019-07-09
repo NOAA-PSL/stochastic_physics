@@ -2,17 +2,19 @@ module stochy_data_mod
 
 ! set up and initialize stochastic random patterns.
 
- use spectral_layout
+ use spectral_layout_mod, only: len_trie_ls,len_trio_ls,ls_dim,ls_max_node
  use stochy_resol_def, only : skeblevs,levs,jcap,lonf,latg
  use stochy_namelist_def
  use constants_mod, only : radius
- use fv_mp_mod,only:mp_bcst
- use stochy_patterngenerator, only: random_pattern, patterngenerator_init,&
+ use spectral_layout_mod, only : me, nodes
+ use fv_mp_mod, only: mp_bcst, is_master
+ use stochy_patterngenerator_mod, only: random_pattern, patterngenerator_init,&
  getnoise, patterngenerator_advance,ndimspec,chgres_pattern,computevarspec_r
- use initialize_spectral_mod
+ use initialize_spectral_mod, only: initialize_spectral
  use stochy_internal_state_mod
 ! use mersenne_twister_stochy, only : random_seed
  use mersenne_twister, only : random_seed
+ use compns_stochy_mod, only : compns_stochy
 
  implicit none
  private
@@ -33,9 +35,9 @@ module stochy_data_mod
  real(kind=kind_dbl_prec),public, allocatable :: skebu_save(:,:,:),skebv_save(:,:,:)
  integer,public :: INTTYP
  type(stochy_internal_state),public :: gis_stochy
- 
+
  contains
- subroutine init_stochdata(nlevs,delt,input_nml_file,fn_nml,nlunit)
+ subroutine init_stochdata(nlevs,delt,input_nml_file,fn_nml,nlunit,iret)
 
 ! initialize random patterns.  A spinup period of spinup_efolds times the
 ! temporal time scale is run for each pattern.
@@ -43,12 +45,13 @@ module stochy_data_mod
    character(len=*),  intent(in) :: input_nml_file(:)
    character(len=64), intent(in) :: fn_nml
    real, intent(in) :: delt
+   integer, intent(out) :: iret
    real :: pertsfc(1)
 
    real :: rnn1
-   integer :: nn,nspinup,k,nm,spinup_efolds,stochlun,ierr,iret,n
+   integer :: nn,nspinup,k,nm,spinup_efolds,stochlun,ierr,n
    integer :: locl,indev,indod,indlsod,indlsev
-   integer :: l,jbasev,jbasod,nodes
+   integer :: l,jbasev,jbasod
    real(kind_dbl_prec),allocatable :: noise_e(:,:),noise_o(:,:)
    include 'function_indlsod'
    include 'function_indlsev'
@@ -59,7 +62,6 @@ module stochy_data_mod
    if(is_master()) print*,'in init stochdata'
    call compns_stochy (me,size(input_nml_file,1),input_nml_file(:),fn_nml,nlunit,delt,iret)
    if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb)  .AND. (.NOT. do_sfcperts) ) return
-   nodes=mpp_npes()
    if (nodes.GE.lat_s/2) then
       lat_s=(int(nodes/12)+1)*24
       lon_s=lat_s*2
@@ -67,6 +69,7 @@ module stochy_data_mod
       if (is_master()) print*,'WARNING: spectral resolution is too low for number of mpi_tasks, resetting lon_s,lat_s,and ntrunc to',lon_s,lat_s,ntrunc
    endif
    call initialize_spectral(gis_stochy, iret)
+   if (iret/=0) return
    allocate(noise_e(len_trie_ls,2),noise_o(len_trio_ls,2))
 ! determine number of random patterns to be used for each scheme.
    do n=1,size(sppt)
@@ -125,7 +128,11 @@ module stochy_data_mod
       if (stochini) then
          print*,'opening stoch_ini'
          OPEN(stochlun,file='stoch_ini',form='unformatted',iostat=ierr,status='old')
-         if (ierr .NE. 0) call mpp_error(FATAL,'error opening stoch_ini')
+         if (ierr .NE. 0) then
+            write(0,*) 'error opening stoch_ini'
+            iret = ierr
+            return
+         end if
       endif
    endif
    ! no spinup needed if initial patterns are defined correctly.
@@ -318,7 +325,7 @@ if (npsfc > 0) then
            do nn=1,nspinup
               call patterngenerator_advance(rpattern_sfc(n),k,.false.)
            enddo
-           if (is_master()) print *, 'Random pattern for SFC-PERTS: k, min, max ',k, minval(rpattern_sfc(1)%spec_o(:,:,k)), maxval(rpattern_sfc(1)%spec_o(:,:,k))   
+           if (is_master()) print *, 'Random pattern for SFC-PERTS: k, min, max ',k, minval(rpattern_sfc(1)%spec_o(:,:,k)), maxval(rpattern_sfc(1)%spec_o(:,:,k))
          enddo ! k, nsfcpert
        enddo ! n, npsfc
    endif ! npsfc > 0

@@ -1,6 +1,6 @@
 
 !
-! !module: stochy_internal_state_mod 
+! !module: stochy_internal_state_mod
 !                         --- internal state definition of the
 !                             gridded component of the spectral random patterns
 !
@@ -13,15 +13,15 @@
 !
 ! !interface:
 !
-      
+
       module stochy_internal_state_mod
 
 !!uses:
 !------
-      use spectral_layout
+      use spectral_layout_mod
       use stochy_gg_def
       use stochy_resol_def
- 
+
 
       implicit none
       private
@@ -120,7 +120,7 @@
       integer ikey,nrank_all,kcolor
 
       real(kind=kind_dbl_prec) cons0p5,cons1200,cons3600,cons0
-     
+
 !
 ! -----------------------------------------------------
       end type stochy_internal_state		! end type define
