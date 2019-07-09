@@ -1,3 +1,9 @@
+      module glats_stochy_mod
+
+      implicit none
+
+      contains
+
       subroutine glats_stochy(lgghaf,colrad,wgt,wgtcs,rcs2,iprint)
 !
 ! Jan 2013   Henry Juang  increase precision by kind_qdt_prec=16
@@ -100,3 +106,4 @@
       return
       end
 
+      end module glats_stochy_mod

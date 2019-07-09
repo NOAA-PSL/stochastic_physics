@@ -1,12 +1,12 @@
-module stochy_patterngenerator
+module stochy_patterngenerator_mod
 
  ! generate random patterns with specified temporal and spatial auto-correlation
  ! in spherical harmonic space.
  use machine
- use spectral_layout, only: len_trie_ls, len_trio_ls, ls_dim, ls_max_node
+ use spectral_layout_mod, only: len_trie_ls, len_trio_ls, ls_dim, ls_max_node
 ! use mersenne_twister_stochy, only: random_setseed,random_gauss,random_stat
  use mersenne_twister, only: random_setseed,random_gauss,random_stat
- use fv_mp_mod
+ use fv_mp_mod,only: is_master, mp_bcst
  implicit none
  private
 
@@ -31,7 +31,7 @@ module stochy_patterngenerator
  end type random_pattern
 
  integer :: nlons,nlats,ntrunc,ndimspec
-  
+
  contains
 
  subroutine patterngenerator_init(lscale, delt, tscale, stdev, iseed, rpattern,&
@@ -54,16 +54,16 @@ module stochy_patterngenerator
    nlons = nlon
    nlats = nlat
    ntrunc = jcap
-   ndimspec = (ntrunc+1)*(ntrunc+2)/2   
+   ndimspec = (ntrunc+1)*(ntrunc+2)/2
 !  propagate seed supplied from namelist to all patterns...
    if (iseed(1) .NE. 0) then
       do np=2,npatterns
          if (iseed(np).EQ.0) then
-            iseed(np)=iseed(1)+np*100000000 
+            iseed(np)=iseed(1)+np*100000000
          endif
       enddo
    endif
-   
+
    do np=1,npatterns
       allocate(rpattern(np)%idx(0:ntrunc,0:ntrunc))
       allocate(rpattern(np)%idx_e(len_trie_ls))
@@ -247,8 +247,13 @@ module stochy_patterngenerator
       endif
    enddo
  end subroutine getnoise
- 
+
  subroutine patterngenerator_advance(rpattern,k,skeb_first_call)
+
+#ifdef TRANSITION
+!DIR$ OPTIMIZE:1
+#endif
+
     ! advance 1st-order autoregressive process with
     ! specified autocorrelation (phi) and variance spectrum (spectrum)
     real(kind_dbl_prec) :: noise_e(len_trie_ls,2)
@@ -354,4 +359,4 @@ module stochy_patterngenerator
   deallocate(idxin)
 end subroutine chgres_pattern
 
-end module stochy_patterngenerator
+end module stochy_patterngenerator_mod

@@ -1,9 +1,15 @@
+      module get_lats_node_a_stochy_mod
+
+      implicit none
+
+      contains
+
       subroutine get_lats_node_a_stochy(me_fake,global_lats_a,
      &          lats_nodes_a_fake,gl_lats_index,
      &          global_time_sort_index,iprint)
 cc
       use stochy_resol_def
-      use spectral_layout
+      use spectral_layout_mod
       implicit none
 cc
       integer   gl_lats_index,gl_start
@@ -34,7 +40,7 @@ cc
       lat = 1
       nodes_tmp = nodes
 !jw      if (liope .and. icolor .eq. 2) nodes_tmp = nodes -1
- 
+
       gl_start = gl_lats_index
 cc.............................................
       do ijk=1,latg
@@ -72,7 +78,7 @@ c$$$               print*,' setting lats_nodes_a_fake = ',
 c$$$     .         lats_nodes_a_fake
             endif
          enddo
- 
+
       if(iprint.eq.1) print 220
   220 format ('completed loop 200 in  get_lats_a  ')
 c
@@ -82,3 +88,5 @@ c
 cc
       return
       end
+
+      end module get_lats_node_a_stochy_mod

@@ -1,48 +1,79 @@
+module stochastic_physics
 
-subroutine init_stochastic_physics(Model,Init_parm,nblks,Grid)
+implicit none
+
+private
+
+public :: init_stochastic_physics, run_stochastic_physics
+
+contains
+
+subroutine init_stochastic_physics(Model, Init_parm, ntasks, nthreads)
 use fv_mp_mod, only : is_master
 use stochy_internal_state_mod
 use stochy_data_mod, only : nshum,rpattern_shum,init_stochdata,rpattern_sppt,nsppt,rpattern_skeb,nskeb,gg_lats,gg_lons,&
                             rad2deg,INTTYP,wlon,rnlat,gis_stochy,vfact_skeb,vfact_sppt,vfact_shum,skeb_vpts,skeb_vwts,sl
-
-use get_stochy_pattern_mod,only : get_random_pattern_fv3_vect, get_random_pattern_sfc_fv3
 use stochy_resol_def , only : latg,lonf,skeblevs
 use stochy_gg_def,only : colrad_a
 use stochy_namelist_def
 use physcons, only: con_pi
-use spectral_layout,only:me
+use spectral_layout_mod,only:me,ompthreads
 use mpp_mod
-use MPI
-use GFS_typedefs,       only: GFS_control_type, GFS_init_type, GFS_coupling_type, GFS_grid_type
+use GFS_typedefs,       only: GFS_control_type, GFS_init_type
 
 implicit none
 type(GFS_control_type),   intent(inout) :: Model
-type(GFS_init_type),      intent(in) :: Init_parm
-integer,intent(in) :: nblks
-type(GFS_grid_type),      intent(in) :: Grid(nblks)
+type(GFS_init_type),      intent(in)    :: Init_parm
+integer,                  intent(in)    :: ntasks
+integer,                  intent(in)    :: nthreads
+
+integer :: nblks
+integer :: iret
 real*8 :: PRSI(Model%levs),PRSL(Model%levs),dx
 real, allocatable :: skeb_vloc(:)
 integer :: k,kflip,latghf,nodes,blk,k2
 character*2::proc
 
+! Set/update shared variables in spectral_layout_mod
+ompthreads  = nthreads
+
+! ------------------------------------------
+
+nblks = size(Model%blksz)
+
 ! replace
 rad2deg=180.0/con_pi
 INTTYP=0 ! bilinear interpolation
-me=mpp_pe()
-nodes=mpp_npes()
+me=Model%me
+nodes=ntasks
 gis_stochy%me=me
 gis_stochy%nodes=nodes
-call init_stochdata(Model%levs,Model%dtp,Model%input_nml_file,Model%fn_nml,Init_parm%nlunit)
+call init_stochdata(Model%levs,Model%dtp,Model%input_nml_file,Model%fn_nml,Init_parm%nlunit,iret)
 ! check to see decomposition
 !if(Model%isppt_deep == .true.)then
 !do_sppt = .true.
 !endif
-Model%do_sppt=do_sppt
+! check namelist entries for consistency
+if (Model%do_sppt.neqv.do_sppt) then
+   write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
+                   & ' namelist settings do_sppt and sppt'
+   return
+else if (Model%do_shum.neqv.do_shum) then
+   write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
+                   & ' namelist settings do_shum and shum'
+   return
+else if (Model%do_skeb.neqv.do_skeb) then
+   write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
+                   & ' namelist settings do_skeb and skeb'
+   return
+else if (Model%do_sfcperts.neqv.do_sfcperts) then ! mg, sfc-perts
+   write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
+                   & ' namelist settings do_sfcperts and pertz0 / pertshc / pertzt / pertlai / pertvegf / pertalb'
+   return
+end if
+! update remaining model configuration parameters from namelist
 Model%use_zmtnblck=use_zmtnblck
-Model%do_shum=do_shum
-Model%do_skeb=do_skeb
 Model%skeb_npass=skeb_npass
-Model%do_sfcperts=do_sfcperts             ! mg, sfc-perts
 Model%nsfcpert=nsfcpert         ! mg, sfc-perts
 Model%pertz0=pertz0         ! mg, sfc-perts
 Model%pertzt=pertzt         ! mg, sfc-perts
@@ -91,7 +122,7 @@ if (do_skeb) then
       else
           vfact_skeb(k) = 1.0
       endif
-      if (is_master())  print *,'skeb vert profile',k,sl(k),vfact_skeb(k) 
+      if (is_master())  print *,'skeb vert profile',k,sl(k),vfact_skeb(k)
    enddo
 ! calculate vertical interpolation weights
    do k=1,skeblevs
@@ -110,8 +141,8 @@ DO k=2,Model%levs-1
         skeb_vpts(k,1)=k2
         skeb_vwts(k,2)=(skeb_vloc(k2)-sl(k))/(skeb_vloc(k2)-skeb_vloc(k2+1))
       ENDIF
-   ENDDO 
-ENDDO  
+   ENDDO
+ENDDO
 deallocate(skeb_vloc)
 if (is_master()) then
 DO k=1,Model%levs
@@ -157,39 +188,38 @@ RNLAT=gg_lats(1)*2-gg_lats(2)
 
 end subroutine init_stochastic_physics
 
-subroutine run_stochastic_physics(nblks,Model,Grid,Coupling)
+subroutine run_stochastic_physics(Model, Grid, Coupling, nthreads)
 use fv_mp_mod, only : is_master
 use stochy_internal_state_mod
 use stochy_data_mod, only : nshum,rpattern_shum,rpattern_sppt,nsppt,rpattern_skeb,nskeb,&
                             rad2deg,INTTYP,wlon,rnlat,gis_stochy,vfact_sppt,vfact_shum,vfact_skeb
-                            
-use get_stochy_pattern_mod,only : get_random_pattern_fv3,get_random_pattern_fv3_vect,dump_patterns,&
-                                  get_random_pattern_sfc_fv3                                                    ! mg, sfc-perts
+use get_stochy_pattern_mod,only : get_random_pattern_fv3,get_random_pattern_fv3_vect,dump_patterns
 use stochy_resol_def , only : latg,lonf
 use stochy_namelist_def
-use spectral_layout,only:me
+use spectral_layout_mod,only:me,ompthreads
 use mpp_mod
-use MPI
-use GFS_typedefs,       only: GFS_control_type, GFS_grid_type,GFS_Coupling_type
+use GFS_typedefs,       only: GFS_control_type, GFS_grid_type, GFS_Coupling_type
 implicit none
-integer,intent(in) :: nblks
 type(GFS_control_type),   intent(in) :: Model
-type(GFS_grid_type),      intent(in) :: Grid(nblks)
-type(GFS_coupling_type),  intent(inout) :: Coupling(nblks)
+type(GFS_grid_type),      intent(in) :: Grid(:)
+type(GFS_coupling_type),  intent(inout) :: Coupling(:)
+integer,                  intent(in)    :: nthreads
 
 real,allocatable :: tmp_wts(:,:),tmpu_wts(:,:,:),tmpv_wts(:,:,:)
 !D-grid
 integer :: k
 integer j,ierr,i
-integer :: blk, len, maxlen
+integer :: nblks, blk, len, maxlen
 character*120 :: sfile
 character*6   :: STRFH
 
 if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb)  .AND. (.NOT. do_sfcperts) ) return
-maxlen = 0
-DO blk=1,nblks
-   maxlen = max(maxlen,size(Grid(blk)%xlat,1))
-ENDDO
+
+! Update number of threads in shared variables in spectral_layout_mod and set block-related variables
+ompthreads = nthreads
+nblks = size(Model%blksz)
+maxlen = maxval(Model%blksz(:))
+
 ! check to see if it is time to write out random patterns
 if (Model%phour .EQ. fhstoch) then
    write(STRFH,FMT='(I6.6)') nint(Model%phour)
@@ -235,35 +265,46 @@ deallocate(tmpv_wts)
 
 end subroutine run_stochastic_physics
 
-subroutine run_stochastic_physics_sfc(nblks,Model,Grid,Coupling)
+end module stochastic_physics
+
+
+module stochastic_physics_sfc
+
+implicit none
+
+private
+
+public :: run_stochastic_physics_sfc
+
+contains
+
+subroutine run_stochastic_physics_sfc(Model, Grid, Coupling)
 use fv_mp_mod, only : is_master
 use stochy_internal_state_mod
 use stochy_data_mod, only : rad2deg,INTTYP,wlon,rnlat,gis_stochy, rpattern_sfc,npsfc                      ! mg, sfc-perts
 use get_stochy_pattern_mod,only : get_random_pattern_sfc_fv3                                              ! mg, sfc-perts
 use stochy_resol_def , only : latg,lonf
 use stochy_namelist_def
-use spectral_layout,only:me
-use mpp_mod
-use MPI
-use GFS_typedefs,       only: GFS_control_type, GFS_grid_type,GFS_Coupling_type
+!use mpp_mod
+use GFS_typedefs,       only: GFS_control_type, GFS_grid_type, GFS_Coupling_type
 implicit none
-integer,intent(in) :: nblks
 type(GFS_control_type),   intent(in) :: Model
-type(GFS_grid_type),      intent(in) :: Grid(nblks)
-type(GFS_coupling_type),  intent(inout) :: Coupling(nblks)
+type(GFS_grid_type),      intent(in) :: Grid(:)
+type(GFS_coupling_type),  intent(inout) :: Coupling(:)
 
 real,allocatable :: tmpsfc_wts(:,:,:)
 !D-grid
 integer :: k
 integer j,ierr,i
-integer :: blk, len, maxlen
+integer :: nblks, blk, len, maxlen
 character*120 :: sfile
 character*6   :: STRFH
 if (.NOT. do_sfcperts) return
-maxlen = 0
-DO blk=1,nblks
-   maxlen = max(maxlen,size(Grid(blk)%xlat,1))
-ENDDO
+
+! Set block-related variables
+nblks = size(Model%blksz)
+maxlen = maxval(Model%blksz(:))
+
 allocate(tmpsfc_wts(nblks,maxlen,Model%nsfcpert))  ! mg, sfc-perts
 if (is_master()) then
   print*,'In init_stochastic_physics: do_sfcperts ',do_sfcperts
@@ -282,3 +323,5 @@ endif
 deallocate(tmpsfc_wts)
 
 end subroutine run_stochastic_physics_sfc
+
+end module stochastic_physics_sfc

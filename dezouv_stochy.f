@@ -1,10 +1,16 @@
+      module dezouv_stochy_mod
+
+      implicit none
+
+      contains
+
       subroutine dezouv_stochy(dev,zod,uev,vod,epsedn,epsodn,
      &                  snnp1ev,snnp1od,ls_node)
 cc
 
 cc
       use stochy_resol_def
-      use spectral_layout
+      use spectral_layout_mod
       use machine
       implicit none
 cc
@@ -259,3 +265,5 @@ cc
 cc
       return
       end
+
+      end module dezouv_stochy_mod

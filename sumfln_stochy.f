@@ -1,3 +1,9 @@
+      module sumfln_stochy_mod
+
+      implicit none
+
+      contains
+
       subroutine sumfln_stochy(flnev,flnod,lat1s,plnev,plnod,
      &                         nvars,ls_node,latl2,
      &                         workdim,nvarsdim,four_gr,
@@ -7,16 +13,17 @@
      &                         lons_lat,londi,latl,nvars_0)
 !
       use stochy_resol_def , only : jcap,latgd
-      use spectral_layout   , only : len_trie_ls,len_trio_ls,
+      use spectral_layout_mod   , only : len_trie_ls,len_trio_ls,
      &                               ls_dim,ls_max_node,me,nodes
       use machine
-      use fv_mp_mod
-      use mpp_mod
-      use fv_arrays_mod,      only: fv_atmos_type
+      use spectral_layout_mod, only : num_parthds_stochy => ompthreads
+      !or : use fv_mp_mod ?
+      use mpp_mod, only: mpp_npes, mpp_alltoall, mpp_get_current_pelist
 
       implicit none
 !
-      include 'mpif.h'
+      external esmf_dgemm
+!
       integer lat1s(0:jcap),latl2
 !
       integer              nvars,nvars_0
@@ -79,12 +86,11 @@
       include 'function_indlsod'
 !
       real(kind=kind_dbl_prec), parameter ::  cons0=0.0d0, cons1=1.0d0
-      integer num_parthds_stochy
 !
 ! xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 !
       arrsz=2*nvars*ls_dim*workdim*nodes
-      num_threads     = min(NUM_PARTHDS_STOCHY(),nvars)
+      num_threads     = min(num_parthds_stochy,nvars)
       nvar_thread_max = (nvars+num_threads-1)/num_threads
       npes = mpp_npes()
       allocate(pelist(0:npes-1))
@@ -181,7 +187,7 @@ ccxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
         do node = 1, nodes - 1
           ilat_list(node+1) = ilat_list(node) + lats_nodes(node)
         end do
- 
+
 !$omp parallel do private(node,jj,ilat,lat,ipt_ls,nvar,kn,n2)
         do node=1,nodes
           do jj=1,lats_nodes(node)
@@ -240,7 +246,7 @@ ccxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
       end do
       work1dr(1:arrsz)=>workr
       work1ds(1:arrsz)=>works
-      call MPP_ALLTOALL(work1ds, sendcounts, sdispls,
+      call mpp_alltoall(work1ds, sendcounts, sdispls,
      &                  work1dr,recvcounts,sdispls,pelist)
       nullify(work1dr)
       nullify(work1ds)
@@ -289,4 +295,6 @@ ccxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
       enddo
 !
       return
-      end
+      end subroutine sumfln_stochy
+
+      end module sumfln_stochy_mod

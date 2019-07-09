@@ -40,9 +40,9 @@ real,dimension(nxc,nyc) :: normlives
 logical :: ca_global, ca_sgs
 real :: Wpert(nxc,nyc),Cpert(nxc,nyc)
 
-!SGS parameters:                                                                                                               
+!SGS parameters:
 integer(8) :: count, count_rate, count_max, count_trunc
-integer(8) :: iscale = 10000000000                                                                               
+integer(8) :: iscale = 10000000000
 integer :: count5, count6
 type(random_stat) :: rstate
 real :: dt, timescale, sigma, skew, kurt, acorr, gamma
@@ -74,8 +74,8 @@ k_in=1
  if (.not. allocated(field_in))then
  allocate(field_in(nxc*nyc,1))
  endif
- if(.not. allocated(board_halo))then                                                                      
- allocate(board_halo(nxch,nych,1))   
+ if(.not. allocated(board_halo))then
+ allocate(board_halo(nxch,nych,1))
  endif
  if(.not. allocated(Wpert_halo))then
  allocate(Wpert_halo(nxch,nych,1))
@@ -83,43 +83,43 @@ k_in=1
  if(.not. allocated(Cpert_halo))then
  allocate(Cpert_halo(nxch,nych,1))
  endif
- 
- if(ca_sgs == .true.)then  
+
+ if(ca_sgs)then
 
   if(kstep <= 1)then
- 
+
   do j=1,nyc
    do i=1,nxc
     board(i,j,nf) = 0
     lives(i,j,nf) = 0
    enddo
   enddo
- 
+
   endif
 
   if(kstep == 2)then !Initiate CA at kstep 2 as physics field is empty at 0 and 1.
- 
+
   do j=1,nyc
    do i=1,nxc
     board(i,j,nf) = iini(i,j,nf)
     lives(i,j,nf) = ilives(i,j)*iini(i,j,nf)
    enddo
   enddo
- 
+
   endif
 
  !Seed with new CA cells at each nseed step
   if(mod(kstep,nseed) == 0 .and. kstep >= 2)then
- 
+
    do j=1,nyc
     do i=1,nxc
-     board(i,j,nf) = iini(i,j,nf)                                                                              
-     lives(i,j,nf) = ilives(i,j)*iini(i,j,nf)                                                                             
+     board(i,j,nf) = iini(i,j,nf)
+     lives(i,j,nf) = ilives(i,j)*iini(i,j,nf)
     enddo
    enddo
- 
+
   endif
- 
+
   if(kstep == 2)then
   spinup=nspinup
   else
@@ -139,7 +139,7 @@ k_in=1
 
   endif
 
- !Seed with new CA cells at each nseed step                                                                                                                                                                                  
+ !Seed with new CA cells at each nseed step
   if(mod(kstep,nseed) == 0)then
 
    do j=1,nyc
@@ -156,18 +156,18 @@ k_in=1
   else
   spinup = 1
   endif
- 
+
 
  endif !sgs/global
 
 !Step 1 - Solve the stochastic gaussian skewed SGS equation in order to generate
 !perturbations to the grid mean model fields.
 
-if (ca_sgs == .true.) then
-!Compute the SGS and perturb the vertical velocity field:                                                                                                          
-!Read these values in from namelist, guided from LES data:                                                                                                                            
+if (ca_sgs) then
+!Compute the SGS and perturb the vertical velocity field:
+!Read these values in from namelist, guided from LES data:
 
-dt=900.                                                                                                                                                                   
+dt=900.
 timescale=21600.0
 sigma=0.8
 skew=0.8
@@ -176,7 +176,7 @@ acorr=exp(-dt/timescale)
 gamma=-log(acorr)/dt
 
 !calculate coeffients for SGS with auto-correlation and use
-!these for predictor-correcting time stepping                                                                                                                                                                  
+!these for predictor-correcting time stepping
 E_sq2=2.0*gamma/3.0*(kurt-3.0/2.0*skew**2.)/(kurt-skew**2.+2.)
 E2=sqrt(E_sq2)
 g2D=skew*sigma*(gamma-E_sq2)/(2.0*E2)
@@ -194,17 +194,17 @@ endif
 
 do it=1,spinup
 
-if (ca_sgs == .true.) then
+if (ca_sgs) then
 
- !Random seed for SGS                                                                                                        
+ !Random seed for SGS
  noise1D1 = 0.0
  noise1D2 = 0.0
-                                                                               
+
  call system_clock(count, count_rate, count_max)
  count_trunc = iscale*(count/iscale)
  count5 = count - count_trunc
  count6=count5+9827
- !broadcast to all tasks                                                                                                                                                                                        
+ !broadcast to all tasks
  call mp_bcst(count5)
  call mp_bcst(count6)
 
@@ -213,7 +213,7 @@ if (ca_sgs == .true.) then
 
  call random_setseed(count6,rstate)
  call random_gauss(noise1D2,rstate)
- !Put on 2D:                                                                                                                                                                                                    
+ !Put on 2D:
  do j=1,nyc
   do i=1,nxc
   NOISE_A(i,j)=noise1D1(i+(j-1)*nxc)
@@ -260,7 +260,7 @@ else
       sgs2(i,j,nf)=sgs2(i,j,nf)-(flamx2*tmp1a+0.5*E2*g2D(i,j))*dt + (B2*NOISE_A(i,j)*sqrtdt) &
           + (g2D(i,j) + E2 * tmp1a  )* NOISE_B(i,j)*sqrtdt
 
-      Wpert(i,j)=vertvelhigh(i,j)*(1.0 + sgs2(i,j,nf))                                                                                                                                                                                               
+      Wpert(i,j)=vertvelhigh(i,j)*(1.0 + sgs2(i,j,nf))
   enddo
  enddo
 
@@ -268,9 +268,9 @@ endif
 
 endif !ca sgs true
 
- 
+
 !Step 2 - Initialize variables to 0 and extract the halo
- 
+
  neighbours=0
  birth=0
  newlives=0
@@ -284,22 +284,22 @@ endif !ca sgs true
  Cpert_halo=0
  field_in=0
 
-!The input to scalar_field_halo needs to be 1D.                                                          
+!The input to scalar_field_halo needs to be 1D.
 !take the updated board fields and extract the halo
-! in order to have updated values in the halo region. 
+! in order to have updated values in the halo region.
 
- if(ca_global ==.true.)then 
-  do j=1,nyc                                                                        
-   do i=1,nxc                                                                                           
-   field_in(i+(j-1)*nxc,1)=board(i,j,nf)                                                                
-   enddo                                                                                                
-  enddo                                                                                                  
-!Step 3 - Extract the halo                                              
+ if(ca_global)then
+  do j=1,nyc
+   do i=1,nxc
+   field_in(i+(j-1)*nxc,1)=board(i,j,nf)
+   enddo
+  enddo
+!Step 3 - Extract the halo
   call atmosphere_scalar_field_halo(board_halo,halo,nxch,nych,k_in,field_in)
  endif
- 
 
- if(ca_sgs==.true.)then
+
+ if(ca_sgs)then
   field_in=0
   do j=1,nyc
    do i=1,nxc
@@ -307,7 +307,7 @@ endif !ca sgs true
    enddo
   enddo
 
-  call atmosphere_scalar_field_halo(Wpert_halo,halo,nxch,nych,k_in,field_in)  
+  call atmosphere_scalar_field_halo(Wpert_halo,halo,nxch,nych,k_in,field_in)
 
   field_in=0
   do j=1,nyc
@@ -323,9 +323,9 @@ endif !ca sgs true
 
 
 !Step 4 - Compute the neighbourhood
-if(ca_sgs == .true.)then !SGSmethod
+if(ca_sgs)then !SGSmethod
 
- !Count the number of neighbours where perturbed massflux is larger than 
+ !Count the number of neighbours where perturbed massflux is larger than
  !a threshold
 
 
@@ -386,7 +386,7 @@ endif !nf
   enddo
  enddo
 
- 
+
 !CA stand alone method
 else !global
 
@@ -403,7 +403,7 @@ else !global
 endif  !sgs/global
 ! Step 5 - Check rules; the birth condition differs between SGS and GOL method
 
-if(ca_sgs == .true.)then !SGS
+if(ca_sgs)then !SGS
 
  if(nf==1)then
  do j=1,nyc
@@ -483,7 +483,7 @@ endif
    enddo
   enddo
 
- if(ca_sgs == .true.)then
+ if(ca_sgs)then
   do j=1,nyc
    do i=1,nxc
     lives(i,j,nf)=lives(i,j,nf)+newcell(i,j)*ilives(i,j)
@@ -510,7 +510,7 @@ endif
 enddo !spinup
 
 !COARSE-GRAIN BACK TO NWP GRID
- 
+
   inci=ncells
   incj=ncells
   sub=ncells-1
@@ -526,24 +526,24 @@ enddo !spinup
 lives_max=maxval(ilives)
 call mp_reduce_max(lives_max)
 
-  if(ca_sgs == .true.)then
+  if(ca_sgs)then
    CA(:,:) = (frac(:,:)/lives_max)
   else !global
    CA(:,:) = (frac(:,:)/real(nlives))
   endif
 
 
-if(nca_plumes == .true.) then
+if(nca_plumes) then
 !COMPUTE NUMBER OF CLUSTERS (CONVECTIVE PLUMES) IN EACH CA-CELL
 !Note, at the moment we only use the count of the plumes found in a grid-cell
-!In the future the routine "plumes" can also be used to give the size of 
+!In the future the routine "plumes" can also be used to give the size of
 !each individual plume for better coupling to the convection scheme.
 
   temp=0
   do j=1,nyc
    do i=1,nxc
      if(lives(i,j,1) > 0)then
-      temp(i,j)=1  
+      temp(i,j)=1
      endif
    enddo
   enddo
@@ -555,7 +555,7 @@ if(nca_plumes == .true.) then
   if (.not. allocated(L))then
   allocate(L(kend))
   endif
-  
+
   ca_plumes(:,:)=0
   inci=ncells
   incj=ncells

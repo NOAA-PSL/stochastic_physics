@@ -1,8 +1,14 @@
+      module epslon_stochy_mod
+
+      implicit none
+
+      contains
+
       subroutine epslon_stochy(epse,epso,epsedn,epsodn,
      &                  ls_node)
 cc
       use stochy_resol_def
-      use spectral_layout
+      use spectral_layout_mod
       use machine
       implicit none
 cc
@@ -83,3 +89,5 @@ cc
 cc
       return
       end
+
+      end module epslon_stochy_mod

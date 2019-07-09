@@ -18,20 +18,20 @@ implicit none
 !L.Bengtsson, 2017-06
 
 !This program evolves a cellular automaton uniform over the globe given
-!the flag ca_global, if instead ca_sgs is .true. it evolves a cellular automata conditioned on 
-!perturbed grid-box mean field. The perturbations to the mean field are given by a 
+!the flag ca_global, if instead ca_sgs is .true. it evolves a cellular automata conditioned on
+!perturbed grid-box mean field. The perturbations to the mean field are given by a
 !stochastic gaussian skewed (SGS) distribution.
 
 !If ca_global is .true. it weighs the number of ca (nca) together to produce 1 output pattern
-!If instead ca_sgs is given, it produces nca ca:                                                                                                                                                                            
-! 1 CA_DEEP = deep convection                                                                                                                                                                                               
-! 2 CA_SHAL = shallow convection                                                                                                                                                                                            
-! 3 CA_TURB = turbulence                                                                                                                                                                                                    
-! 4 CA_RAD = radiation                                                                                                                                                                                                      
-! 5 CA_MICRO = microphysics 
+!If instead ca_sgs is given, it produces nca ca:
+! 1 CA_DEEP = deep convection
+! 2 CA_SHAL = shallow convection
+! 3 CA_TURB = turbulence
+! 4 CA_RAD = radiation
+! 5 CA_MICRO = microphysics
 
-!PLEASE NOTE: This is considered to be version 0 of the cellular automata code for FV3GFS, some functionally 
-!is missing/limited. 
+!PLEASE NOTE: This is considered to be version 0 of the cellular automata code for FV3GFS, some functionally
+!is missing/limited.
 
 integer,intent(in) :: kstep,ncells,nca,nlives,nseed,iseed_ca,nspinup
 real,intent(in) :: nfracseed,nthresh
@@ -63,12 +63,12 @@ logical              :: nca_plumes
 
 !nca         :: switch for number of cellular automata to be used.
 !ca_global   :: switch for global cellular automata
-!ca_sgs      :: switch for cellular automata conditioned on SGS perturbed vertvel. 
+!ca_sgs      :: switch for cellular automata conditioned on SGS perturbed vertvel.
 !nfracseed   :: switch for number of random cells initially seeded
 !nlives      :: switch for maximum number of lives a cell can have
 !nspinup     :: switch for number of itterations to spin up the ca
-!ncells      :: switch for higher resolution grid e.g ncells=4 
-!               gives 4x4 times the FV3 model grid resolution.                
+!ncells      :: switch for higher resolution grid e.g ncells=4
+!               gives 4x4 times the FV3 model grid resolution.
 !ca_smooth   :: switch to smooth the cellular automata
 !nthresh     :: threshold of perturbed vertical velocity used in case of sgs
 !nca_plumes   :: compute number of CA-cells ("plumes") within a NWP gridbox.
@@ -96,12 +96,12 @@ nca_plumes = .false.
  stop
  endif
 
- if(ca_global == .true. .and. ca_sgs == .true.)then
+ if(ca_global .and. ca_sgs)then
  write(0,*)'Namelist options ca_global and ca_sgs cannot both be true - exiting'
  stop
  endif
 
- if(ca_sgs == .true. .and. ca_smooth == .true.)then
+ if(ca_sgs .and. ca_smooth)then
  write(0,*)'Currently ca_smooth does not work with ca_sgs - exiting'
  stop
  endif
@@ -109,15 +109,15 @@ nca_plumes = .false.
  call atmosphere_resolution (nlon, nlat, global=.false.)
  isize=nlon+2*halo
  jsize=nlat+2*halo
- !nlon,nlat is the compute domain - without haloes       
- !mlon,mlat is the cubed-sphere tile size. 
+ !nlon,nlat is the compute domain - without haloes
+ !mlon,mlat is the cubed-sphere tile size.
 
  inci=ncells
  incj=ncells
- 
+
  nxc=nlon*ncells
  nyc=nlat*ncells
- 
+
  nxch=nxc+2*halo
  nych=nyc+2*halo
 
@@ -148,22 +148,22 @@ nca_plumes = .false.
  allocate(CAavg(nlon,nlat))
  allocate(CA_TURB(nlon,nlat))
  allocate(CA_RAD(nlon,nlat))
- allocate(CA_DEEP(nlon,nlat)) 
+ allocate(CA_DEEP(nlon,nlat))
  allocate(CA_MICRO(nlon,nlat))
  allocate(CA_SHAL(nlon,nlat))
  allocate(noise(nxc,nyc,nca))
  allocate(noise1D(nxc*nyc))
-  
+
  !Initialize:
  Detfield(:,:,:)=0.
  vertvelmean(:,:) =0.
  vertvelsum(:,:)=0.
- cloud(:,:)=0. 
+ cloud(:,:)=0.
  humidity(:,:)=0.
  condition(:,:)=0.
  cape(:,:)=0.
  vertvelhigh(:,:)=0.
- noise(:,:,:) = 0.0 
+ noise(:,:,:) = 0.0
  noise1D(:) = 0.0
  iini(:,:,:) = 0
  ilives(:,:) = 0
@@ -175,7 +175,7 @@ nca_plumes = .false.
  CA_DEEP(:,:) = 0.0
  CA_MICRO(:,:) = 0.0
  CA_SHAL(:,:) = 0.0
- 
+
 !Put the blocks of model fields into a 2d array
  levs=nlev
  blocksz=blocksize
@@ -187,16 +187,16 @@ nca_plumes = .false.
   isc = Atm_block%isc
   iec = Atm_block%iec
   jsc = Atm_block%jsc
-  jec = Atm_block%jec 
+  jec = Atm_block%jec
 
  do blk = 1,Atm_block%nblks
   do ix = 1, Atm_block%blksz(blk)
       i = Atm_block%index(blk)%ii(ix) - isc + 1
       j = Atm_block%index(blk)%jj(ix) - jsc + 1
-      cape(i,j) = Coupling(blk)%cape(ix) 
+      cape(i,j) = Coupling(blk)%cape(ix)
       surfp(i,j) = Statein(blk)%pgr(ix)
       humidity(i,j)=Statein(blk)%qgrs(ix,k850,1) !about 850 hpa
-      do k = 1,k350 !Lower troposphere: level k350 is about 350hPa 
+      do k = 1,k350 !Lower troposphere: level k350 is about 350hPa
       omega(i,j,k) = Statein(blk)%vvl(ix,k) ! layer mean vertical velocity in pa/sec
       pressure(i,j,k) = Statein(blk)%prsl(ix,k) ! layer mean pressure in Pa
       enddo
@@ -235,7 +235,7 @@ do nf=1,nca
     ! iseed is elapsed time since unix epoch began (secs)
     ! truncate to 4 byte integer
     count_trunc = iscale*(count/iscale)
-    count4 = count - count_trunc + nf*ra 
+    count4 = count - count_trunc + nf*ra
   else
     ! don't rely on compiler to truncate integer(8) to integer(4) on
     ! overflow, do wrap around explicitly.
@@ -254,7 +254,7 @@ do nf=1,nca
 
 
 !Initiate the cellular automaton with random numbers larger than nfracseed
- 
+
    do j = 1,nyc
     do i = 1,nxc
      if (noise(i,j,nf) > nfracseed ) then
@@ -266,7 +266,7 @@ do nf=1,nca
    enddo
 
  enddo !nf
- 
+
 !In case we want to condition the cellular automaton on a large scale field
 !we here set the "condition" variable to a different model field depending
 !on nf. (this is not used if ca_global = .true.)
@@ -274,15 +274,15 @@ do nf=1,nca
 CAstore = 0.
 
 do nf=1,nca !update each ca
- 
- if(ca_sgs == .true.)then
 
-  if(nf==1)then 
+ if(ca_sgs)then
+
+  if(nf==1)then
   inci=ncells
   incj=ncells
   do j=1,nyc
    do i=1,nxc
-     condition(i,j)=cape(inci/ncells,incj/ncells) 
+     condition(i,j)=cape(inci/ncells,incj/ncells)
      if(i.eq.inci)then
      inci=inci+ncells
      endif
@@ -317,7 +317,7 @@ do nf=1,nca !update each ca
 
    do j = 1,nyc
     do i = 1,nxc
-      ilives(i,j)=int(real(nlives)*alpha*noise(i,j,nf))                                                                                                                                               
+      ilives(i,j)=int(real(nlives)*alpha*noise(i,j,nf))
     enddo
    enddo
 
@@ -367,7 +367,7 @@ do nf=1,nca !update each ca
 
   else
    inci=ncells
-   incj=ncells 
+   incj=ncells
   do j=1,nyc
    do i=1,nxc
      condition(i,j)=cape(inci/ncells,incj/ncells)
@@ -390,7 +390,7 @@ do nf=1,nca !update each ca
 
  endif !nf
 
-  
+
 !Vertical velocity has its own variable in order to condition on combination
 !of "condition" and vertical velocity.
 
@@ -420,16 +420,16 @@ do nf=1,nca !update each ca
 
  endif !sgs/global
 
-!Calculate neighbours and update the automata                                                                                                                                                            
-!If ca-global is used, then nca independent CAs are called and weighted together to create one field; CA                                                                                                                                                                                                                                  
+!Calculate neighbours and update the automata
+!If ca-global is used, then nca independent CAs are called and weighted together to create one field; CA
 
   call update_cells(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,CA,ca_plumes,iini,ilives, &
                    nlives, ncells, nfracseed, nseed,nthresh, ca_global, &
                    ca_sgs,nspinup, condition, vertvelhigh,nf,nca_plumes)
- 
-  if(ca_global == .true.)then
+
+  if(ca_global)then
   CAstore(:,:) = CAstore(:,:) + CA(:,:)
-  elseif(ca_sgs == .true.)then
+  elseif(ca_sgs)then
    if(nf==1)then
    CA_DEEP(:,:)=CA(:,:)
    elseif(nf==2)then
@@ -447,13 +447,13 @@ do nf=1,nca !update each ca
 
  enddo !nf (nca)
 
- if(ca_global == .true.)then
+ if(ca_global)then
  CAavg = CAstore / real(nca)
  endif
 
 !smooth CA field
 
-if (ca_smooth ==.true. .and. ca_global ==.true.) then
+if (ca_smooth .and. ca_global) then
 field_in=0.
 
 !get halo
@@ -471,7 +471,7 @@ do j=1,nlat
  do i=1,nlon
     ih=i+halo
     jh=j+halo
-    field_smooth(i,j)=(4.0*field_out(ih,jh,1)+2.0*field_out(ih-1,jh,1)+ & 
+    field_smooth(i,j)=(4.0*field_out(ih,jh,1)+2.0*field_out(ih-1,jh,1)+ &
                        2.0*field_out(ih,jh-1,1)+2.0*field_out(ih+1,jh,1)+&
                        2.0*field_out(ih,jh+1,1)+2.0*field_out(ih-1,jh-1,1)+&
                        2.0*field_out(ih-1,jh+1,1)+2.0*field_out(ih+1,jh+1,1)+&
@@ -527,7 +527,7 @@ endif !smooth
 !endif
 
 !Set the range for the nca individual ca_sgs patterns:
-if(ca_sgs ==.true.)then
+if(ca_sgs)then
 
 Detmax(1)=maxval(CA_DEEP(:,:))
 call mp_reduce_max(Detmax(1))
@@ -535,7 +535,7 @@ call mp_reduce_max(Detmax(1))
 do j=1,nlat
  do i=1,nlon
   if(CA_DEEP(i,j)>0.)then
-  CA_DEEP(i,j)=CA_DEEP(i,j)/Detmax(1) !Now the range goes from 0-1                                                                                        
+  CA_DEEP(i,j)=CA_DEEP(i,j)/Detmax(1) !Now the range goes from 0-1
   endif
  enddo
 enddo
@@ -560,7 +560,7 @@ CAmean=psum/csum
 do j=1,nlat
  do i=1,nlon
  if(CA_DEEP(i,j)>0.)then
- CA_DEEP(i,j)=(CA_DEEP(i,j)-CAmean) !Can we compute the median? 
+ CA_DEEP(i,j)=(CA_DEEP(i,j)-CAmean) !Can we compute the median?
  endif
  enddo
 enddo
@@ -568,8 +568,8 @@ enddo
 !!!
 
 
-!This is used for coupling with the Chikira-Sugiyama deep 
-!cumulus scheme. 
+!This is used for coupling with the Chikira-Sugiyama deep
+!cumulus scheme.
 do j=1,nlat
  do i=1,nlon
  if(ca_plumes(i,j)==0)then
@@ -582,7 +582,7 @@ endif
 
 !Put back into blocks 1D array to be passed to physics
 !or diagnostics output
-  
+
   do blk = 1, Atm_block%nblks
   do ix = 1,Atm_block%blksz(blk)
      i = Atm_block%index(blk)%ii(ix) - isc + 1

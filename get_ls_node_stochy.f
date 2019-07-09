@@ -1,8 +1,14 @@
+      module get_ls_node_stochy_mod
+
+      implicit none
+
+      contains
+
       subroutine get_ls_node_stochy(me_fake,ls_node,ls_max_node_fake,
      c    iprint)
 !
       use stochy_resol_def
-      use spectral_layout
+      use spectral_layout_mod
       implicit none
 !
       integer   me_fake, ls_max_node_fake, iprint
@@ -71,3 +77,5 @@
 !
       return
       end
+
+      end module get_ls_node_stochy_mod

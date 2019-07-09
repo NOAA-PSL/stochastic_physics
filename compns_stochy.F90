@@ -1,3 +1,9 @@
+module compns_stochy_mod
+
+   implicit none
+
+   contains
+
 !-----------------------------------------------------------------------
       subroutine compns_stochy (me,sz_nml,input_nml_file,fn_nml,nlunit,deltim,iret)
 !$$$  Subprogram Documentation Block
@@ -27,12 +33,12 @@
 !
 !$$$
 
-      
+
       use stochy_namelist_def
-      
+
       implicit none
 
- 
+
       integer,              intent(out) :: iret
       integer,              intent(in)  :: nlunit,me,sz_nml
       character(len=*),     intent(in)  :: input_nml_file(sz_nml)
@@ -44,7 +50,7 @@
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !
       namelist /nam_stochy/ntrunc,lon_s,lat_s,sppt,sppt_tau,sppt_lscale,sppt_logit, &
-      iseed_shum,iseed_sppt,shum,shum_tau,& 
+      iseed_shum,iseed_sppt,shum,shum_tau,&
       shum_lscale,fhstoch,stochini,skeb_varspect_opt,sppt_sfclimit, &
       skeb,skeb_tau,skeb_vdof,skeb_lscale,iseed_skeb,skeb_vfilt,skeb_diss_smooth, &
       skeb_sigtop1,skeb_sigtop2,skebnorm,sppt_sigtop1,sppt_sigtop2,&
@@ -62,7 +68,7 @@
       sppt             = -999.  ! stochastic physics tendency amplitude
       shum             = -999.  ! stochastic boundary layer spf hum amp
       skeb             = -999.  ! stochastic KE backscatter amplitude
-      ! mg, sfcperts 
+      ! mg, sfcperts
       pertz0           = -999.  ! momentum roughness length amplitude
       pertshc          = -999.  ! soil hydraulic conductivity amp
       pertzt           = -999.  ! mom/heat roughness length amplitude
@@ -199,3 +205,5 @@
 !
       return
       end subroutine compns_stochy
+
+end module compns_stochy_mod
