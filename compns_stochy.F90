@@ -54,8 +54,8 @@ module compns_stochy_mod
       shum_lscale,fhstoch,stochini,skeb_varspect_opt,sppt_sfclimit, &
       skeb,skeb_tau,skeb_vdof,skeb_lscale,iseed_skeb,skeb_vfilt,skeb_diss_smooth, &
       skeb_sigtop1,skeb_sigtop2,skebnorm,sppt_sigtop1,sppt_sigtop2,&
-      shum_sigefold,skebint,skeb_npass,use_zmtnblck
-      namelist /nam_sfcperts/nsfcpert,pertz0,pertshc,pertzt,pertlai, & ! mg, sfcperts
+      shum_sigefold,spptint,shumint,skebint,skeb_npass,use_zmtnblck,new_lscale
+      namelist /nam_sfcperts/pertz0,pertshc,pertzt,pertlai, & ! mg, sfcperts
       pertvegf,pertalb,iseed_sfc,sfc_tau,sfc_lscale,sppt_land
 
       tol=0.01  ! tolerance for calculations
@@ -76,14 +76,14 @@ module compns_stochy_mod
       pertvegf         = -999.  ! vegetation fraction amplitude
       pertalb          = -999.  ! albedo perturbations amplitude
 ! logicals
-      do_sppt = .false.
+!      do_sppt = .false.
       use_zmtnblck = .false.
-      do_shum = .false.
-      do_skeb = .false.
+      new_lscale = .false.
+!      do_shum = .false.
+!      do_skeb = .false.
       ! mg, sfcperts
-      do_sfcperts = .false.
+!      do_sfcperts = .false.
       sppt_land = .false.
-      nsfcpert = 0
 ! for sfcperts random patterns
       sfc_lscale  = -999.       ! length scales
       sfc_tau     = -999.       ! time scales
@@ -91,6 +91,8 @@ module compns_stochy_mod
 ! for SKEB random patterns.
       skeb_vfilt       = 0
       skebint          = 0
+      spptint          = 0
+      shumint          = 0
       skeb_npass       = 11  ! number of passes of smoother for dissipation estiamte
       sppt_tau         = -999.  ! time scales
       shum_tau         = -999.
@@ -141,11 +143,11 @@ module compns_stochy_mod
       endif
 
 ! PJP stochastic physics additions
-      IF (sppt(1) > 0 ) THEN
-        do_sppt=.true.
-      ENDIF
+      !IF (sppt(1) > 0 ) THEN
+      !  do_sppt=.true.
+      !ENDIF
       IF (shum(1) > 0 ) THEN
-        do_shum=.true.
+      !  do_shum=.true.
 !     shum parameter has units of 1/hour, to remove time step
 !     dependence.
 !     change shum parameter units from per hour to per timestep
@@ -154,7 +156,7 @@ module compns_stochy_mod
          ENDDO
       ENDIF
       IF (skeb(1) > 0 ) THEN
-         do_skeb=.true.
+      !   do_skeb=.true.
          if (skebnorm==0) then ! stream function norm
             skeb=skeb*1.111e3*sqrt(deltim)
             !skeb=skeb*5.0e5/sqrt(deltim)
@@ -185,22 +187,36 @@ module compns_stochy_mod
         iret=9
         return
       ENDIF
+      IF (spptint == 0.) spptint=deltim
+      nssppt=nint(spptint/deltim)                              ! spptint in seconds
+      IF(nssppt<=0 .or. abs(nssppt-spptint/deltim)>tol) THEN
+         WRITE(0,*) "SPPT interval is invalid",spptint
+        iret=9
+        return
+      ENDIF
+      IF (shumint == 0.) shumint=deltim
+      nsshum=nint(shumint/deltim)                              ! shumint in seconds
+      IF(nsshum<=0 .or. abs(nsshum-shumint/deltim)>tol) THEN
+         WRITE(0,*) "SHUM interval is invalid",shumint
+        iret=9
+        return
+      ENDIF
 ! mg, sfcperts
       IF (pertz0(1) > 0 .OR. pertshc(1) > 0 .OR. pertzt(1) > 0 .OR. &
           pertlai(1) > 0 .OR. pertvegf(1) > 0 .OR. pertalb(1) > 0) THEN
-        do_sfcperts=.true.
+!        do_sfcperts=.true.
       ENDIF
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !
 !  All checks are successful.
 !
-      if (me == 0) then
-         print *, 'stochastic physics'
-         print *, ' do_sppt : ', do_sppt
-         print *, ' do_shum : ', do_shum
-         print *, ' do_skeb : ', do_skeb
-         print *, ' do_sfcperts : ', do_sfcperts
-      endif
+!      if (me == 0) then
+!         print *, 'stochastic physics'
+!         print *, ' do_sppt : ', do_sppt
+!         print *, ' do_shum : ', do_shum
+!         print *, ' do_skeb : ', do_skeb
+!         print *, ' do_sfcperts : ', do_sfcperts
+!      endif
       iret = 0
 !
       return
