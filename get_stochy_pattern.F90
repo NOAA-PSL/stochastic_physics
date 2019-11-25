@@ -83,7 +83,6 @@ subroutine get_random_pattern_fv3(rpattern,npatterns,&
    call mp_reduce_sum(workg,lonf,latg)
 
 ! interpolate to cube grid
-
    allocate(rslmsk(lonf,latg))
    do blk=1,nblks
       len=size(Grid(blk)%xlat,1)

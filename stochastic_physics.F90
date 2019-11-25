@@ -238,34 +238,40 @@ allocate(tmp_wts(nblks,maxlen))
 allocate(tmpu_wts(nblks,maxlen,Model%levs))
 allocate(tmpv_wts(nblks,maxlen,Model%levs))
 if (Model%do_sppt) then
-   call get_random_pattern_fv3(rpattern_sppt,nsppt,gis_stochy,Model,Grid,nblks,maxlen,tmp_wts)
-   DO blk=1,nblks
-      len=size(Grid(blk)%xlat,1)
-      DO k=1,Model%levs
-         Coupling(blk)%sppt_wts(:,k)=tmp_wts(blk,1:len)*vfact_sppt(k)
+   if (mod(Model%kdt,nssppt) == 1 .or. nssppt == 1) then
+      call get_random_pattern_fv3(rpattern_sppt,nsppt,gis_stochy,Model,Grid,nblks,maxlen,tmp_wts)
+      DO blk=1,nblks
+         len=size(Grid(blk)%xlat,1)
+         DO k=1,Model%levs
+            Coupling(blk)%sppt_wts(:,k)=tmp_wts(blk,1:len)*vfact_sppt(k)
+         ENDDO
+         if (sppt_logit) Coupling(blk)%sppt_wts(:,:) = (2./(1.+exp(Coupling(blk)%sppt_wts(:,:))))-1.
+          Coupling(blk)%sppt_wts(:,:)= Coupling(blk)%sppt_wts(:,:)+1.0
       ENDDO
-      if (sppt_logit) Coupling(blk)%sppt_wts(:,:) = (2./(1.+exp(Coupling(blk)%sppt_wts(:,:))))-1.
-       Coupling(blk)%sppt_wts(:,:)= Coupling(blk)%sppt_wts(:,:)+1.0
-   ENDDO
+   endif
 endif
 if (Model%do_shum) then
-   call get_random_pattern_fv3(rpattern_shum,nshum,gis_stochy,Model,Grid,nblks,maxlen,tmp_wts)
-   DO blk=1,nblks
-      len=size(Grid(blk)%xlat,1)
-      DO k=1,Model%levs
-         Coupling(blk)%shum_wts(:,k)=tmp_wts(blk,1:len)*vfact_shum(k)
+   if (mod(Model%kdt,nsshum) == 1 .or. nsshum == 1) then
+      call get_random_pattern_fv3(rpattern_shum,nshum,gis_stochy,Model,Grid,nblks,maxlen,tmp_wts)
+      DO blk=1,nblks
+         len=size(Grid(blk)%xlat,1)
+         DO k=1,Model%levs
+            Coupling(blk)%shum_wts(:,k)=tmp_wts(blk,1:len)*vfact_shum(k)
+         ENDDO
       ENDDO
-   ENDDO
+   endif
 endif
 if (Model%do_skeb) then
-   call get_random_pattern_fv3_vect(rpattern_skeb,nskeb,gis_stochy,Model,Grid,nblks,maxlen,tmpu_wts,tmpv_wts)
-   DO blk=1,nblks
-      len=size(Grid(blk)%xlat,1)
-      DO k=1,Model%levs
-         Coupling(blk)%skebu_wts(:,k)=tmpu_wts(blk,1:len,k)*vfact_skeb(k)
-         Coupling(blk)%skebv_wts(:,k)=tmpv_wts(blk,1:len,k)*vfact_skeb(k)
+   if (mod(Model%kdt,nsskeb) == 1 .or. nsskeb == 1) then
+      call get_random_pattern_fv3_vect(rpattern_skeb,nskeb,gis_stochy,Model,Grid,nblks,maxlen,tmpu_wts,tmpv_wts)
+      DO blk=1,nblks
+         len=size(Grid(blk)%xlat,1)
+         DO k=1,Model%levs
+            Coupling(blk)%skebu_wts(:,k)=tmpu_wts(blk,1:len,k)*vfact_skeb(k)
+            Coupling(blk)%skebv_wts(:,k)=tmpv_wts(blk,1:len,k)*vfact_skeb(k)
+         ENDDO
       ENDDO
-   ENDDO
+   endif
 endif
 deallocate(tmp_wts)
 deallocate(tmpu_wts)
