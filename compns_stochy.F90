@@ -54,7 +54,7 @@ module compns_stochy_mod
       shum_lscale,fhstoch,stochini,skeb_varspect_opt,sppt_sfclimit, &
       skeb,skeb_tau,skeb_vdof,skeb_lscale,iseed_skeb,skeb_vfilt,skeb_diss_smooth, &
       skeb_sigtop1,skeb_sigtop2,skebnorm,sppt_sigtop1,sppt_sigtop2,&
-      shum_sigefold,skebint,skeb_npass,use_zmtnblck
+      shum_sigefold,spptint,shumint,skebint,skeb_npass,use_zmtnblck,new_lscale
       namelist /nam_sfcperts/nsfcpert,pertz0,pertshc,pertzt,pertlai, & ! mg, sfcperts
       pertvegf,pertalb,iseed_sfc,sfc_tau,sfc_lscale,sppt_land
 
@@ -78,6 +78,7 @@ module compns_stochy_mod
 ! logicals
       do_sppt = .false.
       use_zmtnblck = .false.
+      new_lscale = .false.
       do_shum = .false.
       do_skeb = .false.
       ! mg, sfcperts
@@ -91,6 +92,8 @@ module compns_stochy_mod
 ! for SKEB random patterns.
       skeb_vfilt       = 0
       skebint          = 0
+      spptint          = 0
+      shumint          = 0
       skeb_npass       = 11  ! number of passes of smoother for dissipation estiamte
       sppt_tau         = -999.  ! time scales
       shum_tau         = -999.
@@ -182,6 +185,20 @@ module compns_stochy_mod
       nsskeb=nint(skebint/deltim)                              ! skebint in seconds
       IF(nsskeb<=0 .or. abs(nsskeb-skebint/deltim)>tol) THEN
          WRITE(0,*) "SKEB interval is invalid",skebint
+        iret=9
+        return
+      ENDIF
+      IF (spptint == 0.) spptint=deltim
+      nssppt=nint(spptint/deltim)                              ! spptint in seconds
+      IF(nssppt<=0 .or. abs(nssppt-spptint/deltim)>tol) THEN
+         WRITE(0,*) "SPPT interval is invalid",spptint
+        iret=9
+        return
+      ENDIF
+      IF (shumint == 0.) shumint=deltim
+      nsshum=nint(shumint/deltim)                              ! shumint in seconds
+      IF(nsshum<=0 .or. abs(nsshum-shumint/deltim)>tol) THEN
+         WRITE(0,*) "SHUM interval is invalid",shumint
         iret=9
         return
       ENDIF
