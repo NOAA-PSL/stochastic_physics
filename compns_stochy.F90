@@ -84,6 +84,7 @@ module compns_stochy_mod
       ! mg, sfcperts
       do_sfcperts = .false.
       sppt_land = .false.
+      nsfcpert = 0
 ! for sfcperts random patterns
       sfc_lscale  = -999.       ! length scales
       sfc_tau     = -999.       ! time scales

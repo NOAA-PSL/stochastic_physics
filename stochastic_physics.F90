@@ -78,13 +78,14 @@ end if
 ! update remaining model configuration parameters from namelist
 Model%use_zmtnblck=use_zmtnblck
 Model%skeb_npass=skeb_npass
+Model%nsfcpert=nsfcpert         ! mg, sfc-perts
 Model%pertz0=pertz0         ! mg, sfc-perts
 Model%pertzt=pertzt         ! mg, sfc-perts
 Model%pertshc=pertshc         ! mg, sfc-perts
 Model%pertlai=pertlai         ! mg, sfc-perts
 Model%pertalb=pertalb         ! mg, sfc-perts
 Model%pertvegf=pertvegf         ! mg, sfc-perts
-!if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb)  .AND. (.NOT. do_sfcperts) ) return
+if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb)  .AND. (.NOT. do_sfcperts) ) return
 allocate(sl(Model%levs))
 do k=1,Model%levs
    sl(k)= 0.5*(Init_parm%ak(k)/101300.+Init_parm%bk(k)+Init_parm%ak(k+1)/101300.0+Init_parm%bk(k+1)) ! si are now sigmas
@@ -220,8 +221,7 @@ integer :: nblks, blk, len, maxlen
 character*120 :: sfile
 character*6   :: STRFH
 
-!if ( (.NOT. Model%do_sppt) .AND. (.NOT. Model%do_shum) .AND. (.NOT. Model%do_skeb) ) return
-!if ( (.NOT. Model%do_sppt) .AND. (.NOT. Model%do_shum) .AND. (.NOT. Model%do_skeb)  .AND. (.NOT. Model%do_sfcperts) ) return
+if ( (.NOT. Model%do_sppt) .AND. (.NOT. Model%do_shum) .AND. (.NOT. Model%do_skeb) ) return
 
 ! Update number of threads in shared variables in spectral_layout_mod and set block-related variables
 ompthreads = nthreads
@@ -317,7 +317,7 @@ integer j,ierr,i
 integer :: nblks, blk, len, maxlen
 character*120 :: sfile
 character*6   :: STRFH
-!if (.NOT. Model%do_sfcperts) return
+if (.NOT. Model%do_sfcperts) return
 
 ! Set block-related variables
 nblks = size(Model%blksz)
