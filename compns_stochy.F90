@@ -55,7 +55,7 @@ module compns_stochy_mod
       skeb,skeb_tau,skeb_vdof,skeb_lscale,iseed_skeb,skeb_vfilt,skeb_diss_smooth, &
       skeb_sigtop1,skeb_sigtop2,skebnorm,sppt_sigtop1,sppt_sigtop2,&
       shum_sigefold,spptint,shumint,skebint,skeb_npass,use_zmtnblck,new_lscale
-      namelist /nam_sfcperts/pertz0,pertshc,pertzt,pertlai, & ! mg, sfcperts
+      namelist /nam_sfcperts/nsfcpert,pertz0,pertshc,pertzt,pertlai, & ! mg, sfcperts
       pertvegf,pertalb,iseed_sfc,sfc_tau,sfc_lscale,sppt_land
 
       tol=0.01  ! tolerance for calculations
@@ -76,13 +76,13 @@ module compns_stochy_mod
       pertvegf         = -999.  ! vegetation fraction amplitude
       pertalb          = -999.  ! albedo perturbations amplitude
 ! logicals
-!      do_sppt = .false.
+      do_sppt = .false.
       use_zmtnblck = .false.
       new_lscale = .false.
-!      do_shum = .false.
-!      do_skeb = .false.
+      do_shum = .false.
+      do_skeb = .false.
       ! mg, sfcperts
-!      do_sfcperts = .false.
+      do_sfcperts = .false.
       sppt_land = .false.
 ! for sfcperts random patterns
       sfc_lscale  = -999.       ! length scales
@@ -143,11 +143,11 @@ module compns_stochy_mod
       endif
 
 ! PJP stochastic physics additions
-      !IF (sppt(1) > 0 ) THEN
-      !  do_sppt=.true.
-      !ENDIF
+      IF (sppt(1) > 0 ) THEN
+        do_sppt=.true.
+      ENDIF
       IF (shum(1) > 0 ) THEN
-      !  do_shum=.true.
+        do_shum=.true.
 !     shum parameter has units of 1/hour, to remove time step
 !     dependence.
 !     change shum parameter units from per hour to per timestep
@@ -156,7 +156,7 @@ module compns_stochy_mod
          ENDDO
       ENDIF
       IF (skeb(1) > 0 ) THEN
-      !   do_skeb=.true.
+         do_skeb=.true.
          if (skebnorm==0) then ! stream function norm
             skeb=skeb*1.111e3*sqrt(deltim)
             !skeb=skeb*5.0e5/sqrt(deltim)
@@ -204,19 +204,19 @@ module compns_stochy_mod
 ! mg, sfcperts
       IF (pertz0(1) > 0 .OR. pertshc(1) > 0 .OR. pertzt(1) > 0 .OR. &
           pertlai(1) > 0 .OR. pertvegf(1) > 0 .OR. pertalb(1) > 0) THEN
-!        do_sfcperts=.true.
+        do_sfcperts=.true.
       ENDIF
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !
 !  All checks are successful.
 !
-!      if (me == 0) then
-!         print *, 'stochastic physics'
-!         print *, ' do_sppt : ', do_sppt
-!         print *, ' do_shum : ', do_shum
-!         print *, ' do_skeb : ', do_skeb
-!         print *, ' do_sfcperts : ', do_sfcperts
-!      endif
+      if (me == 0) then
+         print *, 'stochastic physics'
+         print *, ' do_sppt : ', do_sppt
+         print *, ' do_shum : ', do_shum
+         print *, ' do_skeb : ', do_skeb
+         print *, ' do_sfcperts : ', do_sfcperts
+      endif
       iret = 0
 !
       return

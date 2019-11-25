@@ -24,7 +24,7 @@
       integer(8),dimension(5) ::iseed_sppt,iseed_shum,iseed_skeb
       logical stochini,sppt_logit,new_lscale
       logical use_zmtnblck
-!      logical do_shum,do_sppt,do_skeb
+      logical do_shum,do_sppt,do_skeb
 
 ! mg surface perturbations
       real(kind=kind_dbl_prec), dimension(5) :: sfc_lscale,sfc_tau

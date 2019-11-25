@@ -58,23 +58,23 @@ call init_stochdata(Model%levs,Model%dtp,Model%input_nml_file,Model%fn_nml,Init_
 !do_sppt = .true.
 !endif
 ! check namelist entries for consistency
-!if (Model%do_sppt.neqv.do_sppt) then
-!   write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
-!                   & ' namelist settings do_sppt and sppt'
-!   return
-!else if (Model%do_shum.neqv.do_shum) then
-!   write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
-!                   & ' namelist settings do_shum and shum'
-!   return
-!else if (Model%do_skeb.neqv.do_skeb) then
-!   write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
-!                   & ' namelist settings do_skeb and skeb'
-!   return
-!!else if (Model%do_sfcperts.neqv.do_sfcperts) then ! mg, sfc-perts
-!   write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
-!                   & ' namelist settings do_sfcperts and pertz0 / pertshc / pertzt / pertlai / pertvegf / pertalb'
-!   return
-!end if
+if (Model%do_sppt.neqv.do_sppt) then
+   write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
+                   & ' namelist settings do_sppt and sppt'
+   return
+else if (Model%do_shum.neqv.do_shum) then
+   write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
+                   & ' namelist settings do_shum and shum'
+   return
+else if (Model%do_skeb.neqv.do_skeb) then
+   write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
+                   & ' namelist settings do_skeb and skeb'
+   return
+else if (Model%do_sfcperts.neqv.do_sfcperts) then ! mg, sfc-perts
+   write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
+                   & ' namelist settings do_sfcperts and pertz0 / pertshc / pertzt / pertlai / pertvegf / pertalb'
+   return
+end if
 ! update remaining model configuration parameters from namelist
 Model%use_zmtnblck=use_zmtnblck
 Model%skeb_npass=skeb_npass
