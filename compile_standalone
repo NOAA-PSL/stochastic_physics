@@ -1,5 +1,5 @@
 #!/bin/sh -x
-compile_all=1
+compile_all=0
 FC=mpif90
 INCS="-I. -I../FV3/gfsphysics/ -I../FMS/include -I../FV3/atmos_cubed_sphere -I../FMS/fv3gfs"
 FLAGS64=" -traceback -real-size 64 -DSTOCHY_UNIT_TEST -c "$INCS

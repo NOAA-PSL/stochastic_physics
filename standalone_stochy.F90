@@ -167,7 +167,7 @@ do i=1,nblks
    allocate(Grid(i)%xlat(blksz))
    allocate(Grid(i)%xlon(blksz))
 enddo
-do j=1,ny
+do j=1,nblks
      Grid(j)%xlat(:)=Init_parm%xlat(:,j)
      Grid(j)%xlon(:)=Init_parm%xlon(:,j)
 enddo
@@ -253,7 +253,7 @@ do i=1,nblks
    if (Model%do_skeb)allocate(Coupling(i)%skebu_wts(blksz,nlevs))
    if (Model%do_skeb)allocate(Coupling(i)%skebv_wts(blksz,nlevs))
 enddo
-do i=1,40
+do i=1,2
    Model%kdt=i
    ts=i/4.0
    call run_stochastic_physics(Model, Grid, Coupling, nthreads)

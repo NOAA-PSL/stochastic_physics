@@ -59,15 +59,15 @@ module stochy_data_mod
    levs=nlevs
 
    iret=0
-   if(is_master()) print*,'in init stochdata'
    call compns_stochy (me,size(input_nml_file,1),input_nml_file(:),fn_nml,nlunit,delt,iret)
+   if(is_master()) print*,'in init stochdata',nodes,lat_s
    if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb)  .AND. (.NOT. do_sfcperts) ) return
-   if (nodes.GE.lat_s/2) then
-      lat_s=(int(nodes/12)+1)*24
-      lon_s=lat_s*2
-      ntrunc=lat_s-2
-      if (is_master()) print*,'WARNING: spectral resolution is too low for number of mpi_tasks, resetting lon_s,lat_s,and ntrunc to',lon_s,lat_s,ntrunc
-   endif
+!   if (nodes.GE.lat_s/2) then
+!      lat_s=(int(nodes/12)+1)*24
+!      lon_s=lat_s*2
+!      ntrunc=lat_s-2
+!      if (is_master()) print*,'WARNING: spectral resolution is too low for number of mpi_tasks, resetting lon_s,lat_s,and ntrunc to',lon_s,lat_s,ntrunc
+!   endif
    call initialize_spectral(gis_stochy, iret)
    if (iret/=0) return
    allocate(noise_e(len_trie_ls,2),noise_o(len_trio_ls,2))
