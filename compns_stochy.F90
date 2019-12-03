@@ -44,8 +44,10 @@ module compns_stochy_mod
       character(len=*),     intent(in)  :: input_nml_file(sz_nml)
       character(len=64),    intent(in)  :: fn_nml
       real,                 intent(in)  :: deltim
-      real tol
+      real tol,l_min
+      real :: rerth,circ
       integer k,ios
+      integer,parameter :: two=2
 
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !
@@ -58,6 +60,7 @@ module compns_stochy_mod
       namelist /nam_sfcperts/nsfcpert,pertz0,pertshc,pertzt,pertlai, & ! mg, sfcperts
       pertvegf,pertalb,iseed_sfc,sfc_tau,sfc_lscale,sppt_land
 
+      rerth  =6.3712e+6      ! radius of earth (m)
       tol=0.01  ! tolerance for calculations
 !     spectral resolution defintion
       ntrunc=-999
@@ -207,6 +210,26 @@ module compns_stochy_mod
           pertlai(1) > 0 .OR. pertvegf(1) > 0 .OR. pertalb(1) > 0) THEN
         do_sfcperts=.true.
       ENDIF
+!calculate ntrunc if not supplied
+     if (ntrunc .LT. 1) then  
+        if (me==0) print*,'ntrunc not supplied, calculating'
+        circ=2*3.1415928*rerth ! start with lengthscale that is circumference of the earth
+        l_min=circ
+        do k=1,5
+           if (sppt(k).GT.0) l_min=min(sppt_lscale(k),l_min)
+           if (shum(k).GT.0) l_min=min(shum_lscale(k),l_min)
+           if (skeb(k).GT.0) l_min=min(skeb_lscale(k),l_min)
+       enddo
+       ntrunc=(circ/l_min/two)*two
+       if (me==0) print*,'ntrunc calculated from l_min',l_min,ntrunc
+
+! set up gaussian grid for ntrunc
+     endif
+     if (lon_s.LT.1 .OR. lat_s.LT.1) then
+        lat_s=ntrunc+2
+        lon_s=lat_s*2
+        if (me==0) print*,'gaussian grid not set, defining here',lon_s,lat_s
+     endif
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !
 !  All checks are successful.
