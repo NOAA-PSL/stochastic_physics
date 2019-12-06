@@ -44,8 +44,10 @@ module compns_stochy_mod
       character(len=*),     intent(in)  :: input_nml_file(sz_nml)
       character(len=64),    intent(in)  :: fn_nml
       real,                 intent(in)  :: deltim
-      real tol
+      real tol,l_min
+      real :: rerth,circ,tmp_lat
       integer k,ios
+      integer,parameter :: four=4
 
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !
@@ -54,10 +56,11 @@ module compns_stochy_mod
       shum_lscale,fhstoch,stochini,skeb_varspect_opt,sppt_sfclimit, &
       skeb,skeb_tau,skeb_vdof,skeb_lscale,iseed_skeb,skeb_vfilt,skeb_diss_smooth, &
       skeb_sigtop1,skeb_sigtop2,skebnorm,sppt_sigtop1,sppt_sigtop2,&
-      shum_sigefold,skebint,skeb_npass,use_zmtnblck
+      shum_sigefold,spptint,shumint,skebint,skeb_npass,use_zmtnblck,new_lscale
       namelist /nam_sfcperts/nsfcpert,pertz0,pertshc,pertzt,pertlai, & ! mg, sfcperts
       pertvegf,pertalb,iseed_sfc,sfc_tau,sfc_lscale,sppt_land
 
+      rerth  =6.3712e+6      ! radius of earth (m)
       tol=0.01  ! tolerance for calculations
 !     spectral resolution defintion
       ntrunc=-999
@@ -78,6 +81,7 @@ module compns_stochy_mod
 ! logicals
       do_sppt = .false.
       use_zmtnblck = .false.
+      new_lscale = .false.
       do_shum = .false.
       do_skeb = .false.
       ! mg, sfcperts
@@ -91,6 +95,8 @@ module compns_stochy_mod
 ! for SKEB random patterns.
       skeb_vfilt       = 0
       skebint          = 0
+      spptint          = 0
+      shumint          = 0
       skeb_npass       = 11  ! number of passes of smoother for dissipation estiamte
       sppt_tau         = -999.  ! time scales
       shum_tau         = -999.
@@ -117,7 +123,7 @@ module compns_stochy_mod
 ! length scale.
       skeb_varspect_opt = 0
       sppt_logit        = .false. ! logit transform for sppt to bounded interval [-1,+1]
-      fhstoch           = -999.0  ! forecast hour to dump random patterns
+      fhstoch           = -999.0  ! forecast interval (in hours) to dump random patterns
       stochini          = .false. ! true= read in pattern, false=initialize from seed
 
 #ifdef INTERNAL_FILE_NML
@@ -185,11 +191,52 @@ module compns_stochy_mod
         iret=9
         return
       ENDIF
+      IF (spptint == 0.) spptint=deltim
+      nssppt=nint(spptint/deltim)                              ! spptint in seconds
+      IF(nssppt<=0 .or. abs(nssppt-spptint/deltim)>tol) THEN
+         WRITE(0,*) "SPPT interval is invalid",spptint
+        iret=9
+        return
+      ENDIF
+      IF (shumint == 0.) shumint=deltim
+      nsshum=nint(shumint/deltim)                              ! shumint in seconds
+      IF(nsshum<=0 .or. abs(nsshum-shumint/deltim)>tol) THEN
+         WRITE(0,*) "SHUM interval is invalid",shumint
+        iret=9
+        return
+      ENDIF
 ! mg, sfcperts
       IF (pertz0(1) > 0 .OR. pertshc(1) > 0 .OR. pertzt(1) > 0 .OR. &
           pertlai(1) > 0 .OR. pertvegf(1) > 0 .OR. pertalb(1) > 0) THEN
         do_sfcperts=.true.
       ENDIF
+!calculate ntrunc if not supplied
+     if (ntrunc .LT. 1) then  
+        if (me==0) print*,'ntrunc not supplied, calculating'
+        circ=2*3.1415928*rerth ! start with lengthscale that is circumference of the earth
+        l_min=circ
+        do k=1,5
+           if (sppt(k).GT.0) l_min=min(sppt_lscale(k),l_min)
+           if (shum(k).GT.0) l_min=min(shum_lscale(k),l_min)
+           if (skeb(k).GT.0) l_min=min(skeb_lscale(k),l_min)
+       enddo
+       !ntrunc=1.5*circ/l_min
+       ntrunc=circ/l_min
+       if (me==0) print*,'ntrunc calculated from l_min',l_min,ntrunc
+     endif
+     ! ensure lat_s is a mutiple of 4 with a reminader of two
+     ntrunc=INT((ntrunc+1)/four)*four+2
+     if (me==0) print*,'NOTE ntrunc adjusted for even nlats',ntrunc
+
+! set up gaussian grid for ntrunc if not already defined. 
+     if (lon_s.LT.1 .OR. lat_s.LT.1) then
+        lat_s=ntrunc*1.5+1
+        lon_s=lat_s*2+4
+! Grid needs to be larger since interpolation is bi-linear
+        lat_s=lat_s*2
+        lon_s=lon_s*2
+        if (me==0) print*,'gaussian grid not set, defining here',lon_s,lat_s
+     endif
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !
 !  All checks are successful.

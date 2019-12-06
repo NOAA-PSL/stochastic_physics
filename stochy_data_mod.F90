@@ -59,15 +59,15 @@ module stochy_data_mod
    levs=nlevs
 
    iret=0
-   if(is_master()) print*,'in init stochdata'
    call compns_stochy (me,size(input_nml_file,1),input_nml_file(:),fn_nml,nlunit,delt,iret)
+   if(is_master()) print*,'in init stochdata',nodes,lat_s
    if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb)  .AND. (.NOT. do_sfcperts) ) return
-   if (nodes.GE.lat_s/2) then
-      lat_s=(int(nodes/12)+1)*24
-      lon_s=lat_s*2
-      ntrunc=lat_s-2
-      if (is_master()) print*,'WARNING: spectral resolution is too low for number of mpi_tasks, resetting lon_s,lat_s,and ntrunc to',lon_s,lat_s,ntrunc
-   endif
+!   if (nodes.GE.lat_s/2) then
+!      lat_s=(int(nodes/12)+1)*24
+!      lon_s=lat_s*2
+!      ntrunc=lat_s-2
+!      if (is_master()) print*,'WARNING: spectral resolution is too low for number of mpi_tasks, resetting lon_s,lat_s,and ntrunc to',lon_s,lat_s,ntrunc
+!   endif
    call initialize_spectral(gis_stochy, iret)
    if (iret/=0) return
    allocate(noise_e(len_trie_ls,2),noise_o(len_trio_ls,2))
@@ -139,10 +139,10 @@ module stochy_data_mod
    spinup_efolds = 0
    if (nsppt > 0) then
        if (is_master()) print *, 'Initialize random pattern for SPPT'
-       call patterngenerator_init(sppt_lscale,delt,sppt_tau,sppt,iseed_sppt,rpattern_sppt, &
-           lonf,latg,jcap,gis_stochy%ls_node,nsppt,1,0)
+       call patterngenerator_init(sppt_lscale,spptint,sppt_tau,sppt,iseed_sppt,rpattern_sppt, &
+           lonf,latg,jcap,gis_stochy%ls_node,nsppt,1,0,new_lscale)
        do n=1,nsppt
-          nspinup = spinup_efolds*sppt_tau(n)/delt
+          nspinup = spinup_efolds*sppt_tau(n)/spptint
           if (stochini) then
              call read_pattern(rpattern_sppt(n),1,stochlun)
           else
@@ -171,10 +171,10 @@ module stochy_data_mod
    endif
    if (nshum > 0) then
        if (is_master()) print *, 'Initialize random pattern for SHUM'
-       call patterngenerator_init(shum_lscale,delt,shum_tau,shum,iseed_shum,rpattern_shum, &
-           lonf,latg,jcap,gis_stochy%ls_node,nshum,1,0)
+       call patterngenerator_init(shum_lscale,shumint,shum_tau,shum,iseed_shum,rpattern_shum, &
+           lonf,latg,jcap,gis_stochy%ls_node,nshum,1,0,new_lscale)
        do n=1,nshum
-          nspinup = spinup_efolds*shum_tau(n)/delt
+          nspinup = spinup_efolds*shum_tau(n)/shumint
           if (stochini) then
              call read_pattern(rpattern_shum(n),1,stochlun)
           else
@@ -204,14 +204,14 @@ module stochy_data_mod
 
    if (nskeb > 0) then
   ! determine number of skeb levels to deal with temperoal/vertical correlations
-   skeblevs=nint(skeb_tau(1)/delt*skeb_vdof)
+   skeblevs=nint(skeb_tau(1)/skebint*skeb_vdof)
 ! backscatter noise.
        if (is_master()) print *, 'Initialize random pattern for SKEB',skeblevs
-       call patterngenerator_init(skeb_lscale,delt,skeb_tau,skeb,iseed_skeb,rpattern_skeb, &
-           lonf,latg,jcap,gis_stochy%ls_node,nskeb,skeblevs,skeb_varspect_opt)
+       call patterngenerator_init(skeb_lscale,skebint,skeb_tau,skeb,iseed_skeb,rpattern_skeb, &
+           lonf,latg,jcap,gis_stochy%ls_node,nskeb,skeblevs,skeb_varspect_opt,new_lscale)
        do n=1,nskeb
           do k=1,skeblevs
-             nspinup = spinup_efolds*skeb_tau(n)/delt
+             nspinup = spinup_efolds*skeb_tau(n)/skebint
              if (stochini) then
                 call read_pattern(rpattern_skeb(n),k,stochlun)
                 if (is_master()) print *, 'skeb read',k,rpattern_skeb(n)%spec_o(5,1,k)
@@ -300,7 +300,7 @@ enddo
 if (npsfc > 0) then
        pertsfc(1) = 1.
        call patterngenerator_init(sfc_lscale,delt,sfc_tau,pertsfc,iseed_sfc,rpattern_sfc, &
-              lonf,latg,jcap,gis_stochy%ls_node,npsfc,nsfcpert,0)
+              lonf,latg,jcap,gis_stochy%ls_node,npsfc,nsfcpert,0,new_lscale)
        do n=1,npsfc
           if (is_master()) print *, 'Initialize random pattern for SFC-PERTS',n
           do k=1,nsfcpert
