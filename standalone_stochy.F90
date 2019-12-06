@@ -70,7 +70,10 @@ integer     :: ng,layout(2),io_layout(2),commID,grid_type,ntiles
 integer :: halo_update_type = 1
 real        :: dx,dy,pi,rd,cp
 logical,target :: nested
-integer  :: nlunit,pe,npes,stackmax=4000000
+logical   :: write_this_tile
+integer  :: nargs,ntile_out,nlunit,pe,npes,stackmax=4000000
+character*80 :: fname
+character*1  :: ntile_out_str
 
 real(kind=4),allocatable,dimension(:,:) :: workg
 real(kind=4),allocatable,dimension(:,:,:) :: workg3d
@@ -86,7 +89,13 @@ type(grid_box_type)           :: grid_box
       skeb,skeb_tau,skeb_vdof,skeb_lscale,iseed_skeb,skeb_vfilt,skeb_diss_smooth, &
       skeb_sigtop1,skeb_sigtop2,skebnorm,sppt_sigtop1,sppt_sigtop2,&
       shum_sigefold,spptint,shumint,skebint,skeb_npass,use_zmtnblck,new_lscale
-
+write_this_tile=.false.
+ntile_out_str='0'
+nargs=iargc()
+if (nargs.EQ.1) then
+   call getarg(1,ntile_out_str)
+endif
+read(ntile_out_str,'(I1.1)') ntile_out
 open (unit=nlunit, file='input.nml', READONLY, status='OLD')
 read(nlunit,nam_stochy)
 close(nlunit)
@@ -181,9 +190,15 @@ enddo
 !setup GFS_coupling
 allocate(Coupling(nblks))
 call init_stochastic_physics(Model, Init_parm, ntasks, nthreads)
+call get_outfile(fname)
 write(strid,'(I1.1)') my_id+1
+if (ntile_out.EQ.0) write_this_tile=.true.
+if ((my_id+1).EQ.ntile_out) write_this_tile=.true.
+print*,trim(fname)//'.tile'//strid//'.nc',write_this_tile
+if (write_this_tile) then
 fid=30+my_id
-ierr=nf90_create('workg.tile'//strid//'.nc',cmode=NF90_CLOBBER,ncid=ncid)
+!ierr=nf90_create(trim(fname)//'.tile'//strid//'.nc',cmode=NF90_CLOBBER,ncid=ncid)
+ierr=nf90_create(trim(fname)//'.tile'//strid//'.nc',cmode=NF90_CLOBBER,ncid=ncid)
 ierr=NF90_DEF_DIM(ncid,"grid_xt",nx,xt_dim_id)
 ierr=NF90_DEF_DIM(ncid,"grid_yt",ny,yt_dim_id)
 if (Model%do_skeb)ierr=NF90_DEF_DIM(ncid,"p_ref",nlevs,zt_dim_id)
@@ -246,6 +261,7 @@ ierr=NF90_PUT_VAR(ncid,yt_var_id,grid_yt)
 if (Model%do_skeb)then
    ierr=NF90_PUT_VAR(ncid,zt_var_id,pressl)
 endif
+endif
 
 do i=1,nblks
    if (Model%do_sppt)allocate(Coupling(i)%sppt_wts(blksz,nlevs))
@@ -258,6 +274,7 @@ do i=1,200
    ts=i/4.0
    call run_stochastic_physics(Model, Grid, Coupling, nthreads)
    if (Model%me.EQ.0) print*,'sppt_wts=',i,Coupling(1)%sppt_wts(1,20)
+   if (write_this_tile) then
    if (Model%do_sppt)then
       do j=1,ny
          workg(:,j)=Coupling(j)%sppt_wts(:,20)   
@@ -285,6 +302,17 @@ do i=1,200
       ierr=NF90_PUT_VAR(ncid,varid4,workg3d,(/1,1,1,i/))
    endif
    ierr=NF90_PUT_VAR(ncid,time_var_id,ts,(/i/))
+   endif
 enddo
-ierr=NF90_CLOSE(ncid)
+if (write_this_tile) ierr=NF90_CLOSE(ncid)
+end
+subroutine get_outfile(fname)
+use stochy_namelist_def
+character*80,intent(out) :: fname
+character*4   :: s_ntrunc,s_lat,s_lon
+   write(s_ntrunc,'(I4)') ntrunc
+   write(s_lat,'(I4)') lat_s 
+   write(s_lon,'(I4)') lon_s  
+   fname=trim('workg_T'//trim(adjustl(s_ntrunc))//'_'//trim(adjustl(s_lon))//'x'//trim(adjustl(s_lat)))
+   return
 end
