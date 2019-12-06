@@ -1,13 +1,20 @@
+!>@brief The module 'stochastic_physics' is for initialization and running of
+!! the stochastic physics random pattern generators
 module stochastic_physics
 
 implicit none
 
 private
 
-public :: init_stochastic_physics, run_stochastic_physics
+public :: init_stochastic_physics
+public :: run_stochastic_physics
 
 contains
 
+!>@brief The subroutine 'init_stochastic_physics' initializes the stochastic
+!!pattern genertors
+!>@details It reads the stochastic physics namelist (nam_stoch and nam_sfcperts)
+!allocates and polulates the necessary arrays
 subroutine init_stochastic_physics(Model, Init_parm, ntasks, nthreads)
 use fv_mp_mod, only : is_master
 use stochy_internal_state_mod
@@ -17,7 +24,7 @@ use stochy_resol_def , only : latg,lonf,skeblevs
 use stochy_gg_def,only : colrad_a
 use stochy_namelist_def
 use physcons, only: con_pi
-use spectral_layout_mod,only:me,ompthreads
+use spectral_layout_mod,only:me,ompthreads,nodes
 use mpp_mod
 #ifdef STOCHY_UNIT_TEST
  use standalone_stochy_module,   only: GFS_control_type, GFS_init_type
@@ -35,7 +42,7 @@ integer :: nblks
 integer :: iret
 real*8 :: PRSI(Model%levs),PRSL(Model%levs),dx
 real, allocatable :: skeb_vloc(:)
-integer :: k,kflip,latghf,nodes,blk,k2
+integer :: k,kflip,latghf,blk,k2
 character*2::proc
 
 ! Set/update shared variables in spectral_layout_mod
@@ -191,7 +198,8 @@ RNLAT=gg_lats(1)*2-gg_lats(2)
 !print *,'done with init_stochastic_physics'
 
 end subroutine init_stochastic_physics
-
+!>@brief The subroutine 'run_stochastic_physics' updates the random patterns if
+!!necessary 
 subroutine run_stochastic_physics(Model, Grid, Coupling, nthreads)
 use fv_mp_mod, only : is_master
 use stochy_internal_state_mod
@@ -229,7 +237,7 @@ nblks = size(Model%blksz)
 maxlen = maxval(Model%blksz(:))
 
 ! check to see if it is time to write out random patterns
-if (Model%phour .EQ. fhstoch) then
+if (fhstoch.GE. 0 .AND. MOD(Model%phour,fhstoch) .EQ. 0) then
    write(STRFH,FMT='(I6.6)') nint(Model%phour)
    sfile='stoch_out.F'//trim(STRFH)
    call dump_patterns(sfile)
