@@ -1,9 +1,10 @@
+!>@brief The module 'gozrineo_a_stochy_mod' contains the subroutine 'gozrineo_a_stochy'
       module gozrineo_a_stochy_mod
 
       implicit none
 
       contains
-
+!>@brief The subroutine 'gozrineo_a_stochy' calculates the deriviates of assoicate legendre polynomials
       subroutine gozrineo_a_stochy(plnev_a,plnod_a,
      &                      pddev_a,pddod_a,
      &                      plnew_a,plnow_a,

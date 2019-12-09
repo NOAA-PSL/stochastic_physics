@@ -1,3 +1,6 @@
+!>@brief Tho module 'getcon_spectral_mod' gets various constants for the spectral and related gaussian grid
+!! and caluated the assoicate legendre polynomials
+
 module getcon_spectral_mod
 
    implicit none
@@ -81,6 +84,7 @@ module getcon_spectral_mod
       do lat = 1, latg2
          lonsperlat(latg+1-lat) = lonsperlat(lat)
       end do
+!     decompostion of gaussian grid across nodes
       do node=1,nodes
           call get_lats_node_a_stochy( node-1, global_lats_a,lats_nodes_a(node),&
                                gl_lats_index,global_time_sort_index_a, iprint)

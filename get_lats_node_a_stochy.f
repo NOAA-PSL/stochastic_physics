@@ -1,9 +1,10 @@
+!>@brief The module 'get_lats_node_a_stochy_mod' contains the subroutine get_lats_node_a_stochy
       module get_lats_node_a_stochy_mod
 
       implicit none
 
       contains
-
+!>@brief The subroutine 'get_lats_node_a_stochy' calculates the decomposition of the gaussian grid based on the processor layout
       subroutine get_lats_node_a_stochy(me_fake,global_lats_a,
      &          lats_nodes_a_fake,gl_lats_index,
      &          global_time_sort_index,iprint)

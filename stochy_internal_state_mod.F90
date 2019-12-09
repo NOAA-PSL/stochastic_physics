@@ -1,4 +1,5 @@
-
+!>@brief The module 'stochy_internal_state_mod' contains the spherical harmonic definitions and arrays
+!! describing the target gaussian grid
 !
 ! !module: stochy_internal_state_mod
 !                         --- internal state definition of the

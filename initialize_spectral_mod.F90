@@ -1,3 +1,6 @@
+!>@brief The module 'initialize_spectral_mod' initializes the
+!gridded component of the stochastic physics pattern
+!              generato
 ! !module: stochy_initialize_spectral
 !          --- initialize module of the
 !              gridded component of the stochastic physics patteern

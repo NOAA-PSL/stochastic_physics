@@ -1,3 +1,5 @@
+!>@brief The module 'compns_stochy_mod' set the default namelist options reads in the stochastic physics namelist
+!! and  sets logicals and other parameters based on the namelist
 module compns_stochy_mod
 
    implicit none

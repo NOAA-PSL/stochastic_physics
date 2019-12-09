@@ -1,3 +1,5 @@
+!>@ brief The module 'dezouv_stochy_mod' caculates even u and odd v winds harmonics from the even harmonics
+! of divergence and odd harmonics of vorticty
       module dezouv_stochy_mod
 
       implicit none

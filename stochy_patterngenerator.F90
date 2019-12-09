@@ -1,3 +1,5 @@
+!>@brief The module 'stochy_patterngenerator_mod' contains the derived type random_pattern
+!! which controls the characteristics of the random pattern
 module stochy_patterngenerator_mod
 
  ! generate random patterns with specified temporal and spatial auto-correlation
@@ -33,7 +35,10 @@ module stochy_patterngenerator_mod
  integer :: nlons,nlats,ntrunc,ndimspec
 
  contains
-
+!>@brief The subroutine 'patterngenerator_init' sets up the spherical harmonics
+!
+!>@details It populates array defining the zonal and total wavenumbers, amplitude,
+!! temporaral and spatial correlations.
  subroutine patterngenerator_init(lscale, delt, tscale, stdev, iseed, rpattern,&
                                   nlon, nlat, jcap, ls_node, npatterns,&
                                   nlevs, varspect_opt)
@@ -170,7 +175,7 @@ module stochy_patterngenerator_mod
  end subroutine patterngenerator_init
 
 
-
+!>@brief The subroutine 'patterngenerator_destroy' dellaocate arrays
  subroutine patterngenerator_destroy(rpattern,npatterns)
    type(random_pattern), intent(inout) :: rpattern(npatterns)
    integer, intent(in) :: npatterns
@@ -182,6 +187,8 @@ module stochy_patterngenerator_mod
    enddo
  end subroutine patterngenerator_destroy
 
+!>@brief The subroutine 'computevarspec' compute the globally integrated 
+!! variance from complex spectral coefficients
  subroutine computevarspec(rpattern,dataspec,var)
     ! compute globally integrated variance from spectral coefficients
     complex(kind_evod), intent(in) :: dataspec(ndimspec)
@@ -198,6 +205,8 @@ module stochy_patterngenerator_mod
     enddo
  end subroutine computevarspec
 
+!>@brief The subroutine 'computevarspec_r' compute the globally integrated 
+!! variance from real spectral coefficients
  subroutine computevarspec_r(rpattern,dataspec,var)
     ! compute globally integrated variance from spectral coefficients
     real(kind_dbl_prec), intent(in) :: dataspec(2*ndimspec)
@@ -214,6 +223,9 @@ module stochy_patterngenerator_mod
     enddo
  end subroutine computevarspec_r
 
+!>@brief The subroutine 'getnoise' scales spectral cofficients with
+!! white noise to the appropriate amplitude for speherical harmonincs
+!! variance from real spectral c
  subroutine getnoise(rpattern,noise_e,noise_o)
    real(kind_dbl_prec), intent(out) :: noise_e(len_trie_ls,2)
    real(kind_dbl_prec), intent(out) :: noise_o(len_trio_ls,2)
@@ -248,6 +260,7 @@ module stochy_patterngenerator_mod
    enddo
  end subroutine getnoise
 
+!>@brief The subroutine 'patterngenerator_advance' advance 1st-order autoregressive process
  subroutine patterngenerator_advance(rpattern,k,skeb_first_call)
 
     ! advance 1st-order autoregressive process with
@@ -280,7 +293,8 @@ module stochy_patterngenerator_mod
        rpattern%stdev*sqrt(1.-rpattern%phi**2)*rpattern%varspectrum(nm)*noise_o(nn,2)
     enddo
  end subroutine patterngenerator_advance
-
+!>@brief The subroutine 'setvarspect' calculates the variance spectrum
+! from a specified decorrelation lengthscale
  subroutine setvarspect(rpattern,varspect_opt)
  ! define variance spectrum (isotropic covariance)
  ! normalized to unit global variance
@@ -324,7 +338,8 @@ module stochy_patterngenerator_mod
   rpattern%varspectrum1d = rpattern%varspectrum1d/var
 
  end subroutine setvarspect
-
+!>@brief The subroutine 'chgres_pattern' truncates the spherical harmonics if
+!! restarting from a higher-resolution pattern
  subroutine chgres_pattern(pattern2din,pattern2dout,ntruncin,ntruncout)
    real(kind_dbl_prec), intent(in) :: pattern2din((ntruncin+1)*(ntruncin+2))
    real(kind_dbl_prec), intent(out) :: pattern2dout((ntruncout+1)*(ntruncout+2))

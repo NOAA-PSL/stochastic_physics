@@ -1,9 +1,10 @@
+!>@brief The module 'setlats_a_stochy_mod' contains the subroutine 'setlats_a_stochy'
       module setlats_a_stochy_mod
 
       implicit none
 
       contains
-
+!>@brief The subroutine 'setlats_a_stochy' selects the latitude points on this task
       subroutine setlats_a_stochy(lats_nodes_a,global_lats_a,
      &                         iprint,lonsperlat)
 !
