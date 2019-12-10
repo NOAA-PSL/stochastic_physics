@@ -60,6 +60,6 @@ html_static_path = ['_static']
 
 # create doxygen documentation
 import subprocess
-subprocess.call('cd ../../ ; doxygen', shell=True)
+subprocess.call('cd ../../ ; doxygen stochy_doc.conf', shell=True)
 
 html_extra_path = ['../../html']
