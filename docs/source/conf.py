@@ -59,7 +59,7 @@ html_theme = 'alabaster'
 html_static_path = ['_static']
 
 # create doxygen documentation
-import subprocess
-subprocess.call('cd ../../ ; doxygen stochy_doc.conf', shell=True)
+#import subprocess
+#subprocess.call('cd ../../ ; doxygen stochy_doc.conf', shell=True)
 
-html_extra_path = ['../../html']
+#html_extra_path = ['../../html']
