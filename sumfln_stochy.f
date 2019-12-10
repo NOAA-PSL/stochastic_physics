@@ -18,7 +18,8 @@
       use machine
       use spectral_layout_mod, only : num_parthds_stochy => ompthreads
       !or : use fv_mp_mod ?
-      use mpp_mod, only: mpp_npes, mpp_alltoall, mpp_get_current_pelist
+      use mpp_mod, only: mpp_pe,mpp_npes, mpp_alltoall,
+     &                   mpp_get_current_pelist
 
       implicit none
 !
@@ -70,11 +71,11 @@
 !      real(kind=4),dimension(2*nvars*ls_dim*workdim*nodes)::
 !     &                               work1dr,work1ds
       real(kind=4),pointer:: work1dr(:),work1ds(:)
-      integer, dimension(jcap+1) :: kpts, kptr, sendcounts, recvcounts,
+      integer, dimension(nodes) :: kpts, kptr, sendcounts, recvcounts,
      &                              sdispls
 !
       integer              ierr,ilat,ipt_ls, lmax,lval,i,jj,lonl,nv
-      integer              node,nvar,arrsz
+      integer              node,nvar,arrsz,my_pe
       integer              ilat_list(nodes)              !    for OMP buffer copy
 !
 !    statement functions
@@ -93,6 +94,7 @@
       num_threads     = min(num_parthds_stochy,nvars)
       nvar_thread_max = (nvars+num_threads-1)/num_threads
       npes = mpp_npes()
+      my_pe=mpp_pe()
       allocate(pelist(0:npes-1))
       call mpp_get_current_pelist(pelist)
       kpts   = 0
@@ -187,7 +189,6 @@ ccxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
         do node = 1, nodes - 1
           ilat_list(node+1) = ilat_list(node) + lats_nodes(node)
         end do
-
 !$omp parallel do private(node,jj,ilat,lat,ipt_ls,nvar,kn,n2)
         do node=1,nodes
           do jj=1,lats_nodes(node)
