@@ -3,7 +3,6 @@ Welcome to UFS stochastic physics's documentation!
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
 
    getting_started
    users_guide
