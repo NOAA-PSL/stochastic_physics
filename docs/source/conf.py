@@ -24,6 +24,10 @@ author = 'Philip Pegion'
 # The full version, including alpha/beta/rc tags
 release = 'public'
 
+# assign master document
+
+master_doc = 'index'
+
 
 # -- General configuration ---------------------------------------------------
 
