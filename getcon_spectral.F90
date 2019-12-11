@@ -1,12 +1,13 @@
-!>@brief Tho module 'getcon_spectral_mod' gets various constants for the spectral and related gaussian grid
-!! and caluated the assoicate legendre polynomials
-
+!>@brief The module 'getcon_spectral_mod' contains the subroutine getcon_spectral
 module getcon_spectral_mod
 
    implicit none
 
    contains
 
+!>@brief The subroutine 'getcon_spectral' gets various constants for the spectral and related gaussian grid
+!! and caluated the assoicate legendre polynomials
+!>@details This code is taken from the legacy spectral GFS
       subroutine getcon_spectral ( ls_node,ls_nodes,max_ls_nodes,  &
                                   lats_nodes_a,global_lats_a,      &
                                   lonsperlat,latsmax,              &

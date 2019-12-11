@@ -39,6 +39,7 @@ contains
    !
 !>@brief The subroutine 'stochy_la2ga' intepolates from the global gaussian grid
 !! to the cubed sphere points
+!>@details This code is taken from the legacy spectral GFS
    subroutine stochy_la2ga(regin,imxin,jmxin,rinlon,rinlat,rlon,rlat, &
                            gauout,len,rslmsk, outlat, outlon)
       use machine , only : kind_io8, kind_io4

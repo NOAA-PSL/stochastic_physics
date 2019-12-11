@@ -1,5 +1,4 @@
-!>@brief The module 'initialize_spectral_mod' initializes the
-!gridded component of the stochastic physics pattern
+!>@brief The module 'initialize_spectral_mod' cotains the subroutine initialize_spectral
 !              generato
 ! !module: stochy_initialize_spectral
 !          --- initialize module of the
@@ -40,6 +39,9 @@
 
       contains
 
+!>@brief The subroutine 'initialize_spectral' initializes the
+!gridded component of the stochastic physics pattern
+!>@details This code is taken from the legacy spectral GFS
       subroutine initialize_spectral(gis_stochy, rc)
 
 ! this subroutine set up the internal state variables,

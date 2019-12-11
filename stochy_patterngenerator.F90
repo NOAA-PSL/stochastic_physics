@@ -2,8 +2,8 @@
 !! which controls the characteristics of the random pattern
 module stochy_patterngenerator_mod
 
- ! generate random patterns with specified temporal and spatial auto-correlation
- ! in spherical harmonic space.
+!> generate random patterns with specified temporal and spatial auto-correlation
+!! in spherical harmonic space.
  use machine
  use spectral_layout_mod, only: len_trie_ls, len_trio_ls, ls_dim, ls_max_node
 ! use mersenne_twister_stochy, only: random_setseed,random_gauss,random_stat
@@ -176,6 +176,7 @@ module stochy_patterngenerator_mod
 
 
 !>@brief The subroutine 'patterngenerator_destroy' dellaocate arrays
+!>@details This is acutally never called
  subroutine patterngenerator_destroy(rpattern,npatterns)
    type(random_pattern), intent(inout) :: rpattern(npatterns)
    integer, intent(in) :: npatterns
@@ -189,6 +190,7 @@ module stochy_patterngenerator_mod
 
 !>@brief The subroutine 'computevarspec' compute the globally integrated 
 !! variance from complex spectral coefficients
+!>@details this is necessary to ensure the proper global variance
  subroutine computevarspec(rpattern,dataspec,var)
     ! compute globally integrated variance from spectral coefficients
     complex(kind_evod), intent(in) :: dataspec(ndimspec)
@@ -207,6 +209,7 @@ module stochy_patterngenerator_mod
 
 !>@brief The subroutine 'computevarspec_r' compute the globally integrated 
 !! variance from real spectral coefficients
+!>@details this is necessary to ensure the proper global variance
  subroutine computevarspec_r(rpattern,dataspec,var)
     ! compute globally integrated variance from spectral coefficients
     real(kind_dbl_prec), intent(in) :: dataspec(2*ndimspec)

@@ -41,6 +41,7 @@ module stochy_data_mod
  contains
 !>@brief The subroutine 'init_stochdata' determins which stochastic physics
 !!pattern genertors are needed.
+!>@details it reads the nam_stochy namelist and allocates necessary arrays
  subroutine init_stochdata(nlevs,delt,input_nml_file,fn_nml,nlunit,iret)
 
 ! initialize random patterns.  A spinup period of spinup_efolds times the
@@ -340,6 +341,7 @@ if (npsfc > 0) then
  end subroutine init_stochdata
 !>@brief This subroutine 'read_pattern' will read in the spectral coeffients from a previous run (stored in stoch_ini,
 !!turned on by setting STOCHINI=.true.)
+!>@details Data read in are flat binary, so the number of stochastic physics patterns running must match previous run
 subroutine read_pattern(rpattern,k,lunptn)
    type(random_pattern), intent(inout) :: rpattern
    integer, intent(in) :: lunptn

@@ -8,10 +8,12 @@ Welcome to UFS stochastic physics's documentation!
    users_guide
    namelist_options
    developers_guide
-   
-  
 
+.. toctree::
+   :caption: API REFERENCE
+   :maxdepth: 2
 
+   api/all_functions
 
 Indices and tables
 ==================

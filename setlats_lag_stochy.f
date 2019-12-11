@@ -1,4 +1,4 @@
-!>@brief The module 'setlats_lag_stochy_mod' contains the subroutine 'setlats_lag_stochy'
+!>@brief The module 'setlats_lag_stochy_mod' contains the subroutine setlats_lag_stochy
       module setlats_lag_stochy_mod
 
       implicit none
@@ -7,6 +7,7 @@
 
 !>@brief The subroutine 'setlats_a_stochy' selects the latitude points on this task
 ! and halos
+!>@details This code is taken from the legacy spectral GFS
       subroutine setlats_lag_stochy(lats_nodes_a, global_lats_a,
      &                       lats_nodes_h, global_lats_h, yhalo)
 !

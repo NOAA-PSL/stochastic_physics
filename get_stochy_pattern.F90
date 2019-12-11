@@ -1,4 +1,6 @@
+!>@brief The module 'get_stochy_pattern_mod' contains the subroutines to retrieve the random pattern in the cubed-sphere grid
 module get_stochy_pattern_mod
+!! the stochastic physics random pattern generators
  use machine, only : kind_dbl_prec, kind_evod
  use stochy_resol_def, only : latg, latg2, levs, lonf, skeblevs
  use spectral_layout_mod, only : ipt_lats_node_a, lat1s_a, lats_dim_a,      &
@@ -29,6 +31,8 @@ module get_stochy_pattern_mod
  logical :: first_call=.true.
  contains
 
+!>@brief The subroutine 'get_random_pattern_fv3' converts spherical harmonics to the gaussian grid then interpolates to the cubed-sphere grid
+!>@detils This subroutine is for a 2-D (lat-lon) scalar field
 subroutine get_random_pattern_fv3(rpattern,npatterns,&
            gis_stochy,Model,Grid,nblks,maxlen,pattern_2d)
 
@@ -97,6 +101,8 @@ subroutine get_random_pattern_fv3(rpattern,npatterns,&
 end subroutine get_random_pattern_fv3
 
 
+!>@brief The subroutine 'get_random_pattern_fv3_sfc' converts spherical harmonics to the gaussian grid then interpolates to the cubed-sphere grid once
+!>@detils This subroutine is for a 2-D (lat-lon) scalar field
 subroutine get_random_pattern_sfc_fv3(rpattern,npatterns,&
            gis_stochy,Model,Grid,nblks,maxlen,pattern_3d)
 
@@ -170,6 +176,8 @@ subroutine get_random_pattern_sfc_fv3(rpattern,npatterns,&
 end subroutine get_random_pattern_sfc_fv3
 
 
+!>@brief The subroutine 'get_random_pattern_fv3_vect' converts spherical harmonics to a vector on gaussian grid then interpolates to the cubed-sphere grid 
+!>@detils This subroutine is for a 2-D (lat-lon) vector field
 subroutine get_random_pattern_fv3_vect(rpattern,npatterns,&
            gis_stochy,Model,Grid,nblks,maxlen,upattern_3d,vpattern_3d)
 
@@ -319,6 +327,8 @@ subroutine get_random_pattern_fv3_vect(rpattern,npatterns,&
 
 end subroutine get_random_pattern_fv3_vect
 
+!>@brief The subroutine 'scalarspect_to_gaugrid' converts scalar spherical harmonics to a scalar on a gaussian grid
+!>@detils This subroutine is for a 2-D (lat-lon) scalar field
 subroutine scalarspect_to_gaugrid(&
            trie_ls,trio_ls,datag,&
            ls_node,ls_nodes,max_ls_nodes,&
@@ -372,6 +382,8 @@ subroutine scalarspect_to_gaugrid(&
       return
       end subroutine scalarspect_to_gaugrid
 
+!>@brief The subroutine 'dump_patterns' writes out the speherical harmonics to a file, controlled by FHSTOCH
+!>@detils Only the active patterns are written out
 subroutine dump_patterns(sfile)
     implicit none
     character*120 :: sfile
@@ -402,6 +414,8 @@ subroutine dump_patterns(sfile)
     endif
     close(stochlun)
  end subroutine dump_patterns
+!>@brief The subroutine 'write_patterns' writes out a single pattern and the seed associated with the random number sequence
+!>@detils Spherical harminoncs are stored with trianglular truncation
  subroutine write_pattern(rpattern,lev,lunptn)
    implicit none
    type(random_pattern), intent(inout) :: rpattern
@@ -443,6 +457,9 @@ subroutine dump_patterns(sfile)
    endif
    deallocate(pattern2d)
  end subroutine write_pattern
+!>@brief The subroutine 'vrtdivspect_to_uvgrid' converts vorticty and divergence spherical harmonics to 
+! zonal and meridional winds on the gaussian grid
+!>@detils This subroutine is for a 2-D (lat-lon) vector field
  subroutine vrtdivspect_to_uvgrid(&
            trie_di,trio_di,trie_ze,trio_ze,&
            uug,vvg,&

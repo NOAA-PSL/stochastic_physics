@@ -12,7 +12,7 @@ contains
 !>@brief The subroutine 'init_stochastic_physics' initializes the stochastic
 !!pattern genertors
 !>@details It reads the stochastic physics namelist (nam_stoch and nam_sfcperts)
-!allocates and polulates the necessary arrays
+!!allocates and polulates the necessary arrays
 subroutine init_stochastic_physics(Model, Init_parm, ntasks, nthreads)
 use fv_mp_mod, only : is_master
 use stochy_internal_state_mod
@@ -195,6 +195,8 @@ end subroutine init_stochastic_physics
 
 !>@brief The subroutine 'run_stochastic_physics' updates the random patterns if
 !!necessary
+!>@details It updates the AR(1) in spectral space
+!allocates and polulates the necessary arrays
 subroutine run_stochastic_physics(Model, Grid, Coupling, nthreads)
 use fv_mp_mod, only : is_master
 use stochy_internal_state_mod

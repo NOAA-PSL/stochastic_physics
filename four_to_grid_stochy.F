@@ -1,3 +1,4 @@
+!>@brief The module 'four_to_grid_mod' contains the subroute four_to_grid
       module four_to_grid_mod
 
       use spectral_layout_mod, only: num_parthds_stochy => ompthreads
@@ -6,6 +7,8 @@
 
       contains
 
+!>@brief The subroutine 'epslon_stochy' calculate coeffients for use in spectral space
+!>@details This code is taken from the legacy spectral GFS
       subroutine four_to_grid(syn_gr_a_1,syn_gr_a_2,
      &                        lon_dim_coef,lon_dim_grid,lons_lat,lot)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
