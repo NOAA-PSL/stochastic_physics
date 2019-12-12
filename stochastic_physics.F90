@@ -14,6 +14,7 @@ contains
 !>@details It reads the stochastic physics namelist (nam_stoch and nam_sfcperts)
 !!allocates and polulates the necessary arrays
 subroutine init_stochastic_physics(Model, Init_parm, ntasks, nthreads)
+!\callgraph
 use fv_mp_mod, only : is_master
 use stochy_internal_state_mod
 use stochy_data_mod, only : nshum,rpattern_shum,init_stochdata,rpattern_sppt,nsppt,rpattern_skeb,nskeb,gg_lats,gg_lons,&
@@ -198,6 +199,7 @@ end subroutine init_stochastic_physics
 !>@details It updates the AR(1) in spectral space
 !allocates and polulates the necessary arrays
 subroutine run_stochastic_physics(Model, Grid, Coupling, nthreads)
+!\callgraph
 use fv_mp_mod, only : is_master
 use stochy_internal_state_mod
 use stochy_data_mod, only : nshum,rpattern_shum,rpattern_sppt,nsppt,rpattern_skeb,nskeb,&
@@ -288,6 +290,7 @@ public :: run_stochastic_physics_sfc
 contains
 
 subroutine run_stochastic_physics_sfc(Model, Grid, Coupling)
+!\callgraph
 use fv_mp_mod, only : is_master
 use stochy_internal_state_mod
 use stochy_data_mod, only : rad2deg,INTTYP,wlon,rnlat,gis_stochy, rpattern_sfc,npsfc                      ! mg, sfc-perts

@@ -5,7 +5,7 @@ INPUT                  =
 FILE_PATTERNS          = *.md  \
                          *.h   \
                          *.c   \
-                         *.f90 \
+                         *.f   \
                          *.F90
 RECURSIVE              = YES
 USE_MDFILE_AS_MAINPAGE = README.md

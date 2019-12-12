@@ -48,6 +48,7 @@ module stochy_patterngenerator_mod
  subroutine patterngenerator_init(lscale, delt, tscale, stdev, iseed, rpattern,&
                                   nlon, nlat, jcap, ls_node, npatterns,&
                                   nlevs, varspect_opt)
+!\callgraph
    real(kind_dbl_prec), intent(in),dimension(npatterns) :: lscale,tscale,stdev
    real, intent(in) :: delt
    integer, intent(in) :: nlon,nlat,jcap,npatterns,varspect_opt
@@ -184,6 +185,7 @@ module stochy_patterngenerator_mod
 !>@brief The subroutine 'patterngenerator_destroy' dellaocate arrays
 !>@details This is acutally never called
  subroutine patterngenerator_destroy(rpattern,npatterns)
+!\callgraph
    type(random_pattern), intent(inout) :: rpattern(npatterns)
    integer, intent(in) :: npatterns
    integer n
@@ -198,6 +200,7 @@ module stochy_patterngenerator_mod
 !! variance from complex spectral coefficients
 !>@details this is necessary to ensure the proper global variance
  subroutine computevarspec(rpattern,dataspec,var)
+!\callgraph
     ! compute globally integrated variance from spectral coefficients
     complex(kind_evod), intent(in) :: dataspec(ndimspec)
     real(kind_evod), intent(out) ::  var
@@ -217,6 +220,7 @@ module stochy_patterngenerator_mod
 !! variance from real spectral coefficients
 !>@details this is necessary to ensure the proper global variance
  subroutine computevarspec_r(rpattern,dataspec,var)
+!\callgraph
     ! compute globally integrated variance from spectral coefficients
     real(kind_dbl_prec), intent(in) :: dataspec(2*ndimspec)
     real(kind_dbl_prec), intent(out) ::  var
@@ -236,6 +240,7 @@ module stochy_patterngenerator_mod
 !! white noise to the appropriate amplitude for speherical harmonincs
 !! variance from real spectral c
  subroutine getnoise(rpattern,noise_e,noise_o)
+!\callgraph
    real(kind_dbl_prec), intent(out) :: noise_e(len_trie_ls,2)
    real(kind_dbl_prec), intent(out) :: noise_o(len_trio_ls,2)
    ! generate white noise with unit variance in spectral space
@@ -271,6 +276,7 @@ module stochy_patterngenerator_mod
 
 !>@brief The subroutine 'patterngenerator_advance' advance 1st-order autoregressive process
  subroutine patterngenerator_advance(rpattern,k,skeb_first_call)
+!\callgraph
 
     ! advance 1st-order autoregressive process with
     ! specified autocorrelation (phi) and variance spectrum (spectrum)
@@ -305,6 +311,7 @@ module stochy_patterngenerator_mod
 !>@brief The subroutine 'setvarspect' calculates the variance spectrum
 ! from a specified decorrelation lengthscale
  subroutine setvarspect(rpattern,varspect_opt)
+!\callgraph
  ! define variance spectrum (isotropic covariance)
  ! normalized to unit global variance
   type(random_pattern), intent(inout) :: rpattern
@@ -350,6 +357,7 @@ module stochy_patterngenerator_mod
 !>@brief The subroutine 'chgres_pattern' truncates the spherical harmonics if
 !! restarting from a higher-resolution pattern
  subroutine chgres_pattern(pattern2din,pattern2dout,ntruncin,ntruncout)
+!\callgraph
    real(kind_dbl_prec), intent(in) :: pattern2din((ntruncin+1)*(ntruncin+2))
    real(kind_dbl_prec), intent(out) :: pattern2dout((ntruncout+1)*(ntruncout+2))
    integer, intent(in) :: ntruncin,ntruncout

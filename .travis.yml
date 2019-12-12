@@ -18,6 +18,7 @@ addons:
   apt:
     packages:
       - doxygen
+      - dot
 
 # Build your code e.g. by calling make
 script:

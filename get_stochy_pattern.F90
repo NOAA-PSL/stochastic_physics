@@ -35,6 +35,7 @@ module get_stochy_pattern_mod
 !>@details This subroutine is for a 2-D (lat-lon) scalar field
 subroutine get_random_pattern_fv3(rpattern,npatterns,&
            gis_stochy,Model,Grid,nblks,maxlen,pattern_2d)
+!\callgraph
 
 ! generate a random pattern for stochastic physics
  implicit none
@@ -105,6 +106,7 @@ end subroutine get_random_pattern_fv3
 !>@details This subroutine is for a 2-D (lat-lon) scalar field
 subroutine get_random_pattern_sfc_fv3(rpattern,npatterns,&
            gis_stochy,Model,Grid,nblks,maxlen,pattern_3d)
+!\callgraph
 
 ! generate a random pattern for stochastic physics
  implicit none
@@ -180,6 +182,7 @@ end subroutine get_random_pattern_sfc_fv3
 !>@details This subroutine is for a 2-D (lat-lon) vector field
 subroutine get_random_pattern_fv3_vect(rpattern,npatterns,&
            gis_stochy,Model,Grid,nblks,maxlen,upattern_3d,vpattern_3d)
+!\callgraph
 
 ! generate a random pattern for stochastic physics
  implicit none
@@ -334,6 +337,7 @@ subroutine scalarspect_to_gaugrid(&
            ls_node,ls_nodes,max_ls_nodes,&
            lats_nodes_a,global_lats_a,lonsperlat,&
            plnev_a,plnod_a,nlevs)
+!\callgraph
 
 
       implicit none
@@ -385,6 +389,7 @@ subroutine scalarspect_to_gaugrid(&
 !>@brief The subroutine 'dump_patterns' writes out the speherical harmonics to a file, controlled by FHSTOCH
 !>@details Only the active patterns are written out
 subroutine dump_patterns(sfile)
+!\callgraph
     implicit none
     character*120 :: sfile
     integer :: stochlun,k,n
@@ -417,6 +422,7 @@ subroutine dump_patterns(sfile)
 !>@brief The subroutine 'write_patterns' writes out a single pattern and the seed associated with the random number sequence
 !>@details Spherical harminoncs are stored with trianglular truncation
  subroutine write_pattern(rpattern,lev,lunptn)
+!\callgraph
    implicit none
    type(random_pattern), intent(inout) :: rpattern
    integer, intent(in) :: lunptn,lev
@@ -466,6 +472,7 @@ subroutine dump_patterns(sfile)
            ls_node,ls_nodes,max_ls_nodes,&
            lats_nodes_a,global_lats_a,lonsperlar,&
            epsedn,epsodn,snnp1ev,snnp1od,plnev_a,plnod_a,nlevs)
+!\callgraph
 
       implicit none
       real(kind=kind_dbl_prec), intent(in) :: trie_di(len_trie_ls,2,nlevs)
