@@ -9,8 +9,6 @@ Welcome to UFS stochastic physics's documentation!
    namelist_options
    developers_guide
 
-   Doxygen `pages`_ for stochastic physicsis.
-.. _pages: https://pjpegion.github.io/stochastic_physics/index.html
 
 Indices and tables
 ==================
@@ -18,3 +16,9 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
+FORTRAN Documentation
+=====================
+Doxygen generate content `DOXYGEN`_.
+
+.. _DOXYGEN: https://pjpegion.github.io/stochastic_physics/index.html
