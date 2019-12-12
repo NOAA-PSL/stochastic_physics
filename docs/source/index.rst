@@ -8,17 +8,11 @@ Welcome to UFS stochastic physics's documentation!
    users_guide
    namelist_options
    developers_guide
+   references        
 
 
-Indices and tables
-==================
+Source Code Documentation
+==========================
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+Doxygen generated `content <https://pjpegion.github.io/stochastic_physics/index.html>`_
 
-FORTRAN Documentation
-=====================
-Doxygen generate content `DOXYGEN`_.
-
-.. _DOXYGEN: https://pjpegion.github.io/stochastic_physics/index.html
