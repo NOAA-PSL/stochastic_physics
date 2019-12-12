@@ -18,10 +18,6 @@ addons:
   apt:
     packages:
       - doxygen
-      - graphviz
-      - doxygen-doc
-      - doxygen-latex
-      - doxygen-gui
 
 # Build your code e.g. by calling make
 script:
