@@ -18,7 +18,7 @@ addons:
   apt:
     packages:
       - doxygen
-      - dot
+      - graphviz
 
 # Build your code e.g. by calling make
 script:
