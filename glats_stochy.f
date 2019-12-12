@@ -84,6 +84,8 @@
       return
       end
 
+!>@brief The subroutine 'poly' does something with latitudes
+!>@details This code is taken from the legacy spectral GFS
       subroutine poly(n,rad,p)
       use machine
 !

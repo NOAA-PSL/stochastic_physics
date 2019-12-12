@@ -6,15 +6,26 @@ branches:
   only:
     - ufs_public_release
 
+# Environment variables
+env:
+  global:
+    - GH_REPO_NAME: stochastic_physics
+    - DOXYFILE: $TRAVIS_BUILD_DIR/
+    - GH_REPO_REF: github.com/pjpegion/stochastic_physics.git
+
 # Install dependencies
 addons:
   apt:
     packages:
       - doxygen
+      - graphviz
+      - doxygen-doc
+      - doxygen-latex
+      - doxygen-gui
 
 # Build your code e.g. by calling make
 script:
-  - doxygen Doxyfile
+  - doxygen
 
 # Generate and deploy documentation
 deploy:
