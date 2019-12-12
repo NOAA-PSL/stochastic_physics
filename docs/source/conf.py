@@ -10,10 +10,10 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-import os
-import sys
-sys.path.append( "/Users/ppegion/.local/bin" )
-sys.path.insert(0, os.path.abspath('.'))
+#import os
+#import sys
+#sys.path.append( "/Users/ppegion/.local/bin" )
+#sys.path.insert(0, os.path.abspath('.'))
 
 
 # -- Project information -----------------------------------------------------
@@ -37,15 +37,15 @@ master_doc = 'index'
 # ones.
 
 # create doxygen documentation
-import subprocess
-read_the_docs_build = os.environ.get('READTHEDOCS', None) == 'True'
-print('read_the_docs_build',read_the_docs_build)
-if read_the_docs_build:
-    subprocess.call('cd ../../ ; doxygen', shell=True)
-extensions = ['sphinx.ext.autodoc', 'breathe']
-#extensions = ['breathe']
-breathe_projects = { "stochastic_physics": "../../xml/" }
-breathe_default_project = "stochastic_physics"
+#import subprocess
+#read_the_docs_build = os.environ.get('READTHEDOCS', None) == 'True'
+#print('read_the_docs_build',read_the_docs_build)
+#if read_the_docs_build:
+#    subprocess.call('cd ../../ ; doxygen', shell=True)
+#extensions = ['sphinx.ext.autodoc', 'breathe']
+##extensions = ['breathe']
+#breathe_projects = { "stochastic_physics": "../../xml/" }
+#breathe_default_project = "stochastic_physics"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

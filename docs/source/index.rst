@@ -9,13 +9,8 @@ Welcome to UFS stochastic physics's documentation!
    namelist_options
    developers_guide
 
-.. toctree::
-   :maxdepth: 1
-
-   api/doxygen_function
-   api/doxygen_file 
-   api/doxygen_index
-
+   Doxygen `pages`_ for stochastic physicsis.
+.. _pages: https://pjpegion.github.io/stochastic_physics/index.html
 
 Indices and tables
 ==================
