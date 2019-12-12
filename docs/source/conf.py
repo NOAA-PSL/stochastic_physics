@@ -35,6 +35,13 @@ master_doc = 'index'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
+
+# create doxygen documentation
+import subprocess
+read_the_docs_build = os.environ.get('READTHEDOCS', None) == 'True'
+print('read_the_docs_build',read_the_docs_build)
+if read_the_docs_build:
+    subprocess.call('cd ../../ ; doxygen', shell=True)
 extensions = ['sphinx.ext.autodoc', 'breathe']
 #extensions = ['breathe']
 breathe_projects = { "stochastic_physics": "../../xml/" }
@@ -61,9 +68,3 @@ html_theme = 'alabaster'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-# create doxygen documentation
-import subprocess
-read_the_docs_build = os.environ.get('READTHEDOCS', None) == 'True'
-print('read_the_docs_build',read_the_docs_build)
-if read_the_docs_build:
-    subprocess.call('cd ../../ ; doxygen', shell=True)
