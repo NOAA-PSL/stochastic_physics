@@ -12,9 +12,8 @@
 #
 import os
 import sys
-#sys.path.append( "/Users/ppegion/.local/bin" )
-
-# sys.path.insert(0, os.path.abspath('.'))
+sys.path.append( "/Users/ppegion/.local/bin" )
+sys.path.insert(0, os.path.abspath('.'))
 
 
 # -- Project information -----------------------------------------------------
@@ -36,7 +35,10 @@ master_doc = 'index'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = [ "breathe" ]
+extensions = ['sphinx.ext.autodoc', 'breathe']
+#extensions = ['breathe']
+breathe_projects = { "stochastic_physics": "../../xml/" }
+breathe_default_project = "stochastic_physics"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -62,11 +64,6 @@ html_static_path = ['_static']
 # create doxygen documentation
 import subprocess
 read_the_docs_build = os.environ.get('READTHEDOCS', None) == 'True'
-
+print('read_the_docs_build',read_the_docs_build)
 if read_the_docs_build:
-    subprocess.call('cd ../../ ; doxygen stochy_doc.conf', shell=True)
-
-#html_extra_path = ['../../html']
-
-#breathe_projects = { "stochastic_physics":"/Users/ppegion/ufs-weather-model/stochastic_physics/xml/" }
-#breathe_default_project = "stochastic_physics"
+    subprocess.call('cd ../../ ; doxygen', shell=True)

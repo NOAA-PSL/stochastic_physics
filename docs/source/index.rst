@@ -10,10 +10,12 @@ Welcome to UFS stochastic physics's documentation!
    developers_guide
 
 .. toctree::
-   :caption: API REFERENCE
-   :maxdepth: 2
+   :maxdepth: 1
 
-   api/all_functions
+   api/doxygen_function
+   api/doxygen_file 
+   api/doxygen_index
+
 
 Indices and tables
 ==================

@@ -14,11 +14,15 @@ module stochy_patterngenerator_mod
 
  public :: computevarspec, setvarspect,&
   patterngenerator_init, patterngenerator_destroy, getnoise, &
-  patterngenerator_advance, random_pattern, ndimspec,&
+  patterngenerator_advance, ndimspec,&
   chgres_pattern,computevarspec_r
 
- type random_pattern
-    real(kind_dbl_prec), public :: lengthscale
+! -----------------------------------------------
+!>@brief Derived type 'random_pattern' contains the attrubites of a spefic random pattern
+!>@details A seperate instance of this type is needed for each pattern
+ type,public :: random_pattern                ! start type define
+! -----------------------------------------------
+    real(kind_dbl_prec), public :: lengthscale  ! length scale in m
     real(kind_dbl_prec), public :: tau
     real(kind_dbl_prec), public :: dt
     real(kind_dbl_prec), public :: phi
@@ -30,7 +34,9 @@ module stochy_patterngenerator_mod
     integer, public :: seed
     real(kind_dbl_prec), allocatable, dimension(:,:,:), public :: spec_e,spec_o
     type(random_stat), public :: rstate
- end type random_pattern
+! -----------------------------------------------------
+ end type random_pattern             ! end type define
+! -----------------------------------------------------
 
  integer :: nlons,nlats,ntrunc,ndimspec
 

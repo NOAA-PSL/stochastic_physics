@@ -28,6 +28,8 @@
       private
 
 ! -----------------------------------------------
+!>@brief Derived type 'stochy_internal_state' contains all of the spherical harmonic and gaussian grid information
+!>@details This code is taken from the legacy spectral GFS
       type,public::stochy_internal_state		! start type define
 ! -----------------------------------------------
 
