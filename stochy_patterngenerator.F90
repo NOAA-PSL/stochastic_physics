@@ -47,12 +47,13 @@ module stochy_patterngenerator_mod
 !! temporaral and spatial correlations.
  subroutine patterngenerator_init(lscale, delt, tscale, stdev, iseed, rpattern,&
                                   nlon, nlat, jcap, ls_node, npatterns,&
-                                  nlevs, varspect_opt)
+                                  nlevs, varspect_opt,new_lscale)
 !\callgraph
    real(kind_dbl_prec), intent(in),dimension(npatterns) :: lscale,tscale,stdev
    real, intent(in) :: delt
    integer, intent(in) :: nlon,nlat,jcap,npatterns,varspect_opt
    integer, intent(in) :: ls_node(ls_dim,3),nlevs
+   logical, intent(in) :: new_lscale
    type(random_pattern), intent(out), dimension(npatterns) :: rpattern
    integer(8), intent(inout) :: iseed(npatterns)
    integer m,j,l,n,nm,nn,np,indev1,indev2,indod1,indod2
@@ -174,9 +175,9 @@ module stochy_patterngenerator_mod
          if (is_master()) then
             print *,'WARNING: illegal value for varspect_opt (should be 0 or 1), using 0 (gaussian spectrum)...'
          endif
-         call setvarspect(rpattern(np),0)
+         call setvarspect(rpattern(np),0,new_lscale)
       else
-         call setvarspect(rpattern(np),varspect_opt)
+         call setvarspect(rpattern(np),varspect_opt,new_lscale)
       endif
    enddo ! n=1,npatterns
  end subroutine patterngenerator_init
@@ -308,18 +309,21 @@ module stochy_patterngenerator_mod
        rpattern%stdev*sqrt(1.-rpattern%phi**2)*rpattern%varspectrum(nm)*noise_o(nn,2)
     enddo
  end subroutine patterngenerator_advance
+
 !>@brief The subroutine 'setvarspect' calculates the variance spectrum
 ! from a specified decorrelation lengthscale
- subroutine setvarspect(rpattern,varspect_opt)
+ subroutine setvarspect(rpattern,varspect_opt,new_lscale)
 !\callgraph
  ! define variance spectrum (isotropic covariance)
  ! normalized to unit global variance
   type(random_pattern), intent(inout) :: rpattern
   integer, intent(in) :: varspect_opt
+  logical, intent(in) :: new_lscale
   integer :: n
   complex(kind_evod) noise(ndimspec)
-  real(kind_evod) var,rerth
+  real(kind_evod) var,rerth,inv_rerth_sq
   rerth  =6.3712e+6      ! radius of earth (m)
+  inv_rerth_sq=1.0/(rerth**2)
   ! 1d variance spectrum (as a function of total wavenumber)
   if (varspect_opt == 0) then ! gaussian
      ! rpattern%lengthscale is interpreted as an efolding length
@@ -328,7 +332,12 @@ module stochy_patterngenerator_mod
         rpattern%varspectrum1d(n) = exp(-rpattern%lengthscale**2*(float(n)*(float(n)+1.))/(4.*rerth**2))
      enddo
      ! scaling factors for spectral coeffs of white noise pattern with unit variance
-     rpattern%varspectrum = sqrt(ntrunc*exp(rpattern%lengthscale**2*rpattern%lap/(4.*rerth**2)))
+     if (new_lscale) then
+        !fix for proper lengthscale  
+        rpattern%varspectrum = ntrunc*exp((rpattern%lengthscale*0.25)**2*rpattern%lap*inv_rerth_sq)
+     else
+        rpattern%varspectrum = sqrt(ntrunc*exp(rpattern%lengthscale**2*rpattern%lap/(4.*rerth**2)))
+     endif
   else if (varspect_opt == 1) then ! power law
      ! rpattern%lengthscale is interpreted as a power, not a length.
      do n=0,ntrunc

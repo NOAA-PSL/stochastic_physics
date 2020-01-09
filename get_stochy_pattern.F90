@@ -16,7 +16,11 @@ module get_stochy_pattern_mod
                                         patterngenerator_advance
  use stochy_internal_state_mod, only: stochy_internal_state
  use fv_mp_mod, only : mp_reduce_sum,is_master
- use GFS_typedefs,       only: GFS_control_type, GFS_grid_type
+#ifdef STOCHY_UNIT_TEST
+use standalone_stochy_module,   only: GFS_control_type, GFS_grid_type
+# else
+use GFS_typedefs,       only: GFS_control_type, GFS_grid_type
+#endif
  use mersenne_twister, only: random_seed
  use dezouv_stochy_mod, only: dezouv_stochy
  use dozeuv_stochy_mod, only: dozeuv_stochy
@@ -82,9 +86,9 @@ subroutine get_random_pattern_fv3(rpattern,npatterns,&
   enddo
 
    call mp_reduce_sum(workg,lonf,latg)
+   
 
 ! interpolate to cube grid
-
    allocate(rslmsk(lonf,latg))
    do blk=1,nblks
       len=size(Grid(blk)%xlat,1)
