@@ -1,3 +1,5 @@
+!>@brief The function 'num_parthds_stochy' sets the number of threads from the OMP_NUM_THREADS enviroment variable
+!>@details This code is taken from the legacy spectral GFS
       function num_parthds_stochy()
       integer:: number_of_openMP_threads
       character(2) :: omp_threads

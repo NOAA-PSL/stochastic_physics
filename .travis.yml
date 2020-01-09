@@ -1,0 +1,34 @@
+# This will run on Travis' 'new' container-based infrastructure
+sudo: false 
+
+# Blacklist
+branches:
+  only:
+    - ufs_public_release
+
+# Environment variables
+env:
+  global:
+    - GH_REPO_NAME: stochastic_physics
+    - DOXYFILE: $TRAVIS_BUILD_DIR/
+    - GH_REPO_REF: github.com/pjpegion/stochastic_physics.git
+
+# Install dependencies
+addons:
+  apt:
+    packages:
+      - doxygen
+      - graphviz
+
+# Build your code e.g. by calling make
+script:
+  - doxygen
+
+# Generate and deploy documentation
+deploy:
+  provider: pages
+  skip_cleanup: true
+  local_dir: html
+  github_token: $GH_REPO_TOKEN
+  on:
+    branch: ufs_public_release

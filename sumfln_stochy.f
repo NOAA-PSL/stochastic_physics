@@ -1,9 +1,12 @@
+!>@brief The module 'sumfln_stochy_mod' contains the subroutine sumfln_stochy
       module sumfln_stochy_mod
 
       implicit none
 
       contains
 
+!>@brief The subrountine 'sumfln_stochy' converts the spherical harmonics to fourier coefficients
+!>@details This code is taken from the legacy spectral GFS
       subroutine sumfln_stochy(flnev,flnod,lat1s,plnev,plnod,
      &                         nvars,ls_node,latl2,
      &                         workdim,nvarsdim,four_gr,

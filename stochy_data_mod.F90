@@ -1,3 +1,5 @@
+!>@brief The module 'stochy_data_mod' contains the initilization routine that read the stochastic phyiscs
+!! namelist and determins the number of random patterns.
 module stochy_data_mod
 
 ! set up and initialize stochastic random patterns.
@@ -37,7 +39,11 @@ module stochy_data_mod
  type(stochy_internal_state),public :: gis_stochy
 
  contains
+!>@brief The subroutine 'init_stochdata' determins which stochastic physics
+!!pattern genertors are needed.
+!>@details it reads the nam_stochy namelist and allocates necessary arrays
  subroutine init_stochdata(nlevs,delt,input_nml_file,fn_nml,nlunit,iret)
+!\callgraph
 
 ! initialize random patterns.  A spinup period of spinup_efolds times the
 ! temporal time scale is run for each pattern.
@@ -60,6 +66,7 @@ module stochy_data_mod
 
    iret=0
    if(is_master()) print*,'in init stochdata'
+! read in namelist
    call compns_stochy (me,size(input_nml_file,1),input_nml_file(:),fn_nml,nlunit,delt,iret)
    if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb)  .AND. (.NOT. do_sfcperts) ) return
    if (nodes.GE.lat_s/2) then
@@ -68,6 +75,7 @@ module stochy_data_mod
       ntrunc=lat_s-2
       if (is_master()) print*,'WARNING: spectral resolution is too low for number of mpi_tasks, resetting lon_s,lat_s,and ntrunc to',lon_s,lat_s,ntrunc
    endif
+! initialize the specratl pattern generatore (including gaussian grid decomposition)
    call initialize_spectral(gis_stochy, iret)
    if (iret/=0) return
    allocate(noise_e(len_trie_ls,2),noise_o(len_trio_ls,2))
@@ -332,8 +340,11 @@ if (npsfc > 0) then
    if (is_master() .and. stochini) CLOSE(stochlun)
    deallocate(noise_e,noise_o)
  end subroutine init_stochdata
-
+!>@brief This subroutine 'read_pattern' will read in the spectral coeffients from a previous run (stored in stoch_ini,
+!!turned on by setting STOCHINI=.true.)
+!>@details Data read in are flat binary, so the number of stochastic physics patterns running must match previous run
 subroutine read_pattern(rpattern,k,lunptn)
+!\callgraph
    type(random_pattern), intent(inout) :: rpattern
    integer, intent(in) :: lunptn
    real(kind_dbl_prec),allocatable  :: pattern2d(:),pattern2din(:)

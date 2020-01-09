@@ -1,9 +1,13 @@
+!>@brief The module 'glats_stochy_mod' contains the subroute glats_stochy
       module glats_stochy_mod
+
 
       implicit none
 
       contains
 
+!>@brief The subroutine 'glats_stochy' calculate the latitudes for the gaussian grid 
+!>@details This code is taken from the legacy spectral GFS
       subroutine glats_stochy(lgghaf,colrad,wgt,wgtcs,rcs2,iprint)
 !
 ! Jan 2013   Henry Juang  increase precision by kind_qdt_prec=16
@@ -80,6 +84,8 @@
       return
       end
 
+!>@brief The subroutine 'poly' does something with latitudes
+!>@details This code is taken from the legacy spectral GFS
       subroutine poly(n,rad,p)
       use machine
 !
