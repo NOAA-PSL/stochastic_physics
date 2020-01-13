@@ -15,6 +15,7 @@ install:
 branches:
   only:
     - ufs_public_release
+    - test_build
 
 # Environment variables
 env:
