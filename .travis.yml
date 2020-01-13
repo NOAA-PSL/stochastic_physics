@@ -24,19 +24,19 @@ env:
     - GH_REPO_REF: github.com/pjpegion/stochastic_physics.git
 
 # Install dependencies
-addons:
-  apt:
-    packages:
-      - doxygen
-      - graphviz
+#addons:
+#  apt:
+#    packages:
+#      - doxygen
+#      - graphviz
 
 # Build your code e.g. by calling make
 script:
 #  - doxygen
   - pushd docs
-  # Use Sphinx to make the html docs
+#   Use Sphinx to make the html docs
    - make html
-  # Tell GitHub not to use jekyll to compile the docs
+#   Tell GitHub not to use jekyll to compile the docs
    - touch build/html/.nojekyll
 
 # Generate and deploy documentation
