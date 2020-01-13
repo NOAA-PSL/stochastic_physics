@@ -32,12 +32,12 @@ env:
 
 # Build your code e.g. by calling make
 script:
-#  - doxygen
-  - pushd docs
+#   - doxygen
+    - pushd docs
 #   Use Sphinx to make the html docs
-   - make html
+    - make html
 #   Tell GitHub not to use jekyll to compile the docs
-   - touch build/html/.nojekyll
+    - touch build/html/.nojekyll
 
 # Generate and deploy documentation
 deploy:
