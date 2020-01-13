@@ -1,6 +1,16 @@
 # This will run on Travis' 'new' container-based infrastructure
 sudo: false 
 
+before_install:
+    - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
+    - chmod +x miniconda.sh
+    - "./miniconda.sh -b"
+    - export PATH=/home/travis/miniconda2/bin:$PATH
+    - conda update --yes conda
+
+install:
+    - conda install --yes sphinx
+
 # Blacklist
 branches:
   only:
@@ -23,12 +33,17 @@ addons:
 # Build your code e.g. by calling make
 script:
   - doxygen
+  - pushd docs
+  # Use Sphinx to make the html docs
+    - make html
+  # Tell GitHub not to use jekyll to compile the docs
+    - touch build/html/.nojekyll
 
 # Generate and deploy documentation
 deploy:
   provider: pages
   skip_cleanup: true
-  local_dir: html
+  local_dir: docs/build/html
   github_token: $GH_REPO_TOKEN
   on:
     branch: ufs_public_release
