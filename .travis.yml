@@ -38,6 +38,7 @@ script:
     - make html
 #   Tell GitHub not to use jekyll to compile the docs
     - touch build/html/.nojekyll
+    - popd
 
 # Generate and deploy documentation
 before_deploy:
