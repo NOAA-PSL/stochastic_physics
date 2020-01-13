@@ -32,7 +32,7 @@ addons:
 
 # Build your code e.g. by calling make
 script:
-   - doxygen
+    - doxygen
     - pushd docs
 #   Use Sphinx to make the html docs
     - make html
