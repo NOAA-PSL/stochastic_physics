@@ -14,5 +14,5 @@ Welcome to UFS stochastic physics's documentation!
 Source Code Documentation
 ==========================
 
-Doxygen generated `content <https://pjpegion.github.io/stochastic_physics/index.html>`_
+Doxygen generated `content <https://pjpegion.github.io/stochastic_physics/doxygen/index.html>`_
 

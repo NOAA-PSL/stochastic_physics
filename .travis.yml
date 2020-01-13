@@ -40,6 +40,8 @@ script:
     - touch build/html/.nojekyll
 
 # Generate and deploy documentation
+before_deploy:
+    - cp -r html docs/build/html/doxygen
 deploy:
   provider: pages
   skip_cleanup: true
