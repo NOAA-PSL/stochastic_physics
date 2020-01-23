@@ -1,6 +1,6 @@
 subroutine cellular_automata_global(kstep,Statein,Coupling,Diag,nblks,nlev, &
             nca,ncells,nlives,nfracseed,nseed,nthresh,ca_global,ca_sgs,iseed_ca, &
-            ca_smooth,nsmooth,nspinup,blocksize)
+            ca_smooth,nspinup,blocksize,nsmooth,ca_amplitude)
 
 use machine
 use update_ca,         only: update_cells_sgs, update_cells_global
@@ -27,7 +27,7 @@ implicit none
 !the flag ca_global
 
 integer,intent(in) :: kstep,ncells,nca,nlives,nseed,iseed_ca,nspinup,nsmooth
-real,intent(in) :: nfracseed,nthresh
+real,intent(in) :: nfracseed,nthresh,ca_amplitude
 logical,intent(in) :: ca_global, ca_sgs, ca_smooth
 integer, intent(in) :: nblks,nlev,blocksize
 type(GFS_coupling_type),intent(inout) :: Coupling(nblks)
@@ -76,8 +76,8 @@ nca_plumes = .false.
 ! WRITE(*,*)'Entering cellular automata calculations'
 
 ! Some security checks for namelist combinations:
- if(nca > 5)then
- write(0,*)'Namelist option nca cannot be larger than 5 - exiting'
+ if(nca > 3)then
+ write(0,*)'Namelist option nca cannot be larger than 3 - exiting'
  stop
  endif
 
@@ -275,8 +275,17 @@ do nf=1,nca !update each ca
                    ca_sgs,nspinup, condition, vertvelhigh,nf,nca_plumes) 
 
   
+
+
+
+  CA2 = CA2 + CA
+
+enddo !nca                                                                                                                                                                                             
+
+CA1 = CA
  
 if (ca_smooth) then
+
 do nn=1,nsmooth !number of itterations for the smoothing. 
 
 field_in=0.
@@ -284,7 +293,7 @@ field_in=0.
 !get halo
 do j=1,nlat
  do i=1,nlon
- field_in(i+(j-1)*nlon,1)=CA(i,j)
+ field_in(i+(j-1)*nlon,1)=CA1(i,j)
  enddo
 enddo
 
@@ -296,33 +305,31 @@ do j=1,nlat
  do i=1,nlon
     ih=i+halo
     jh=j+halo
-    field_smooth(i,j)=(4.0*field_out(ih,jh,1)+2.0*field_out(ih-1,jh,1)+ & 
+    field_smooth(i,j)=(2.0*field_out(ih,jh,1)+2.0*field_out(ih-1,jh,1)+ & 
                        2.0*field_out(ih,jh-1,1)+2.0*field_out(ih+1,jh,1)+&
                        2.0*field_out(ih,jh+1,1)+2.0*field_out(ih-1,jh-1,1)+&
                        2.0*field_out(ih-1,jh+1,1)+2.0*field_out(ih+1,jh+1,1)+&
-                       2.0*field_out(ih+1,jh-1,1))/20.
+                       2.0*field_out(ih+1,jh-1,1))/18.
  enddo
 enddo
 
 do j=1,nlat
  do i=1,nlon
-    CA(i,j)=field_smooth(i,j)
+    CA1(i,j)=field_smooth(i,j)
  enddo
 enddo
 
 enddo !nn
-endif
+endif !smooth
 
-    if(nf==1)then
-    CA1(:,:)=CA(:,:)
-    elseif(nf==2)then
-    CA2(:,:)=CA(:,:)
-    else
-    CA3(:,:)=CA(:,:)
-    endif
+!    if(nf==1)then
+!    CA1(:,:)=CA(:,:)
+!    elseif(nf==2)then
+!    CA2(:,:)=CA(:,:)
+!    else
+!    CA3(:,:)=CA(:,:)
+!    endif
 
-
-enddo !nca loop  
 
 
 !!!!Post processing, should be made into a separate subroutine
@@ -330,6 +337,7 @@ enddo !nca loop
 !!!!Construct linear combinations of CA1, CA2 and CA3
 
 
+!if (nf==1) then
 !Use min-max method to normalize range
 !!!CA1
 Detmax(1)=maxval(CA1)
@@ -343,6 +351,7 @@ do j=1,nlat
  enddo
 enddo
 
+!mean:
 CAmean=0.
 psum=0.
 csum=0.
@@ -358,89 +367,40 @@ call mp_reduce_sum(csum)
 
 CAmean=psum/csum
 
-do j=1,nlat
- do i=1,nlon
- CA1(i,j)=(CA1(i,j)-CAmean)+1.0 !Can we compute the global median?                                                                                                                                         
- enddo
-enddo
+!std:
+CAstdv=0.                                                                                                                                                                                             
+sq_diff = 0.                                                                                                                                                                                          
+do j=1,nlat                                                                                                                                                                                           
+ do i=1,nlon                                                                                                                                                                                          
+  sq_diff = sq_diff + (CA1(i,j)-CAmean)**2.0                                                                                                                                                        
+ enddo                                                                                                                                                                                                
+enddo                                                                                                                                                                                                 
 
+call mp_reduce_sum(sq_diff)                                                                                                                                                                           
 
+CAstdv = sqrt(sq_diff/csum)                                                                                                                                                                 
 
-!!!CA2
-Detmax(2)=maxval(CA2)
-call mp_reduce_max(Detmax(2))
-Detmin(2)=minval(CA2)
-call mp_reduce_min(Detmin(2))
-
-do j=1,nlat
- do i=1,nlon
-    CA2(i,j) = ((CA2(i,j) - Detmin(2))/(Detmax(2)-Detmin(2)))
- enddo
-enddo
-
-CAmean=0.
-psum=0.
-csum=0.
-do j=1,nlat
- do i=1,nlon
-  psum=psum+(CA2(i,j))
-  csum=csum+1
- enddo
-enddo
-
-call mp_reduce_sum(psum)
-call mp_reduce_sum(csum)
-
-CAmean=psum/csum
+!Transform to mean of 1 and ca_amplitude standard deviation
 
 do j=1,nlat
  do i=1,nlon
- CA2(i,j)=(CA2(i,j)-CAmean)+1.0 !Can we compute the global median?                                                                                                                                         
+  CA1(i,j)=1.0 + (CA1(i,j)-CAmean)*(ca_amplitude/CAstdv)  
  enddo
 enddo
-
-
-!!!CA3                                                                                                                                                                                                       
-Detmax(3)=maxval(CA3)
-call mp_reduce_max(Detmax(3))
-Detmin(3)=minval(CA3)
-call mp_reduce_min(Detmin(3))
 
 do j=1,nlat
  do i=1,nlon
-    CA3(i,j) = ((CA3(i,j) - Detmin(3))/(Detmax(3)-Detmin(3)))
+    CA1(i,j)=min(max(CA1(i,j),0.),2.0)
  enddo
 enddo
-
-CAmean=0.
-psum=0.
-csum=0.
-do j=1,nlat
- do i=1,nlon
-  psum=psum+(CA3(i,j))
-  csum=csum+1
- enddo
-enddo
-
-call mp_reduce_sum(psum)
-call mp_reduce_sum(csum)
-
-CAmean=psum/csum
-
-do j=1,nlat
- do i=1,nlon
- CA3(i,j)=(CA3(i,j)-CAmean)+1.0 !Can we compute the global median?                                                                                                                                         
- enddo
-enddo
-
 
 
 !Put back into blocks 1D array to be passed to physics
 !or diagnostics output
 if(kstep < 1)then
 CA1(:,:)=1.
-CA2(:,:)=1.
-CA3(:,:)=1.
+!CA2(:,:)=1.
+!CA3(:,:)=1.
 endif
 
   
