@@ -15,5 +15,5 @@ Land surface perturbations allow for land surface parameters such as Albedo, Soi
 
 Due to the model’s numerics, any stochastic perturbation needs to be correlated in space and time in order to have the desired effect of upscale growth of the perturbations. This is achieved by creating a random pattern that has a specified decorrelation length-scale and is a first order auto-regressive process AR(1) in time with a specified decorrelation time-scale.  (The CA random pattern generator also satisfies this condition)
 
-Currently the Land surface perturbations and cellular automata are not supported that the workflow level.  
+Currently the Land surface perturbations and cellular automata are not supported at the workflow level.  
 
