@@ -50,4 +50,6 @@ deploy:
   local_dir: docs/build/html
   github_token: $GH_REPO_TOKEN
   on:
-    branch: ufs_public_release
+    branch: 
+       - ufs_public_release
+       - release/public-v1
