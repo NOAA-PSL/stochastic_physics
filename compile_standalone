@@ -18,7 +18,6 @@ if [ $compile_all -eq 1 ];then
    $FC ${FLAGS64} setlats_lag_stochy.f
    $FC ${FLAGS64} glats_stochy.f
    $FC ${FLAGS64} gozrineo_stochy.f
-   $FC ${FLAGS64} num_parthds_stochy.f
    $FC ${FLAGS64} dezouv_stochy.f
    $FC ${FLAGS64} dozeuv_stochy.f
    $FC ${FLAGS64} epslon_stochy.f
