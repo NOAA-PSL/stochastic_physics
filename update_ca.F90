@@ -34,13 +34,14 @@ logical,intent(in) :: nca_plumes
 real, dimension(nlon,nlat) :: frac
 integer, dimension(nlon,nlat) :: maxlives
 integer,allocatable,save :: board(:,:,:), lives(:,:,:)
-integer,allocatable :: V(:),L(:)
+integer,allocatable :: V(:),L(:),B(:)
+integer,allocatable :: AG(:,:)
 integer :: inci, incj, i, j, k, iii,sub,spinup,it,halo,k_in,isize,jsize
 integer :: haloh, ih, jh,lives_max,kend
 real :: threshc,threshk,wp_max,wp_min,mthresh,kthresh
 real, allocatable :: field_in(:,:),board_halo(:,:,:), Wpert_halo(:,:,:),Cpert_halo(:,:,:)
 integer, dimension(nxc,nyc) :: neighbours, birth, newlives,thresh,maxliveshigh
-integer, dimension(nxc,nyc) :: neg, newcell, oldlives, newval,temp
+integer, dimension(nxc,nyc) :: neg, newcell, oldlives, newval,temp,newseed
 integer, dimension(ncells,ncells) :: onegrid
 real,dimension(nxc,nyc) :: livesout
 logical :: ca_global, ca_sgs
@@ -159,11 +160,14 @@ k_in=1
 
  !Seed with new CA cells at each nseed step                                                                                                                        
 
+  newseed = 0
   if(mod(kstep,nseed) == 0 .and. kstep >= 2)then
    do j=1,nyc
     do i=1,nxc
-     board(i,j,nf) = iini(i,j,nf)                                                                                                                                 
-     lives(i,j,nf) = ilives(i,j,nf)*iini(i,j,nf)                                                                                                                      
+     if(board(i,j,nf) == 0 .and. NOISE_B(i,j)>0.95 )then
+       newseed(i,j) = 1
+     endif
+     board(i,j,nf) = board(i,j,nf) + newseed(i,j)                                                                                                                                 
     enddo
    enddo
 
@@ -327,6 +331,12 @@ if(nca_plumes == .true.) then
   if (.not. allocated(L))then
   allocate(L(kend))
   endif
+  if (.not. allocated(B))then
+  allocate(B(kend))
+  endif
+  if (.not. allocated(AG))then
+  allocate(AG(ncells,ncells))
+  endif
   
   ca_plumes(:,:)=0
   inci=ncells
@@ -334,13 +344,17 @@ if(nca_plumes == .true.) then
   sub=ncells-1
   DO j=1,nlat
      DO i=1,nlon
+        B(:)=0
+        L(:)=0
+        V(:)=0
         onegrid(1:ncells,1:ncells)=temp(inci-sub:inci,incj-sub:incj)
-        call plumes(V,L,onegrid,ncells,ncells,kend)
+        call plumes(V,L,AG,onegrid,ncells,ncells,kend)
         do k=1,kend
-         if (V(k) == 1)then
-         ca_plumes(i,j)=ca_plumes(i,j)+L(k)
-         endif
+           if(V(k)==1)then
+              B(k)=L(k) !to avoid considering clusters of 0
+           endif
         enddo
+        ca_plumes(i,j)=MAXVAL(B(1:kend))
         inci=inci+ncells
      ENDDO
      inci=ncells

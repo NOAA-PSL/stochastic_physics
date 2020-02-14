@@ -46,7 +46,7 @@ integer, allocatable :: iini(:,:,:),ilives(:,:),iini_g(:,:,:),ilives_g(:,:),ca_p
 real(kind=kind_phys), allocatable :: field_out(:,:,:), field_in(:,:),field_smooth(:,:),Detfield(:,:,:)
 real(kind=kind_phys), allocatable :: omega(:,:,:),pressure(:,:,:),cloud(:,:),humidity(:,:)
 real(kind=kind_phys), allocatable :: vertvelsum(:,:),vertvelmean(:,:),dp(:,:,:),surfp(:,:),tmp(:,:)
-real(kind=kind_phys), allocatable :: CA(:,:),CA1(:,:),CA2(:,:),CA3(:,:),condition(:,:),rho(:,:),cape(:,:)
+real(kind=kind_phys), allocatable :: CA(:,:),CA1(:,:),CA2(:,:),CA3(:,:),condition(:,:),rho(:,:),conditiongrid(:,:)
 real(kind=kind_phys), allocatable :: noise1D(:),vertvelhigh(:,:),noise(:,:,:)
 real(kind=kind_phys) :: psum,csum,CAmean,sq_diff,CAstdv,count1,lambda
 real(kind=kind_phys) :: Detmax(nca),Detmin(nca),Detmean(nca),phi,stdev,delt
@@ -127,7 +127,7 @@ nca_plumes = .false.
  allocate(ilives_g(nxc,nyc))
  allocate(vertvelhigh(nxc,nyc))
  allocate(condition(nxc,nyc))
- allocate(cape(nlon,nlat))
+ allocate(conditiongrid(nlon,nlat))
  allocate(Detfield(nlon,nlat,nca))
  allocate(CA(nlon,nlat))
  allocate(ca_plumes(nlon,nlat))
@@ -145,7 +145,7 @@ nca_plumes = .false.
  cloud(:,:)=0. 
  humidity(:,:)=0.
  condition(:,:)=0.
- cape(:,:)=0.
+ conditiongrid(:,:)=0.
  vertvelhigh(:,:)=0.
  noise(:,:,:) = 0.0 
  noise1D(:) = 0.0
@@ -175,7 +175,7 @@ nca_plumes = .false.
   do ix = 1, Atm_block%blksz(blk)
       i = Atm_block%index(blk)%ii(ix) - isc + 1
       j = Atm_block%index(blk)%jj(ix) - jsc + 1
-      cape(i,j) = Coupling(blk)%cape(ix) 
+      conditiongrid(i,j) = Coupling(blk)%condition(ix) 
       surfp(i,j) = Statein(blk)%pgr(ix)
       humidity(i,j)=Statein(blk)%qgrs(ix,13,1) !about 850 hpa
       do k = 1,29 !Lower troposphere: level 29 is about 350hPa 
@@ -275,10 +275,6 @@ do nf=1,nca !update each ca
                    ca_sgs,nspinup, condition, vertvelhigh,nf,nca_plumes) 
 
   
-
-
-
-  CA2 = CA2 + CA
 
 enddo !nca                                                                                                                                                                                             
 
@@ -421,7 +417,7 @@ endif
  deallocate(pressure)
  deallocate(humidity)
  deallocate(dp)
- deallocate(cape)
+ deallocate(conditiongrid)
  deallocate(rho)
  deallocate(surfp)
  deallocate(vertvelmean)

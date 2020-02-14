@@ -57,11 +57,11 @@ integer, allocatable :: iini(:,:,:),ilives(:,:,:),iini_g(:,:,:),ilives_g(:,:),ca
 real(kind=kind_phys), allocatable :: field_out(:,:,:), field_in(:,:),field_smooth(:,:),Detfield(:,:,:)
 real(kind=kind_phys), allocatable :: omega(:,:,:),pressure(:,:,:),cloud(:,:),humidity(:,:),uwind(:,:)
 real(kind=kind_phys), allocatable :: vertvelsum(:,:),vertvelmean(:,:),dp(:,:,:),surfp(:,:),shalp(:,:),gamt(:,:)
-real(kind=kind_phys), allocatable :: CA(:,:),condition(:,:),rho(:,:),cape(:,:)
+real(kind=kind_phys), allocatable :: CA(:,:),condition(:,:),rho(:,:),conditiongrid(:,:)
 real(kind=kind_phys), allocatable :: CA_DEEP(:,:),CA_TURB(:,:),CA_SHAL(:,:)
 real(kind=kind_phys), allocatable :: noise1D(:),vertvelhigh(:,:),noise(:,:,:)
 real(kind=kind_phys) :: psum,csum,CAmean,sq_diff,CAstdv,count1,lambda
-real(kind=kind_phys) :: Detmax(nca),Detmin(nca),Detmean(nca),phi,stdev,delt
+real(kind=kind_phys) :: Detmax(nca),Detmin(nca),Detmean(nca),phi,stdev,delt,condmax
 logical,save         :: block_message=.true.
 logical              :: nca_plumes
 
@@ -80,7 +80,7 @@ logical              :: nca_plumes
 halo=1
 k_in=1
 
-nca_plumes = .false.
+nca_plumes = .true.
 !----------------------------------------------------------------------------
 ! Get information about the compute domain, allocate fields on this
 ! domain
@@ -105,13 +105,14 @@ nca_plumes = .false.
  nych=nyc+2*halo
 
  !Allocate fields:
+ levs=nlev
 
  allocate(cloud(nlon,nlat))
- allocate(omega(nlon,nlat,29))
- allocate(pressure(nlon,nlat,29))
+ allocate(omega(nlon,nlat,levs))
+ allocate(pressure(nlon,nlat,levs))
  allocate(humidity(nlon,nlat))
  allocate(uwind(nlon,nlat))
- allocate(dp(nlon,nlat,29))
+ allocate(dp(nlon,nlat,levs))
  allocate(rho(nlon,nlat))
  allocate(surfp(nlon,nlat))
  allocate(vertvelmean(nlon,nlat))
@@ -125,7 +126,7 @@ nca_plumes = .false.
  allocate(ilives_g(nxc,nyc))
  allocate(vertvelhigh(nxc,nyc))
  allocate(condition(nxc,nyc))
- allocate(cape(nlon,nlat))
+ allocate(conditiongrid(nlon,nlat))
  allocate(shalp(nlon,nlat))
  allocate(gamt(nlon,nlat))
  allocate(Detfield(nlon,nlat,nca))
@@ -145,7 +146,7 @@ nca_plumes = .false.
  humidity(:,:)=0.
  uwind(:,:) = 0.
  condition(:,:)=0.
- cape(:,:)=0.
+ conditiongrid(:,:)=0.
  vertvelhigh(:,:)=0.
  ca_plumes(:,:) = 0
  noise(:,:,:) = 0.0
@@ -175,7 +176,7 @@ nca_plumes = .false.
       i = Atm_block%index(blk)%ii(ix) - isc + 1
       j = Atm_block%index(blk)%jj(ix) - jsc + 1
       uwind(i,j) = Statein(blk)%ugrs(ix,30)
-      cape(i,j) = Coupling(blk)%cape(ix) 
+      conditiongrid(i,j) = Coupling(blk)%condition(ix) 
       shalp(i,j) = Coupling(blk)%ca_shal(ix)
       gamt(i,j) = Coupling(blk)%ca_turb(ix)
       surfp(i,j) = Statein(blk)%pgr(ix)
@@ -267,7 +268,7 @@ do nf=1,nca !update each ca
   incj=ncells
   do j=1,nyc
    do i=1,nxc
-     condition(i,j)=cape(inci/ncells,incj/ncells) !cape(inci/ncells,incj/ncells) 
+     condition(i,j)=conditiongrid(inci/ncells,incj/ncells) !conditiongrid(inci/ncells,incj/ncells) 
      if(i.eq.inci)then
      inci=inci+ncells
      endif
@@ -278,9 +279,12 @@ do nf=1,nca !update each ca
    endif
   enddo
 
+  condmax=maxval(condition)
+  call mp_reduce_max(condmax)
+
    do j = 1,nyc
     do i = 1,nxc  
-      ilives(i,j,nf)=nlives
+      ilives(i,j,nf)=real(nlives)*(condition(i,j)/condmax)
     enddo
    enddo
 
@@ -289,7 +293,7 @@ do nf=1,nca !update each ca
   incj=ncells
   do j=1,nyc
    do i=1,nxc
-     condition(i,j)=shalp(inci/ncells,incj/ncells)
+     condition(i,j)=conditiongrid(inci/ncells,incj/ncells)
      if(i.eq.inci)then
      inci=inci+ncells
      endif
@@ -299,19 +303,23 @@ do nf=1,nca !update each ca
    incj=incj+ncells
    endif
   enddo
+
+  condmax=maxval(condition)
+  call mp_reduce_max(condmax)
 
    do j = 1,nyc
     do i = 1,nxc
-      ilives(i,j,nf)=nlives !int(real(nlives)*1.5*noise(i,j,nf))                                                                                                                                               
+      ilives(i,j,nf)=real(nlives)*(condition(i,j)/condmax)
     enddo
    enddo
 
- elseif(nf==3)then
+ else
+
   inci=ncells
   incj=ncells
   do j=1,nyc
    do i=1,nxc
-     condition(i,j)=gamt(inci/ncells,incj/ncells)
+     condition(i,j)=conditiongrid(inci/ncells,incj/ncells)
      if(i.eq.inci)then
      inci=inci+ncells
      endif
@@ -322,56 +330,14 @@ do nf=1,nca !update each ca
    endif
   enddo
 
-  do j = 1,nyc
-    do i = 1,nxc
-      ilives(i,j,nf)=nlives
-    enddo
-   enddo
-
- elseif(nf==4)then
-  inci=ncells
-  incj=ncells
-  do j=1,nyc
-   do i=1,nxc
-     condition(i,j)=vertvelmean(inci/ncells,incj/ncells)
-     if(i.eq.inci)then
-     inci=inci+ncells
-     endif
-   enddo
-   inci=ncells
-   if(j.eq.incj)then
-   incj=incj+ncells
-   endif
-  enddo
+  condmax=maxval(condition)
+  call mp_reduce_max(condmax)
 
   do j = 1,nyc
     do i = 1,nxc
-      ilives(i,j,nf)=int(real(nlives)*1.5*noise(i,j,nf))
+      ilives(i,j,nf)=real(nlives)*(condition(i,j)/condmax)
     enddo
    enddo
-
-  else
-   inci=ncells
-   incj=ncells 
-  do j=1,nyc
-   do i=1,nxc
-     condition(i,j)=cape(inci/ncells,incj/ncells)
-     if(i.eq.inci)then
-     inci=inci+ncells
-     endif
-   enddo
-   inci=ncells
-   if(j.eq.incj)then
-   incj=incj+ncells
-   endif
-  enddo
-
-  do j = 1,nyc
-    do i = 1,nxc
-      ilives(i,j,nf)=int(real(nlives)*1.5*noise(i,j,nf))
-    enddo
-   enddo
-
 
  endif !nf
 
@@ -418,16 +384,6 @@ do nf=1,nca !update each ca
 
 if(kstep > 1)then
 
-!Box-Cox method to make output range less skewed
-lambda=0.38 
-do j=1,nlat
- do i=1,nlon
-  if(CA_DEEP(i,j).NE.0.)then
-  CA_DEEP(i,j)=((CA_DEEP(i,j)**lambda)-1.0)/lambda
-  endif
- enddo
-enddo
-
 !Use min-max method to normalize range
 Detmax(1)=maxval(CA_DEEP,CA_DEEP.NE.0.)
 call mp_reduce_max(Detmax(1))
@@ -472,28 +428,7 @@ enddo
 Detmin(1) = minval(CA_DEEP,CA_DEEP.NE.0)
 call mp_reduce_min(Detmin(1))
 
-!Set range outside positive vertical mean vertical velocity to 0.
-!do j=1,nlat
-! do i=1,nlon
-! if(vertvelmean(i,j)>0.)then !larger than because units are Pa/s so negative wind is upward
-! CA_DEEP(i,j)=0.
-! endif
-! enddo
-!enddo
-
-
-
 !Shallow convection ============================================================
-!Box-Cox method to make range less skewed
-
-lambda=0.38
-do j=1,nlat
- do i=1,nlon
-  if(CA_SHAL(i,j).NE.0.)then
-  CA_SHAL(i,j)=((CA_SHAL(i,j)**lambda)-1.0)/lambda
-  endif
- enddo
-enddo
 
 !Use min-max method to normalize range                                                                                                                                                                                                            
 Detmax(2)=maxval(CA_SHAL,CA_SHAL.NE.0)
@@ -535,27 +470,7 @@ do j=1,nlat
  enddo
 enddo
 
-!Set range outside positive vertical mean vertical velocity to 0.                                                                                                                                                                                 
-!do j=1,nlat
-! do i=1,nlon
-! if(vertvelmean(i,j)>0.)then !larger than because units are Pa/s so negative wind is upward                                                                                                                             !                         
-! CA_SHAL(i,j)=0.
-! endif
-! enddo
-!enddo
-
-
 !Turbulence =============================================================================
-!Box-Cox method to make the range less skewed
-
-lambda=0.38
-do j=1,nlat
- do i=1,nlon
-  if(CA_TURB(i,j).NE.0.)then
-  CA_TURB(i,j)=((CA_TURB(i,j)**lambda)-1.0)/lambda
-  endif
- enddo
-enddo
 
 !Use min-max method to normalize range                                                                                                                                                                                                            
 Detmax(3)=maxval(CA_TURB,CA_TURB.NE.0)
@@ -597,26 +512,7 @@ do j=1,nlat
  enddo
 enddo
 
-!Set range outside positive vertical mean vertical velocity to 0.                                                                                                                                                                                 
-!do j=1,nlat
-! do i=1,nlon
-! if(vertvelmean(i,j)>0.)then !larger than because units are Pa/s so negative wind is upward                                                                                                                             !                         
-! CA_TURB(i,j)=0.
-! endif
-! enddo
-!enddo
-
 endif !kstep >1
-
-!This is used for coupling with the Chikira-Sugiyama deep 
-!cumulus scheme. 
-do j=1,nlat
- do i=1,nlon
- if(ca_plumes(i,j)==0)then
- ca_plumes(i,j)=20
-  endif
- enddo
-enddo
 
 !Put back into blocks 1D array to be passed to physics
 !or diagnostics output
@@ -625,7 +521,7 @@ enddo
   do ix = 1,Atm_block%blksz(blk)
      i = Atm_block%index(blk)%ii(ix) - isc + 1
      j = Atm_block%index(blk)%jj(ix) - jsc + 1
-     Diag(blk)%ca_deep(ix)=CA_DEEP(i,j)
+     Diag(blk)%ca_deep(ix)=ca_plumes(i,j)
      Diag(blk)%ca_turb(ix)=CA_TURB(i,j)
      Diag(blk)%ca_shal(ix)=CA_SHAL(i,j)
      Coupling(blk)%ca_deep(ix)=CA_DEEP(i,j)
@@ -639,7 +535,7 @@ enddo
  deallocate(pressure)
  deallocate(humidity)
  deallocate(dp)
- deallocate(cape)
+ deallocate(conditiongrid)
  deallocate(shalp)
  deallocate(gamt)
  deallocate(rho)
