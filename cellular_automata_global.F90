@@ -42,16 +42,14 @@ integer :: seed, ierr7,blk, ix, iix, count4,ih,jh
 integer :: blocksz,levs
 integer(8) :: count, count_rate, count_max, count_trunc
 integer(8) :: iscale = 10000000000
-integer, allocatable :: iini(:,:,:),ilives(:,:),iini_g(:,:,:),ilives_g(:,:),ca_plumes(:,:)
-real(kind=kind_phys), allocatable :: field_out(:,:,:), field_in(:,:),field_smooth(:,:),Detfield(:,:,:)
-real(kind=kind_phys), allocatable :: omega(:,:,:),pressure(:,:,:),cloud(:,:),humidity(:,:)
-real(kind=kind_phys), allocatable :: vertvelsum(:,:),vertvelmean(:,:),dp(:,:,:),surfp(:,:),tmp(:,:)
-real(kind=kind_phys), allocatable :: CA(:,:),CA1(:,:),CA2(:,:),CA3(:,:),condition(:,:),rho(:,:),conditiongrid(:,:)
+integer, allocatable :: iini_g(:,:,:),ilives_g(:,:)
+real(kind=kind_phys), allocatable :: field_out(:,:,:), field_in(:,:),field_smooth(:,:)
+real(kind=kind_phys), allocatable :: CA(:,:),CA1(:,:),CA2(:,:),CA3(:,:)
 real(kind=kind_phys), allocatable :: noise1D(:),vertvelhigh(:,:),noise(:,:,:)
-real(kind=kind_phys) :: psum,csum,CAmean,sq_diff,CAstdv,count1,lambda
-real(kind=kind_phys) :: Detmax(nca),Detmin(nca),Detmean(nca),phi,stdev,delt
+real(kind=kind_phys) :: psum,csum,CAmean,sq_diff,CAstdv
+real(kind=kind_phys) :: Detmax(nca),Detmin(nca),Detmean(nca)
 logical,save         :: block_message=.true.
-logical              :: nca_plumes
+
 
 !nca         :: switch for number of cellular automata to be used.
 !ca_global   :: switch for global cellular automata
@@ -63,12 +61,11 @@ logical              :: nca_plumes
 !               gives 4x4 times the FV3 model grid resolution.                
 !ca_smooth   :: switch to smooth the cellular automata
 !nthresh     :: threshold of perturbed vertical velocity used in case of sgs
-!nca_plumes   :: compute number of CA-cells ("plumes") within a NWP gridbox.
+
 
 halo=1
 k_in=1
 
-nca_plumes = .false.
 !----------------------------------------------------------------------------
 ! Get information about the compute domain, allocate fields on this
 ! domain
@@ -109,55 +106,30 @@ nca_plumes = .false.
 
  !Allocate fields:
 
- allocate(cloud(nlon,nlat))
- allocate(omega(nlon,nlat,29))
- allocate(pressure(nlon,nlat,29))
- allocate(humidity(nlon,nlat))
- allocate(dp(nlon,nlat,29))
- allocate(rho(nlon,nlat))
- allocate(surfp(nlon,nlat))
- allocate(vertvelmean(nlon,nlat))
- allocate(vertvelsum(nlon,nlat))
  allocate(field_in(nlon*nlat,1))
  allocate(field_out(isize,jsize,1))
  allocate(field_smooth(nlon,nlat))
- allocate(iini(nxc,nyc,nca))
- allocate(ilives(nxc,nyc))
  allocate(iini_g(nxc,nyc,nca))
  allocate(ilives_g(nxc,nyc))
  allocate(vertvelhigh(nxc,nyc))
- allocate(condition(nxc,nyc))
- allocate(conditiongrid(nlon,nlat))
- allocate(Detfield(nlon,nlat,nca))
  allocate(CA(nlon,nlat))
- allocate(ca_plumes(nlon,nlat))
  allocate(CA1(nlon,nlat))
  allocate(CA2(nlon,nlat))
  allocate(CA3(nlon,nlat))
- allocate(tmp(nlon,nlat))
  allocate(noise(nxc,nyc,nca))
  allocate(noise1D(nxc*nyc))
   
  !Initialize:
- Detfield(:,:,:)=0.
- vertvelmean(:,:) =0.
- vertvelsum(:,:)=0.
- cloud(:,:)=0. 
- humidity(:,:)=0.
- condition(:,:)=0.
- conditiongrid(:,:)=0.
- vertvelhigh(:,:)=0.
+ 
  noise(:,:,:) = 0.0 
  noise1D(:) = 0.0
- iini(:,:,:) = 0
- ilives(:,:) = 0
  iini_g(:,:,:) = 0
  ilives_g(:,:) = 0
  CA1(:,:) = 0.0
  CA2(:,:) = 0.0 
  CA3(:,:) = 0.0
- ca_plumes(:,:) = 0
  
+
 !Put the blocks of model fields into a 2d array
  levs=nlev
  blocksz=blocksize
@@ -170,43 +142,6 @@ nca_plumes = .false.
   iec = Atm_block%iec
   jsc = Atm_block%jsc
   jec = Atm_block%jec 
-
- do blk = 1,Atm_block%nblks
-  do ix = 1, Atm_block%blksz(blk)
-      i = Atm_block%index(blk)%ii(ix) - isc + 1
-      j = Atm_block%index(blk)%jj(ix) - jsc + 1
-      conditiongrid(i,j) = Coupling(blk)%condition(ix) 
-      surfp(i,j) = Statein(blk)%pgr(ix)
-      humidity(i,j)=Statein(blk)%qgrs(ix,13,1) !about 850 hpa
-      do k = 1,29 !Lower troposphere: level 29 is about 350hPa 
-      omega(i,j,k) = Statein(blk)%vvl(ix,k) ! layer mean vertical velocity in pa/sec
-      pressure(i,j,k) = Statein(blk)%prsl(ix,k) ! layer mean pressure in Pa
-      enddo
-  enddo
- enddo
-
-!Compute layer averaged vertical velocity (Pa/s)
- vertvelsum=0.
- vertvelmean=0.
- do j=1,nlat
-  do i =1,nlon
-    dp(i,j,1)=(surfp(i,j)-pressure(i,j,1))
-    do k=2,29
-     dp(i,j,k)=(pressure(i,j,k-1)-pressure(i,j,k))
-    enddo
-    count1=0.
-    do k=1,29
-     count1=count1+1.
-     vertvelsum(i,j)=vertvelsum(i,j)+(omega(i,j,k)*dp(i,j,k))
-   enddo
-  enddo
- enddo
-
- do j=1,nlat
-  do i=1,nlon
-   vertvelmean(i,j)=vertvelsum(i,j)/(surfp(i,j)-pressure(i,j,29))
-  enddo
- enddo
 
 !Generate random number, following stochastic physics code:
 do nf=1,nca
@@ -253,7 +188,6 @@ do nf=1,nca
 !we here set the "condition" variable to a different model field depending
 !on nf. (this is not used if ca_global = .true.)
 
-
 do nf=1,nca !update each ca
  
    do j = 1,nyc
@@ -270,16 +204,10 @@ do nf=1,nca !update each ca
 
   CA(:,:)=0. 
 
-  call update_cells_global(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,CA,ca_plumes,iini_g,ilives_g, &
-                   nlives, ncells, nfracseed, nseed,nthresh, ca_global, &
-                   ca_sgs,nspinup, condition, vertvelhigh,nf,nca_plumes) 
+  call update_cells_global(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,CA,iini_g,ilives_g, &
+                   nlives, ncells, nfracseed, nseed,nthresh, nspinup,nf) 
 
-  
-
-enddo !nca                                                                                                                                                                                             
-
-CA1 = CA
- 
+   
 if (ca_smooth) then
 
 do nn=1,nsmooth !number of itterations for the smoothing. 
@@ -289,7 +217,7 @@ field_in=0.
 !get halo
 do j=1,nlat
  do i=1,nlon
- field_in(i+(j-1)*nlon,1)=CA1(i,j)
+ field_in(i+(j-1)*nlon,1)=CA(i,j)
  enddo
 enddo
 
@@ -311,39 +239,23 @@ enddo
 
 do j=1,nlat
  do i=1,nlon
-    CA1(i,j)=field_smooth(i,j)
+    CA(i,j)=field_smooth(i,j)
  enddo
 enddo
 
 enddo !nn
 endif !smooth
 
-!    if(nf==1)then
-!    CA1(:,:)=CA(:,:)
-!    elseif(nf==2)then
-!    CA2(:,:)=CA(:,:)
-!    else
-!    CA3(:,:)=CA(:,:)
-!    endif
-
-
-
 !!!!Post processing, should be made into a separate subroutine
 
-!!!!Construct linear combinations of CA1, CA2 and CA3
-
-
-!if (nf==1) then
-!Use min-max method to normalize range
-!!!CA1
-Detmax(1)=maxval(CA1)
+Detmax(1)=maxval(CA)
 call mp_reduce_max(Detmax(1))
-Detmin(1)=minval(CA1)
+Detmin(1)=minval(CA)
 call mp_reduce_min(Detmin(1))
 
 do j=1,nlat
  do i=1,nlon
-    CA1(i,j) = ((CA1(i,j) - Detmin(1))/(Detmax(1)-Detmin(1)))
+    CA(i,j) = ((CA(i,j) - Detmin(1))/(Detmax(1)-Detmin(1)))
  enddo
 enddo
 
@@ -353,7 +265,7 @@ psum=0.
 csum=0.
 do j=1,nlat
  do i=1,nlon
-  psum=psum+(CA1(i,j))
+  psum=psum+(CA(i,j))
   csum=csum+1
  enddo
 enddo
@@ -368,7 +280,7 @@ CAstdv=0.
 sq_diff = 0.                                                                                                                                                                                          
 do j=1,nlat                                                                                                                                                                                           
  do i=1,nlon                                                                                                                                                                                          
-  sq_diff = sq_diff + (CA1(i,j)-CAmean)**2.0                                                                                                                                                        
+  sq_diff = sq_diff + (CA(i,j)-CAmean)**2.0                                                                                                                                                        
  enddo                                                                                                                                                                                                
 enddo                                                                                                                                                                                                 
 
@@ -380,25 +292,31 @@ CAstdv = sqrt(sq_diff/csum)
 
 do j=1,nlat
  do i=1,nlon
-  CA1(i,j)=1.0 + (CA1(i,j)-CAmean)*(ca_amplitude/CAstdv)  
+  CA(i,j)=1.0 + (CA(i,j)-CAmean)*(ca_amplitude/CAstdv)  
  enddo
 enddo
 
 do j=1,nlat
  do i=1,nlon
-    CA1(i,j)=min(max(CA1(i,j),0.),2.0)
+    CA(i,j)=min(max(CA(i,j),0.),2.0)
  enddo
 enddo
-
 
 !Put back into blocks 1D array to be passed to physics
 !or diagnostics output
 if(kstep < 1)then
-CA1(:,:)=1.
-!CA2(:,:)=1.
-!CA3(:,:)=1.
+CA(:,:)=1.
 endif
 
+    if(nf==1)then                                                                                                                                                                                                                          
+    CA1(:,:)=CA(:,:)                                                                                                                                                                                                                       
+    elseif(nf==2)then                                                                                                                                                                                                                      
+    CA2(:,:)=CA(:,:)                                                                                                                                                                                                                       
+    else                                                                                                                                                                                                                                   
+    CA3(:,:)=CA(:,:)                                                                                                                                                                                                                       
+    endif  
+
+enddo !nf
   
   do blk = 1, Atm_block%nblks
   do ix = 1,Atm_block%blksz(blk)
@@ -413,24 +331,13 @@ endif
   enddo
   enddo
 
- deallocate(omega)
- deallocate(pressure)
- deallocate(humidity)
- deallocate(dp)
- deallocate(conditiongrid)
- deallocate(rho)
- deallocate(surfp)
- deallocate(vertvelmean)
- deallocate(vertvelsum)
+
  deallocate(field_in)
  deallocate(field_out)
  deallocate(field_smooth)
- deallocate(iini)
- deallocate(ilives)
- deallocate(condition)
- deallocate(Detfield)
+ deallocate(iini_g)
+ deallocate(ilives_g)
  deallocate(CA)
- deallocate(ca_plumes)
  deallocate(CA1)
  deallocate(CA2)
  deallocate(CA3)

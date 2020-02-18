@@ -17,17 +17,15 @@ implicit none
 contains
 
 subroutine update_cells_sgs(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,CA,ca_plumes,iini,ilives, &
-                        nlives,ncells,nfracseed,nseed,nthresh,ca_global, &
-                        ca_sgs,nspinup,condition,vertvelhigh,nf,nca_plumes)
+                        nlives,ncells,nfracseed,nseed,nthresh,nspinup,nf,nca_plumes)
 
 implicit none
 
 integer, intent(in) :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca
 integer, intent(in) :: iini(nxc,nyc,nca)
 integer, intent(inout) :: ilives(nxc,nyc,nca)
-real, intent(in) :: condition(nxc,nyc),vertvelhigh(nxc,nyc)
 real, intent(out) :: CA(nlon,nlat)
-integer,intent(out) :: ca_plumes(nlon,nlat)
+integer, intent(out) :: ca_plumes(nlon,nlat)
 integer, intent(in) :: nlives, ncells, nseed, nspinup, nf
 real, intent(in) :: nfracseed, nthresh
 logical,intent(in) :: nca_plumes
@@ -37,27 +35,19 @@ integer,allocatable,save :: board(:,:,:), lives(:,:,:)
 integer,allocatable :: V(:),L(:),B(:)
 integer,allocatable :: AG(:,:)
 integer :: inci, incj, i, j, k, iii,sub,spinup,it,halo,k_in,isize,jsize
-integer :: haloh, ih, jh,lives_max,kend
+integer :: ih, jh,kend
 real :: threshc,threshk,wp_max,wp_min,mthresh,kthresh
-real, allocatable :: field_in(:,:),board_halo(:,:,:), Wpert_halo(:,:,:),Cpert_halo(:,:,:)
+real, allocatable :: field_in(:,:),board_halo(:,:,:)
 integer, dimension(nxc,nyc) :: neighbours, birth, newlives,thresh,maxliveshigh
 integer, dimension(nxc,nyc) :: neg, newcell, oldlives, newval,temp,newseed
 integer, dimension(ncells,ncells) :: onegrid
-real,dimension(nxc,nyc) :: livesout
-logical :: ca_global, ca_sgs
-real :: Wpert(nxc,nyc),Cpert(nxc,nyc)
 
-!SGS parameters:                                                                                                               
 integer(8) :: count, count_rate, count_max, count_trunc
 integer(8) :: iscale = 10000000000                                                                               
 integer :: count5, count6
 type(random_stat) :: rstate
-real :: dt, timescale, sigma, skew, kurt, acorr, gamma
-real :: E_sq2, E2, g2, B_sq2, B2, sqrtdt,flamx2, tmp1, tmp1a
-real, dimension(nxc,nyc) :: NOISE_A, NOISE_B, g2D
+real, dimension(nxc,nyc) :: NOISE_A, NOISE_B
 real, dimension(nxc*nyc) :: noise1D2, noise1D1
-real, allocatable, save :: sgs1(:,:,:),sgs2(:,:,:)
-integer, dimension(nxch,nych,1) :: M_halo
 
 
 !-------------------------------------------------------------------------------------------------
@@ -72,27 +62,13 @@ k_in=1
  if (.not. allocated(lives))then
  allocate(lives(nxc,nyc,nca))
  endif
- if (.not. allocated(sgs1))then
- allocate(sgs1(nxc,nyc,nca))
- endif
- if (.not. allocated(sgs2))then
- allocate(sgs2(nxc,nyc,nca))
- endif
  if (.not. allocated(field_in))then
  allocate(field_in(nxc*nyc,1))
  endif
  if(.not. allocated(board_halo))then                                                                      
  allocate(board_halo(nxch,nych,1))   
  endif
- if(.not. allocated(Wpert_halo))then
- allocate(Wpert_halo(nxch,nych,1))
- endif
- if(.not. allocated(Cpert_halo))then
- allocate(Cpert_halo(nxch,nych,1))
- endif
- 
-! Some initial white noise generation: (could be SGS)
-!Random seed for SGS                                                                                                                                                                                                                             
+  
  noise1D1 = 0.0
  noise1D2 = 0.0
 
@@ -109,36 +85,6 @@ k_in=1
 
  call random_setseed(count6)
  call random_number(noise1D2)
-
- !Put on 2D:                                                                                                                                                                                                                                      
-! do j=1,nyc
-!  do i=1,nxc
-!  NOISE_A(i,j)=noise1D1(i+(j-1)*nxc)-0.5
-!  NOISE_B(i,j)=noise1D2(i+(j-1)*nxc)
-!  enddo
-! enddo
-
-!Wpert=0.
-!Cpert=0.
-
-! do j=1,nyc
-!  do i=1,nxc
-!      if(vertvelhigh(i,j) < 0. )then !upward motion                                                                                                                                                                                          
-!       Wpert(i,j)=vertvelhigh(i,j)*(1.0 + NOISE_A(i,j))
-!      endif
-!  enddo
-! enddo
-
-!endif                  
-
- 
-!   do j=1,nyc
-!    do i=1,nxc
-!      if(vertvelhigh(i,j) < 0.)then !upward vertical motion
-!       thresh(i,j)=vertvelhigh(i,j) !condition(i,j)         
-!      endif
-!    enddo
-!   enddo 
 
   if(kstep <= 1)then
    do j=1,nyc
@@ -194,28 +140,12 @@ k_in=1
  newval=0
  frac=0
  board_halo=0
- Wpert_halo=0
- Cpert_halo=0
  field_in=0
  maxlives = 0
  maxliveshigh =0
- livesout = 0 
-
+ 
 
 !Step 4 - Compute the neighbourhood
-
- !Count the number of neighbours where perturbed massflux is larger than 
- !a threshold
-
-
-  ! do j=1,nyc
-  !   do i=1,nxc
-  !   ilives(i,j,nf)=int(real(nlives)*1.5*NOISE_B(i,j))
-  !   if(vertvelhigh(i,j) > 0.)then ! .or. condition(i,j)<=0.)then
-  !   ilives(i,j,nf)=0
-  !   endif
-  !   enddo
-  ! enddo
  
   do j=1,nyc
    do i=1,nxc
@@ -236,14 +166,12 @@ k_in=1
      enddo
   enddo
 
-!endif 
 ! Step 5 - Check rules; 
 
  !birth
  
   do j=1,nyc
    do i=1,nxc
-    ! if(Wpert(i,j) < thresh(i,j) .and. (neighbours(i,j) < 2 .or. neighbours(i,j) > 3))then
      if(neighbours(i,j) == 3 .or. neighbours(i,j) ==2)then 
      birth(i,j)=1
      endif
@@ -254,7 +182,6 @@ k_in=1
   do j=1,nyc
    do i=1,nxc
      if(neighbours(i,j) < 2 .or. neighbours(i,j) > 3)then  
-     !if(Wpert(i,j) > thresh(i,j) .and. (neighbours(i,j) < 2 .or. neighbours(i,j) > 3))then
      lives(i,j,nf)=lives(i,j,nf) - 1
      endif
    enddo
@@ -278,7 +205,7 @@ k_in=1
 
   do j=1,nyc
    do i=1,nxc
-    lives(i,j,nf)=lives(i,j,nf)+newcell(i,j)*ilives(i,j,nf) !int(real(nlives)*1.5*NOISE_B(i,j))
+    lives(i,j,nf)=lives(i,j,nf)+newcell(i,j)*ilives(i,j,nf)
    enddo
   enddo
 
@@ -371,45 +298,32 @@ end subroutine update_cells_sgs
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine update_cells_global(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,CA,ca_plumes,iini_g,ilives_g, &
-                        nlives,ncells,nfracseed,nseed,nthresh,ca_global, &
-                        ca_sgs,nspinup,condition,vertvelhigh,nf,nca_plumes)
+subroutine update_cells_global(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,CA,iini_g,ilives_g, &
+                        nlives,ncells,nfracseed,nseed,nthresh,nspinup,nf)
 
 implicit none
 
 integer, intent(in) :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca
 integer, intent(in) :: iini_g(nxc,nyc,nca), ilives_g(nxc,nyc)
-real, intent(in) :: condition(nxc,nyc),vertvelhigh(nxc,nyc)
 real, intent(out) :: CA(nlon,nlat)
-integer,intent(out) :: ca_plumes(nlon,nlat)
 integer, intent(in) :: nlives, ncells, nseed, nspinup, nf
 real, intent(in) :: nfracseed, nthresh
-logical,intent(in) :: nca_plumes
 real, dimension(nlon,nlat) :: frac
 integer,allocatable,save :: board_g(:,:,:), lives_g(:,:,:)
 integer,allocatable :: V(:),L(:)
 integer :: inci, incj, i, j, k, iii,sub,spinup,it,halo,k_in,isize,jsize
-integer :: haloh, ih, jh,lives_max,kend
+integer :: ih, jh
 real :: threshc,threshk,wp_max,wp_min,mthresh,kthresh
-real, allocatable :: field_in(:,:),board_halo(:,:,:), Wpert_halo(:,:,:),Cpert_halo(:,:,:)
+real, allocatable :: field_in(:,:),board_halo(:,:,:)
 integer, dimension(nxc,nyc) :: neighbours, birth, newlives, thresh
 integer, dimension(nxc,nyc) :: neg, newcell, oldlives, newval,temp,newseed
-integer, dimension(ncells,ncells) :: onegrid
-real,dimension(nxc,nyc) :: normlives
-logical :: ca_global, ca_sgs
-real :: Wpert(nxc,nyc),Cpert(nxc,nyc)
 
-!SGS parameters:                                                                                                               
 integer(8) :: count, count_rate, count_max, count_trunc
 integer(8) :: iscale = 10000000000                                                                               
 integer :: count5, count6
 type(random_stat) :: rstate
-real :: dt, timescale, sigma, skew, kurt, acorr, gamma
-real :: E_sq2, E2, g2, B_sq2, B2, sqrtdt,flamx2, tmp1, tmp1a
 real, dimension(nxc,nyc) :: NOISE_A, NOISE_B, g2D
 real, dimension(nxc*nyc) :: noise1D2, noise1D1
-real, allocatable, save :: sgs1(:,:,:),sgs2(:,:,:)
-integer, dimension(nxch,nych,1) :: M_halo
 
 
 !-------------------------------------------------------------------------------------------------
@@ -418,19 +332,11 @@ isize=nlon+2*halo
 jsize=nlat+2*halo
 k_in=1
 
-ca_plumes=0.
-
  if (.not. allocated(board_g))then
  allocate(board_g(nxc,nyc,nca))
  endif
  if (.not. allocated(lives_g))then
  allocate(lives_g(nxc,nyc,nca))
- endif
- if (.not. allocated(sgs1))then
- allocate(sgs1(nxc,nyc,nca))
- endif
- if (.not. allocated(sgs2))then
- allocate(sgs2(nxc,nyc,nca))
  endif
  if (.not. allocated(field_in))then
  allocate(field_in(nxc*nyc,1))
@@ -438,12 +344,7 @@ ca_plumes=0.
  if(.not. allocated(board_halo))then                                                                      
  allocate(board_halo(nxch,nych,1))   
  endif
- if(.not. allocated(Wpert_halo))then
- allocate(Wpert_halo(nxch,nych,1))
- endif
- if(.not. allocated(Cpert_halo))then
- allocate(Cpert_halo(nxch,nych,1))
- endif
+
  
  !random numbers:
  noise1D1 = 0.0
@@ -515,8 +416,6 @@ do it=1,spinup
  newval=0
  frac=0
  board_halo=0
- Wpert_halo=0
- Cpert_halo=0
  field_in=0
 
 !The input to scalar_field_halo needs to be 1D.                                                          
@@ -611,11 +510,6 @@ enddo !spinup
      inci=ncells
      incj=incj+ncells
   ENDDO
-
-!lives_max=maxval(ilives_g)
-!call mp_reduce_max(lives_max)
-!CA(:,:) = (frac(:,:)/real(nlives/2))
-
 
 end subroutine update_cells_global
 

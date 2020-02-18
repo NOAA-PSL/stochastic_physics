@@ -364,8 +364,7 @@ do nf=1,nca !update each ca
 !If ca-global is used, then nca independent CAs are called and weighted together to create one field; CA                                                                                                                                                                                                                                  
   
   call update_cells_sgs(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,CA,ca_plumes,iini,ilives, &
-                   nlives, ncells, nfracseed, nseed,nthresh, ca_global, &
-                   ca_sgs,nspinup, condition, vertvelhigh,nf,nca_plumes)
+                   nlives, ncells, nfracseed, nseed,nthresh,nspinup,nf,nca_plumes)
 
    if(nf==1)then
     CA_DEEP(:,:)=CA(:,:)
@@ -514,6 +513,16 @@ enddo
 
 endif !kstep >1
 
+do j=1,nlat
+ do i=1,nlon
+    if(conditiongrid(i,j) == 0)then
+     CA_DEEP(i,j)=0.
+     ca_plumes(i,j)=0.
+   endif
+ enddo
+enddo
+
+
 !Put back into blocks 1D array to be passed to physics
 !or diagnostics output
   
@@ -522,9 +531,9 @@ endif !kstep >1
      i = Atm_block%index(blk)%ii(ix) - isc + 1
      j = Atm_block%index(blk)%jj(ix) - jsc + 1
      Diag(blk)%ca_deep(ix)=ca_plumes(i,j)
-     Diag(blk)%ca_turb(ix)=CA_TURB(i,j)
+     Diag(blk)%ca_turb(ix)=conditiongrid(i,j)
      Diag(blk)%ca_shal(ix)=CA_SHAL(i,j)
-     Coupling(blk)%ca_deep(ix)=CA_DEEP(i,j)
+     Coupling(blk)%ca_deep(ix)=ca_plumes(i,j)
      Coupling(blk)%ca_turb(ix)=CA_TURB(i,j)
      Coupling(blk)%ca_shal(ix)=CA_SHAL(i,j)
   enddo

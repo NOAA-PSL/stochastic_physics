@@ -1,4 +1,4 @@
-subroutine plumes(V,L,a,row,col,kend)
+subroutine plumes(V,L,AG,a,row,col,kend)
 implicit none
 
 !!January 2018 adapted from Mathworkds "ISLANDS"
@@ -22,10 +22,10 @@ implicit none
 
 integer, intent(in) :: row,col,kend
 integer, intent(in), dimension(row,col) :: a
-integer, intent(out), dimension(kend) :: V,L
+integer, intent(out), dimension(kend) :: L,V
 integer :: cnt,pp,mm,kk
 integer :: i,j,cntr,gg,hh,ii,jj,idxx,IDX
-integer,  dimension(row,col) :: AG
+integer, intent(out), dimension(row,col) :: AG
 
 
 
