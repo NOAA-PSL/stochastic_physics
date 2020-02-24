@@ -8,11 +8,11 @@ General options
    :header: "Option", "Description"
    :widths: 30, 50
 
-   "NTRUNC", "Spectral resolution (e.g. T126) of random patterns"
-   "LAT_S", "number of latitude points for the gaussian grid  (must be even)"
-   "LON_S", "number of longitude points for the gaussian grid (recommend 2xLAT_S"
-   "FHSTOCH", "forecast hour to write out random pattern in order to restart the pattern for a different forecast (used in DA), file is stoch_out.F<HHH>"
-   "STOCHINI", "set to true if wanting to read in a previous random pattern (input file needs to be named stoch_ini)."
+   "NTRUNC", "Optional, Spectral resolution (e.g. T126) of random patterns, default is for model to determine proper truncation"
+   "LAT_S", "Optional, number of latitude points for the gaussian grid  (must be even), default is for model to determine gaussian grid"
+   "LON_S", "Optional, number of longitude points for the gaussian grid (recommend 2xLAT_S, default is for model to determine gaussian grid"
+   "FHSTOCH", "Optional, forecast hour to write out random pattern in order to restart the pattern for a different forecast (used in DA), file is stoch_out.F<HHH>"
+   "STOCHINI", "Optional, set to true if wanting to read in a previous random pattern (input file needs to be named stoch_ini)."
 
 SPPT options 
 """"""""""""
@@ -30,6 +30,7 @@ SPPT options
    "SPPT_SIGTOP1", "lower sigma level to taper perturbations to zero (default is 0.1)"
    "SPPT_SIGTOP2", "upper sigma level to taper perturbations to zero (0.025)"
    "SPPT_SFCLIMIT", ".T.=tapers the SPPT perturbations to zero at model’s lowest level (helps reduce model crashes)"
+   "SPPTINT", "Optional, interval in seconds to update random pattern.  Perturbations still get applied every time-step"
    "USE_ZMTNBLCK", ".T.=do not apply perturbations below the dividing streamline that is diagnosed by the gravity wave drag, mountain blocking scheme"
 
 ``*``  **SPPT** uses 5 different patterns of varying time/length scales that are added together before being passed to physics
@@ -46,6 +47,8 @@ SHUM options
    "SHUM_TAU", "Decorrelation timescales in seconds (21600)"
    "SHUM_LSCALE", "ecorrelation spatial scales in meters (250000)"
    "SHUM_SIGEFOLD", "e-folding lengthscale (in units of sigma) of specific humidity perturbations, default is 0.2)"
+   "SHUMINT", "Optional, interval in seconds to update random pattern.  Perturbations still get applied every time-step"
+   "ISEED_SHUM", "Seeds for setting the random number sequence (ignored if stochini is true)."
 
 SKEB options
 """"""""""""
@@ -65,4 +68,5 @@ SKEB options
    "SKEB_VDOF", "the number of degrees of freedom in the vertical for the SKEB random pattern (default is 5)"
    "SKEB_SIGTOP1", "lower sigma level to taper perturbations to zero (default is 0.1)"
    "SKEB_SIGTOP2", "upper sigma level to taper perturbations to zero (0.025)"
+   "SKEBINT", "Optional, interval in seconds to update random pattern.  Perturbations still get applied every time-step"
 
