@@ -3,7 +3,7 @@ Developer's guide
 
 Code is housed on github at https://github.com/noaa-psd/stochastic_physics.  Please read more about the Development process at https://github.com/ufs-community/ufs/wiki/Development-Processes#Developing-with-Gitflow.
 
-Please make a fork and checkout the entire ufs-community weather model at https://github.com/ufs-community/ufs-weather-model and point to your fork of the stochastic_physics submodule.
+Please make a fork and checkout the entire ufs-community weather model at https://github.com/ufs-community/ufs/wiki/Development-Processes#Developing-with-Gitflow and point to your fork of the stochastic_physics submodule.
 
 Standalone testing
 """"""""""""""""""
