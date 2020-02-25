@@ -1,24 +1,17 @@
 subroutine plumes(V,L,AG,a,row,col,kend)
 implicit none
 
-!!January 2018 adapted from Mathworkds "ISLANDS"
+!!January 2018 
 
-!! plumes finds all islands of four-connected elements in a matrix.
-!! plumes returns a matrix the same size as the input matrix, with all of
-!! the four-connected elements assigned an arbitrary island number. A second
-!! return argument is an nx3 matrix.  Each row of this matrix has
-!! information about a particular island:  the first column is the island
-!! number which corresponds to the numbers in the first return argument, the
-!! second column is the number of elements in the island, the third column
-!! is the value of the elements in that island (the elements of the input
-!! matrix).  plumes will also return a binary matrix with ones in the
-!! positions of the elements of the largest four-connected island.  The
-!! largest four-connected island is determined first by value; for example
-!! if there are 2 islands each with 5 elements, one of which is made up of
-!! 6's and the other of which is made up of 4's, the island with the 6's
-!! will be returned.  In the case where there are 2 islands with the same
-!! number of elements and the same value, an arbitrary choice will be
-!! returned.
+! The routine identifies all four-connected elements in a matrix. 
+! The returns are:
+! V - arbitrary island number
+! L - nx3 matrix where earch row has information about a particular cluster.
+!     the first column is the cluster number which corresponds to V. The second
+!     column is the number of elements in the cluster, and the third column is 
+!     the value of the elements in that cluster (the elements of the input field).
+! AG - Binary matrix with ones in the positions of the elements of the largers 
+!      four-connected clusters. 
 
 integer, intent(in) :: row,col,kend
 integer, intent(in), dimension(row,col) :: a
