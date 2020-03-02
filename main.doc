@@ -20,7 +20,7 @@
  *
  * \section install_sec Installation
  *
- * \subsection step1 1: clone the enitre github repo: 
+ * \subsection step1 1: clone the entire github repo: 
  * >git clone https://github.com/ufs-community/ufs-weather-model  
  *
  * >cd ufs-weather-model
