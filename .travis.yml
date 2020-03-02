@@ -30,6 +30,7 @@ addons:
     packages:
       - doxygen
       - graphviz
+      - sphinx_rtd_theme
 
 # Build your code e.g. by calling make
 script:
