@@ -1,5 +1,5 @@
 PROJECT_NAME           = "stochastic physics"
-PROJECT_NUMBER         = v0.0.1
+PROJECT_NUMBER         = v1
 STRIP_FROM_PATH        = 
 INPUT                  = 
 FILE_PATTERNS          = *.md  \
