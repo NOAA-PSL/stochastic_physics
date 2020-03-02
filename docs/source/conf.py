@@ -19,7 +19,7 @@
 # -- Project information -----------------------------------------------------
 
 project = 'UFS stochastic physics'
-copyright = '2019, Philip Pegion'
+copyright = '2020,  The Regents of the University of Colorado'
 author = 'Philip Pegion'
 
 # The full version, including alpha/beta/rc tags
