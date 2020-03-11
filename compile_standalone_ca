@@ -1,0 +1,17 @@
+#!/bin/sh
+compile_all=1
+if [ $compile_all -eq 1 ];then
+   rm -f *.i90 *.i *.o *.mod lib*a
+   mpif90 -C -traceback -real-size 64 -c ../FV3/gfsphysics/physics/machine.F
+   mpif90 -C -traceback -real-size 64 -c ../FV3/gfsphysics/physics/mersenne_twister.f
+   mpif90 -C -traceback -I../FMS/include -c ../FMS/platform/platform.F90
+   mpif90 -C -traceback -nowarn -DGFS_PHYS -I../FMS/include -c ../FMS/constants/constants.F90
+   mpif90 -C -traceback -I../FV3/atmos_cubed_sphere -I../FMS/include -I../FMS/fv3gfs -c fv_control_stub.F90
+   mpif90 -C -traceback -I../FV3/atmos_cubed_sphere -I../FMS/include -I../FMS/fv3gfs -c atmosphere_stub.F90
+   mpif90 -C -traceback -c -real-size 64 standalone_stochy_module.F90
+   mpif90 -C -traceback -I. -real-size 64 -c plumes.F90
+   mpif90 -DSTOCHY_UNIT_TEST -real-size 64 -C -traceback -I../FMS/fv3gfs -I../FMS/FMS_INSTALL -I../FV3/atmos_cubed_sphere -c update_ca.F90
+   mpif90 -DSTOCHY_UNIT_TEST -real-size 64 -C -traceback -I../FMS/fv3gfs -I../FMS/FMS_INSTALL -I../FV3/atmos_cubed_sphere -c cellular_automata_global.F90
+   ar rv libcellular_automata.a *.o
+fi
+mpif90 -traceback -real-size 64 -qopenmp -o standalone_ca standalone_ca.F90 -I../FV3/atmos_cubed_sphere -I../FMS/FMS_INSTALL -I/apps/netcdf/4.7.0/intel/18.0.5.274/include -L. -lcellular_automata -L../FV3/atmos_cubed_sphere -lfv3core -L../FMS/FMS_INSTALL -lfms -L../FV3/gfsphysics -lgfsphys -L/scratch2/NCEPDEV/nwprod/NCEPLIBS/compilers/intel/18.0.5.274/lib -lsp_v2.0.3_d -L/scratch1/NCEPDEV/nems/emc.nemspara/soft/esmf/8.0.0bs48-intel18.0.5.274-impi2018.0.4-netcdf4.6.1/lib -Wl,-rpath,/scratch1/NCEPDEV/nems/emc.nemspara/soft/esmf/8.0.0bs48-intel18.0.5.274-impi2018.0.4-netcdf4.6.1/lib -lesmf -L/apps/netcdf/4.7.0/intel/18.0.5.274/lib -lnetcdff -lnetcdf
