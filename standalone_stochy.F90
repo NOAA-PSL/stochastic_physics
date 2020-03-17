@@ -23,7 +23,7 @@ integer                 :: nthreads,omp_get_num_threads
 integer                 :: ncid,xt_dim_id,yt_dim_id,time_dim_id,xt_var_id,yt_var_id,time_var_id
 integer                 :: varid1,varid2,varid3,varid4
 integer                 :: zt_dim_id,zt_var_id
-character*1             :: strid
+character*3             :: strid
 type(GFS_grid_type),allocatable     :: Grid(:)
 type(GFS_coupling_type),allocatable :: Coupling(:)
 ! stochastic namelist fields
@@ -37,9 +37,10 @@ real(kind=kind_dbl_prec) :: skeb_sigtop1,skeb_sigtop2,          &
 real(kind=kind_dbl_prec) fhstoch,skeb_diss_smooth,spptint,shumint,skebint,skebnorm
 real(kind=kind_dbl_prec), dimension(5) :: skeb,skeb_lscale,skeb_tau
 real(kind=kind_dbl_prec), dimension(5) :: sppt,sppt_lscale,sppt_tau
+real(kind=kind_dbl_prec), dimension(5) :: ocnp,ocnp_lscale,ocnp_tau
 real(kind=kind_dbl_prec), dimension(5) :: shum,shum_lscale,shum_tau
 integer,dimension(5) ::skeb_vfilt
-integer(8),dimension(5) ::iseed_sppt,iseed_shum,iseed_skeb
+integer(8),dimension(5) ::iseed_sppt,iseed_shum,iseed_skeb,iseed_ocnp
 logical stochini,sppt_logit,new_lscale
 logical use_zmtnblck
 logical sppt_land
@@ -73,7 +74,7 @@ logical,target :: nested
 logical   :: write_this_tile
 integer  :: nargs,ntile_out,nlunit,pe,npes,stackmax=4000000
 character*80 :: fname
-character*1  :: ntile_out_str
+character*2  :: ntile_out_str
 
 real(kind=4),allocatable,dimension(:,:) :: workg
 real(kind=4),allocatable,dimension(:,:,:) :: workg3d
@@ -88,14 +89,15 @@ type(grid_box_type)           :: grid_box
       shum_lscale,fhstoch,stochini,skeb_varspect_opt,sppt_sfclimit, &
       skeb,skeb_tau,skeb_vdof,skeb_lscale,iseed_skeb,skeb_vfilt,skeb_diss_smooth, &
       skeb_sigtop1,skeb_sigtop2,skebnorm,sppt_sigtop1,sppt_sigtop2,&
-      shum_sigefold,spptint,shumint,skebint,skeb_npass,use_zmtnblck,new_lscale
+      shum_sigefold,spptint,shumint,skebint,skeb_npass,use_zmtnblck,new_lscale, &
+      ocnp,ocnp_lscale,ocnp_tau,iseed_ocnp
 write_this_tile=.false.
 ntile_out_str='0'
 nargs=iargc()
 if (nargs.EQ.1) then
    call getarg(1,ntile_out_str)
 endif
-read(ntile_out_str,'(I1.1)') ntile_out
+read(ntile_out_str,'(I2.2)') ntile_out
 open (unit=nlunit, file='input.nml', READONLY, status='OLD')
 read(nlunit,nam_stochy)
 close(nlunit)
@@ -139,10 +141,12 @@ jsc=Atm(1)%bd%jsc
 jec=Atm(1)%bd%jec
 nx=Atm(1)%npx-1
 ny=Atm(1)%npy-1
-allocate(workg(nx,ny))
-allocate(workg3d(nx,ny,nlevs))
-nblks=ny
-blksz=nx
+nx2=iec-isc+1
+ny2=jec-jsc+1
+allocate(workg(nx2,ny2))
+allocate(workg3d(nx2,ny2,nlevs))
+blksz=nx2
+nblks=ny2
 Allocate(Model%blksz(nblks))
 Model%blksz(:)=blksz
 nthreads = omp_get_num_threads()
@@ -180,27 +184,26 @@ do j=1,nblks
      Grid(j)%xlat(:)=Init_parm%xlat(:,j)
      Grid(j)%xlon(:)=Init_parm%xlon(:,j)
 enddo
-allocate(grid_xt(nx),grid_yt(ny))
-do i=1,nx
+allocate(grid_xt(nx2),grid_yt(ny2))
+do i=1,nx2
   grid_xt(i)=i
 enddo
-do i=1,ny
+do i=1,ny2
   grid_yt(i)=i
 enddo
 !setup GFS_coupling
 allocate(Coupling(nblks))
 call init_stochastic_physics(Model, Init_parm, ntasks, nthreads)
 call get_outfile(fname)
-write(strid,'(I1.1)') my_id+1
+write(strid,'(I2.1)') my_id+1
 if (ntile_out.EQ.0) write_this_tile=.true.
 if ((my_id+1).EQ.ntile_out) write_this_tile=.true.
-print*,trim(fname)//'.tile'//strid//'.nc',write_this_tile
+print*,trim(fname)//'.tile'//trim(adjustl(strid))//'.nc',write_this_tile
 if (write_this_tile) then
 fid=30+my_id
-!ierr=nf90_create(trim(fname)//'.tile'//strid//'.nc',cmode=NF90_CLOBBER,ncid=ncid)
-ierr=nf90_create(trim(fname)//'.tile'//strid//'.nc',cmode=NF90_CLOBBER,ncid=ncid)
-ierr=NF90_DEF_DIM(ncid,"grid_xt",nx,xt_dim_id)
-ierr=NF90_DEF_DIM(ncid,"grid_yt",ny,yt_dim_id)
+ierr=nf90_create(trim(fname)//'.tile'//trim(adjustl(strid))//'.nc',cmode=NF90_CLOBBER,ncid=ncid)
+ierr=NF90_DEF_DIM(ncid,"grid_xt",nx2,xt_dim_id)
+ierr=NF90_DEF_DIM(ncid,"grid_yt",ny2,yt_dim_id)
 if (Model%do_skeb)ierr=NF90_DEF_DIM(ncid,"p_ref",nlevs,zt_dim_id)
 ierr=NF90_DEF_DIM(ncid,"time",NF90_UNLIMITED,time_dim_id)
   !> - Define the dimension variables.
@@ -269,33 +272,33 @@ do i=1,nblks
    if (Model%do_skeb)allocate(Coupling(i)%skebu_wts(blksz,nlevs))
    if (Model%do_skeb)allocate(Coupling(i)%skebv_wts(blksz,nlevs))
 enddo
-do i=1,200
+do i=1,10
    Model%kdt=i
    ts=i/4.0
    call run_stochastic_physics(Model, Grid, Coupling, nthreads)
    if (Model%me.EQ.0) print*,'sppt_wts=',i,Coupling(1)%sppt_wts(1,20)
    if (write_this_tile) then
    if (Model%do_sppt)then
-      do j=1,ny
+      do j=1,ny2
          workg(:,j)=Coupling(j)%sppt_wts(:,20)   
       enddo
       ierr=NF90_PUT_VAR(ncid,varid1,workg,(/1,1,i/))
    endif
    if (Model%do_shum)then
-      do j=1,ny
+      do j=1,ny2
          workg(:,j)=Coupling(j)%shum_wts(:,1)
       enddo
       ierr=NF90_PUT_VAR(ncid,varid2,workg,(/1,1,i/))
    endif
    if (Model%do_skeb)then
       do k=1,nlevs
-         do j=1,ny
+         do j=1,ny2
             workg3d(:,j,k)=Coupling(j)%skebu_wts(:,k)
          enddo
       enddo
       ierr=NF90_PUT_VAR(ncid,varid3,workg3d,(/1,1,1,i/))
       do k=1,nlevs
-         do j=1,ny
+         do j=1,ny2
             workg3d(:,j,k)=Coupling(j)%skebv_wts(:,k)
          enddo
       enddo
