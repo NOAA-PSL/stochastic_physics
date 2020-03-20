@@ -27,12 +27,13 @@
       logical do_shum,do_sppt,do_skeb
 
 ! mg surface perturbations
-      real(kind=kind_dbl_prec), dimension(5) :: sfc_lscale,sfc_tau
-      real(kind=kind_dbl_prec), dimension(5) :: pertz0,pertshc,pertzt
-      real(kind=kind_dbl_prec), dimension(5) :: pertlai,pertvegf,pertalb
-      integer nsfcpert
-      integer(8),dimension(5) ::iseed_sfc
-      logical sppt_land
-      logical do_sfcperts
+      real(kind=kind_dbl_prec), dimension(5) :: lndp_lscale,lndp_tau
+      real(kind=kind_dbl_prec), dimension(5) :: lndp_z0,lndp_hc,lndp_zt
+      real(kind=kind_dbl_prec), dimension(5) :: lndp_la,lndp_vf,lndp_al
+      integer n_var_lndp
+      integer(8),dimension(5) ::iseed_lndp
+      integer lndp_type
+      integer lndp_ind_z0,lndp_ind_hc,lndp_ind_zt
+      integer lndp_ind_la,lndp_ind_vf,lndp_ind_al
 
       end module stochy_namelist_def

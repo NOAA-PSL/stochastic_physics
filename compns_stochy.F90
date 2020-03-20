@@ -57,8 +57,8 @@ module compns_stochy_mod
       skeb,skeb_tau,skeb_vdof,skeb_lscale,iseed_skeb,skeb_vfilt,skeb_diss_smooth, &
       skeb_sigtop1,skeb_sigtop2,skebnorm,sppt_sigtop1,sppt_sigtop2,&
       shum_sigefold,spptint,shumint,skebint,skeb_npass,use_zmtnblck,new_lscale
-      namelist /nam_sfcperts/nsfcpert,pertz0,pertshc,pertzt,pertlai, & ! mg, sfcperts
-      pertvegf,pertalb,iseed_sfc,sfc_tau,sfc_lscale,sppt_land
+      namelist /nam_sfcperts/lndp_type,lndp_z0,lndp_hc,lndp_zt,lndp_la, & ! mg, sfcperts
+      lndp_vf,lndp_al,iseed_lndp,lndp_tau,lndp_lscale 
 
       rerth  =6.3712e+6      ! radius of earth (m)
       tol=0.01  ! tolerance for calculations
@@ -72,26 +72,36 @@ module compns_stochy_mod
       shum             = -999.  ! stochastic boundary layer spf hum amp
       skeb             = -999.  ! stochastic KE backscatter amplitude
       ! mg, sfcperts
-      pertz0           = -999.  ! momentum roughness length amplitude
-      pertshc          = -999.  ! soil hydraulic conductivity amp
-      pertzt           = -999.  ! mom/heat roughness length amplitude
-      pertlai          = -999.  ! leaf area index amplitude
-      pertvegf         = -999.  ! vegetation fraction amplitude
-      pertalb          = -999.  ! albedo perturbations amplitude
+      lndp_z0          = -999.  ! momentum roughness length amplitude
+      lndp_hc          = -999.  ! soil hydraulic conductivity amp
+      lndp_zt          = -999.  ! mom/heat roughness length amplitude
+      lndp_la          = -999.  ! leaf area index amplitude
+      lndp_vf          = -999.  ! vegetation fraction amplitude
+      lndp_al          = -999.  ! albedo perturbations amplitude
 ! logicals
       do_sppt = .false.
       use_zmtnblck = .false.
       new_lscale = .false.
       do_shum = .false.
       do_skeb = .false.
-      ! mg, sfcperts
-      do_sfcperts = .false.
-      sppt_land = .false.
-      nsfcpert = 0
-! for sfcperts random patterns
-      sfc_lscale  = -999.       ! length scales
-      sfc_tau     = -999.       ! time scales
-      iseed_sfc   = 0           ! random seeds (if 0 use system clock)
+! input land pert variables: 
+! LNDP_TYPE = 0
+! no explicit land perturbations
+! LNDP_Type =  1 
+! this is the initial land sfc pert scheme, introduced and tested for impact on GEFS forecasts.
+! see https://journals.ametsoc.org/doi/full/10.1175/MWR-D-18-0057.1
+! perturbations are assigned once at the start of the forecast
+      lndp_type = 0 ! 0 -none, 1 - lndp_fcst, 2  - lndp_edas
+      lndp_lscale  = -999.       ! length scales
+      lndp_tau     = -999.       ! time scales
+      iseed_lndp   = 0           ! random seeds (if 0 use system clock)
+! derived land pert variables
+      lndp_ind_z0 = 0
+      lndp_ind_hc = 0
+      lndp_ind_zt = 0
+      lndp_ind_la = 0
+      lndp_ind_vf = 0
+      lndp_ind_al = 0
 ! for SKEB random patterns.
       skeb_vfilt       = 0
       skebint          = 0
@@ -205,11 +215,6 @@ module compns_stochy_mod
         iret=9
         return
       ENDIF
-! mg, sfcperts
-      IF (pertz0(1) > 0 .OR. pertshc(1) > 0 .OR. pertzt(1) > 0 .OR. &
-          pertlai(1) > 0 .OR. pertvegf(1) > 0 .OR. pertalb(1) > 0) THEN
-        do_sfcperts=.true.
-      ENDIF
 !calculate ntrunc if not supplied
      if (ntrunc .LT. 1) then  
         if (me==0) print*,'ntrunc not supplied, calculating'
@@ -237,7 +242,52 @@ module compns_stochy_mod
         lon_s=lon_s*2
         if (me==0) print*,'gaussian grid not set, defining here',lon_s,lat_s
      endif
+
+! 
+! land perts  - parse nml input
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+     select case (lndp_type)
+     case (0) 
+        if (me==0) print*, & 
+           'no land perturbations selected'
+     case (1) 
+        if (me==0) print*, & 
+          'land perturbations will be applied to selected paramaters, using older scheme designed for S2S fcst spread' 
+          ! set indexes for perturbed params  
+          if (any(lndp_z0 > 0)  ) then
+            n_var_lndp = n_var_lndp+1
+            lndp_ind_z0 =  n_var_lndp
+          endif
+          if (any(lndp_zt  > 0) ) then
+            n_var_lndp = n_var_lndp+1
+            lndp_ind_zt =  n_var_lndp
+          endif
+          if (any(lndp_hc > 0) ) then
+            n_var_lndp = n_var_lndp+1
+            lndp_ind_hc =  n_var_lndp
+          endif 
+          if ( any(lndp_la > 0) ) then
+            n_var_lndp = n_var_lndp+1
+            lndp_ind_la =  n_var_lndp
+          endif
+          if ( any(lndp_al > 0) ) then
+            n_var_lndp = n_var_lndp+1
+            lndp_ind_al =  n_var_lndp
+          endif
+          if ( any(lndp_vf > 0) ) then
+            n_var_lndp = n_var_lndp+1
+            lndp_ind_vf =  n_var_lndp
+          endif
+     case (2) 
+        if (me==0) print*, & 
+         'land perturbations will be applied to selected paramaters, using newer scheme designed for DA ens spread'
+     case default 
+        if (me==0) print*, & 
+         'lndp_type out of range, set to 0 (none), 1 (for fcst spread), 2 (for cycling DA spread)'
+         iret = 10 
+         return 
+     end select 
 !
 !  All checks are successful.
 !
@@ -246,7 +296,8 @@ module compns_stochy_mod
          print *, ' do_sppt : ', do_sppt
          print *, ' do_shum : ', do_shum
          print *, ' do_skeb : ', do_skeb
-         print *, ' do_sfcperts : ', do_sfcperts
+         print *, ' lndp_type : ', lndp_type
+         if (lndp_type .NE. 0) print *, ' n_var_lndp : ', n_var_lndp
       endif
       iret = 0
 !

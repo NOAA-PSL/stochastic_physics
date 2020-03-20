@@ -42,7 +42,6 @@ integer,dimension(5) ::skeb_vfilt
 integer(8),dimension(5) ::iseed_sppt,iseed_shum,iseed_skeb
 logical stochini,sppt_logit,new_lscale
 logical use_zmtnblck
-logical sppt_land
 include 'mpif.h'
 include 'netcdf.inc'
 real :: ak(nlevs+1),bk(nlevs+1)

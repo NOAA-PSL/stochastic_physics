@@ -4,7 +4,7 @@ module get_stochy_pattern_mod
  use spectral_layout_mod, only : ipt_lats_node_a, lat1s_a, lats_dim_a,      &
                                  lats_node_a, lon_dim_a, len_trie_ls,       &
                                  len_trio_ls, ls_dim, nodes, stochy_la2ga
- use stochy_namelist_def, only : nsfcpert, ntrunc, stochini
+ use stochy_namelist_def, only : n_var_lndp, ntrunc, stochini
  use stochy_data_mod, only : gg_lats, gg_lons, inttyp, nskeb, nshum, nsppt, &
                              rad2deg, rnlat, rpattern_sfc, rpattern_skeb,   &
                              rpattern_shum, rpattern_sppt, skebu_save,      &
@@ -122,12 +122,12 @@ subroutine get_random_pattern_sfc_fv3(rpattern,npatterns,&
  real (kind=kind_dbl_prec)   glolal(lonf,gis_stochy%lats_node_a)
  integer kmsk0(lonf,gis_stochy%lats_node_a),len
  real(kind=kind_dbl_prec) :: globalvar,globalvar0
- real(kind=kind_dbl_prec) :: pattern_3d(nblks,maxlen,nsfcpert)
+ real(kind=kind_dbl_prec) :: pattern_3d(nblks,maxlen,n_var_lndp)
  real(kind=kind_dbl_prec) :: pattern_1d(maxlen)
  real(kind=kind_dbl_prec), allocatable, dimension(:,:) :: rslmsk
  integer :: blk
 
- do k=1,nsfcpert
+ do k=1,n_var_lndp
    kmsk0 = 0
    glolal = 0.
    do n=1,npatterns
@@ -169,7 +169,7 @@ subroutine get_random_pattern_sfc_fv3(rpattern,npatterns,&
    deallocate(rslmsk)
    deallocate(workg)
 
- enddo  ! loop over k, nsfcpert
+ enddo  ! loop over k, n_var_lndp
 
 end subroutine get_random_pattern_sfc_fv3
 

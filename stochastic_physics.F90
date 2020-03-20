@@ -77,22 +77,33 @@ else if (Model%do_skeb.neqv.do_skeb) then
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
                    & ' namelist settings do_skeb and skeb'
    return
-else if (Model%do_sfcperts.neqv.do_sfcperts) then ! mg, sfc-perts
+else if (Model%lndp_type.neqv.lndp_type) then
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
-                   & ' namelist settings do_sfcperts and pertz0 / pertshc / pertzt / pertlai / pertvegf / pertalb'
+                   & ' namelist settings lndp_type in physics and nam_sfcperts'
+   return
+else if (Model%n_var_lndp.neqv.n_var_lndp) then
+   write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
+                   & ' namelist settings n_var_lndp in physics nml, and lndp_* in nam_sfcperts'
    return
 end if
 ! update remaining model configuration parameters from namelist
 Model%use_zmtnblck=use_zmtnblck
 Model%skeb_npass=skeb_npass
-Model%nsfcpert=nsfcpert         ! mg, sfc-perts
-Model%pertz0=pertz0         ! mg, sfc-perts
-Model%pertzt=pertzt         ! mg, sfc-perts
-Model%pertshc=pertshc         ! mg, sfc-perts
-Model%pertlai=pertlai         ! mg, sfc-perts
-Model%pertalb=pertalb         ! mg, sfc-perts
-Model%pertvegf=pertvegf         ! mg, sfc-perts
-if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb)  .AND. (.NOT. do_sfcperts) ) return
+Model%n_var_lndp=n_var_lndp         ! mg, sfc-perts
+Model%lndp_z0=lndp_z0         ! mg, sfc-perts
+Model%lndp_zt=lndp_zt         ! mg, sfc-perts
+Model%lndp_hc=lndp_hc         ! mg, sfc-perts
+Model%lndp_la=lndp_la         ! mg, sfc-perts
+Model%lndp_al=lndp_al         ! mg, sfc-perts
+Model%lndp_vf=lndp_vf         ! mg, sfc-perts
+Model%lndp_ind_z0=lndp_ind_z0  
+Model%lndp_ind_zt=lndp_ind_zt 
+Model%lndp_ind_hc=lndp_ind_hc
+Model%lndp_ind_la=lndp_ind_la
+Model%lndp_ind_al=lndp_ind_al
+Model%lndp_ind_vf=lndp_ind_vf
+if (is_master()) print *, 'CSDCSp Model set in stochy', n_var_lndp, Model%lndp_vf
+if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb)  .AND. (lndp_type==0) ) return
 allocate(sl(Model%levs))
 do k=1,Model%levs
    sl(k)= 0.5*(Init_parm%ak(k)/101300.+Init_parm%bk(k)+Init_parm%ak(k+1)/101300.0+Init_parm%bk(k+1)) ! si are now sigmas
@@ -303,7 +314,7 @@ contains
 subroutine run_stochastic_physics_sfc(Model, Grid, Coupling)
 use fv_mp_mod, only : is_master
 use stochy_internal_state_mod
-use stochy_data_mod, only : rad2deg,INTTYP,wlon,rnlat,gis_stochy, rpattern_sfc,npsfc                      ! mg, sfc-perts
+use stochy_data_mod, only : rad2deg,INTTYP,wlon,rnlat,gis_stochy, rpattern_sfc,nlndp                 ! mg, sfc-perts
 use get_stochy_pattern_mod,only : get_random_pattern_sfc_fv3                                              ! mg, sfc-perts
 use stochy_resol_def , only : latg,lonf
 use stochy_namelist_def
@@ -325,25 +336,24 @@ integer j,ierr,i
 integer :: nblks, blk, len, maxlen
 character*120 :: sfile
 character*6   :: STRFH
-if (.NOT. Model%do_sfcperts) return
+if (Model%lndp_type==0) return
 
 ! Set block-related variables
 nblks = size(Model%blksz)
 maxlen = maxval(Model%blksz(:))
 
-allocate(tmpsfc_wts(nblks,maxlen,Model%nsfcpert))  ! mg, sfc-perts
+allocate(tmpsfc_wts(nblks,maxlen,Model%n_var_lndp))  ! mg, sfc-perts
 if (is_master()) then
   print*,'In run_stochastic_physics_sfc'
 endif
-call get_random_pattern_sfc_fv3(rpattern_sfc,npsfc,gis_stochy,Model,Grid,nblks,maxlen,tmpsfc_wts)
+call get_random_pattern_sfc_fv3(rpattern_sfc,nlndp,gis_stochy,Model,Grid,nblks,maxlen,tmpsfc_wts)
 DO blk=1,nblks
    len=size(Grid(blk)%xlat,1)
-   DO k=1,Model%nsfcpert
+   DO k=1,Model%n_var_lndp
       Coupling(blk)%sfc_wts(:,k)=tmpsfc_wts(blk,1:len,k)
    ENDDO
 ENDDO
 if (is_master()) then
-   print*,'tmpsfc_wts(blk,1,:) =',tmpsfc_wts(1,1,1),tmpsfc_wts(1,1,2),tmpsfc_wts(1,1,3),tmpsfc_wts(1,1,4),tmpsfc_wts(1,1,5)
    print*,'min(tmpsfc_wts(:,:,:)) =',minval(tmpsfc_wts(:,:,:))
 endif
 deallocate(tmpsfc_wts)
