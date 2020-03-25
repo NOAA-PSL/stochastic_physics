@@ -68,41 +68,31 @@ call init_stochdata(Model%levs,Model%dtp,Model%input_nml_file,Model%fn_nml,Init_
 if (Model%do_sppt.neqv.do_sppt) then
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
                    & ' namelist settings do_sppt and sppt'
-   return
+   stop
 else if (Model%do_shum.neqv.do_shum) then
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
                    & ' namelist settings do_shum and shum'
-   return
+   stop
 else if (Model%do_skeb.neqv.do_skeb) then
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
                    & ' namelist settings do_skeb and skeb'
-   return
+   stop
 else if (Model%lndp_type.neqv.lndp_type) then
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
                    & ' namelist settings lndp_type in physics and nam_sfcperts'
-   return
-else if (Model%n_var_lndp.neqv.n_var_lndp) then
+   stop
+else if (Model%n_var_lndp .ne. n_var_lndp) then
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
                    & ' namelist settings n_var_lndp in physics nml, and lndp_* in nam_sfcperts'
-   return
+   stop !  return is not being error-trapped. Need to either kill the execution here, 
+        ! or set iret non-zero, then trap it from the calling routine (also, in many other places)
 end if
 ! update remaining model configuration parameters from namelist
 Model%use_zmtnblck=use_zmtnblck
 Model%skeb_npass=skeb_npass
 Model%n_var_lndp=n_var_lndp         ! mg, sfc-perts
-Model%lndp_z0=lndp_z0         ! mg, sfc-perts
-Model%lndp_zt=lndp_zt         ! mg, sfc-perts
-Model%lndp_hc=lndp_hc         ! mg, sfc-perts
-Model%lndp_la=lndp_la         ! mg, sfc-perts
-Model%lndp_al=lndp_al         ! mg, sfc-perts
-Model%lndp_vf=lndp_vf         ! mg, sfc-perts
-Model%lndp_ind_z0=lndp_ind_z0  
-Model%lndp_ind_zt=lndp_ind_zt 
-Model%lndp_ind_hc=lndp_ind_hc
-Model%lndp_ind_la=lndp_ind_la
-Model%lndp_ind_al=lndp_ind_al
-Model%lndp_ind_vf=lndp_ind_vf
-if (is_master()) print *, 'CSDCSp Model set in stochy', n_var_lndp, Model%lndp_vf
+Model%lndp_var_list=lndp_var_list
+Model%lndp_prt_list=lndp_prt_list
 if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb)  .AND. (lndp_type==0) ) return
 allocate(sl(Model%levs))
 do k=1,Model%levs
@@ -206,7 +196,6 @@ enddo
 WLON=gg_lons(1)-(gg_lons(2)-gg_lons(1))
 RNLAT=gg_lats(1)*2-gg_lats(2)
 
-!print *,'done with init_stochastic_physics'
 
 end subroutine init_stochastic_physics
 !>@brief The subroutine 'run_stochastic_physics' updates the random patterns if

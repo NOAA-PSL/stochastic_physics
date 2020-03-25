@@ -27,7 +27,8 @@ type GFS_control_type
    integer  ::  skeb_npass,n_var_lndp, lndp_type
    character(len=65) :: fn_nml                   !< namelist filename
    character(len=256),allocatable :: input_nml_file(:) !< character string containing full namelist
-   real(kind=kind_phys) ::  lndp_z0(5),lndp_zt(5),lndp_sh(5),lndp_la(5),lndp_vf(5),lndp_al(5)
+    real(kind=kind_phys) ::  lndp_prt_list(6)  ! max_n_var_lndp, max_nlndp
+    character(len=3) ::  lndp_var_list(6)  ! max_n_var_lndp
  !---cellular automata control parameters
     integer              :: nca             !< number of independent cellular automata
     integer              :: nlives          !< cellular automata lifetime

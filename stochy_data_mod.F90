@@ -60,6 +60,7 @@ module stochy_data_mod
 
    iret=0
    call compns_stochy (me,size(input_nml_file,1),input_nml_file(:),fn_nml,nlunit,delt,iret)
+   if (iret/=0) stop  ! CSD - error trapping is not currently set-up properly. 
    if(is_master()) print*,'in init stochdata',nodes,lat_s
    if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb)  .AND. (lndp_type==0) ) return
 !   if (nodes.GE.lat_s/2) then
@@ -96,27 +97,17 @@ module stochy_data_mod
      endif
    enddo
    if (is_master()) print *,'nskeb = ',nskeb
-   ! mg, sfc-perts
-   ! note: code that applies the perturbations only uses the first
-   do n=1,size(lndp_z0)
-     if (lndp_z0(n) > 0 .or. lndp_zt(n)>0 .or. lndp_hc(n)>0 .or. &
-         lndp_vf(n)>0 .or. lndp_la(n)>0 .or. lndp_al(n)>0) then
-        nlndp=nlndp+1
-     else
-        exit
-     endif
-   enddo
-   if (is_master()) then
-     if (nlndp > 0) then
-       print *,' nlndp   = ', nlndp
-       print *,' lndp_z0  = ', lndp_z0
-       print *,' lndp_zt  = ', lndp_zt
-       print *,' lndp_hc = ', lndp_hc
-       print *,' lndp_la = ', lndp_la
-       print *,' lndp_al = ', lndp_al
-       print *,' lndp_vf = ', lndp_vf
-     endif
-   endif
+   ! CSD - nlndp>1 was not properly coded. Hardcode to 1 for now
+   !do n=1,size(lndp_z0)
+   !  if (lndp_z0(n) > 0 .or. lndp_zt(n)>0 .or. lndp_hc(n)>0 .or. &
+   !      lndp_vf(n)>0 .or. lndp_la(n)>0 .or. lndp_al(n)>0) then
+   !     nlndp=nlndp+1
+   !  else
+   !     exit
+   !  endif
+   !enddo
+   if (n_var_lndp>0) nlndp=1
+   if (is_master())  print *,' nlndp   = ', nlndp
 
    if (nsppt > 0) allocate(rpattern_sppt(nsppt))
    if (nshum > 0) allocate(rpattern_shum(nshum))
@@ -331,6 +322,7 @@ if (nlndp > 0) then
        enddo ! n, nlndp
    endif ! nlndp > 0
    if (is_master() .and. stochini) CLOSE(stochlun)
+   if (is_master() ) print *, 'CSD - leaving init_stochdata' 
    deallocate(noise_e,noise_o)
  end subroutine init_stochdata
 

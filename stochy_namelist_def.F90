@@ -7,6 +7,7 @@
       implicit none
 
       public
+      integer, parameter :: max_n_var_lndp = 6 ! is also set in GFS_typedefs
       integer nssppt,nsshum,nsskeb,lon_s,lat_s,ntrunc
 
 ! pjp stochastic phyics
@@ -26,14 +27,11 @@
       logical use_zmtnblck
       logical do_shum,do_sppt,do_skeb
 
-! mg surface perturbations
       real(kind=kind_dbl_prec), dimension(5) :: lndp_lscale,lndp_tau
-      real(kind=kind_dbl_prec), dimension(5) :: lndp_z0,lndp_hc,lndp_zt
-      real(kind=kind_dbl_prec), dimension(5) :: lndp_la,lndp_vf,lndp_al
       integer n_var_lndp
       integer(8),dimension(5) ::iseed_lndp
       integer lndp_type
-      integer lndp_ind_z0,lndp_ind_hc,lndp_ind_zt
-      integer lndp_ind_la,lndp_ind_vf,lndp_ind_al
+      character(len=3), dimension(max_n_var_lndp)         ::  lndp_var_list
+      real(kind=kind_dbl_prec), dimension(max_n_var_lndp) ::  lndp_prt_list
 
       end module stochy_namelist_def
