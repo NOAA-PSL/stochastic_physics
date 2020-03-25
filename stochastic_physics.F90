@@ -59,7 +59,6 @@ me=Model%me
 nodes=ntasks
 gis_stochy%me=me
 gis_stochy%nodes=nodes
-gis_stochy%yhalo=10
 call init_stochdata(Model%levs,Model%dtp,Model%input_nml_file,Model%fn_nml,Init_parm%nlunit,iret)
 ! check to see decomposition
 !if(Model%isppt_deep == .true.)then

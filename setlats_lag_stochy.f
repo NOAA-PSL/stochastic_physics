@@ -54,35 +54,26 @@
          global_lats_h(j1-j2) = global_lats_a(latg) + 1 - jj ! set south pole yhalo
       enddo
 !
-      !if (me==0) print*,'lats_nodes_a=',lats_nodes_a(1),latg
-      !if (me==0) print*,'lats_nodes_h=',lats_nodes_h(:)
-
       if (lats_nodes_a(1) /= latg) then
 !
 !       set non-polar south yhalos
          jpt_h = 0
          do nn=1,nodes-1
-            if(lats_nodes_h(nn).GT.0) then
-               jpt_h   = jpt_h + lats_nodes_h(nn)
-               lat_val = global_lats_h(jpt_h-yhalo)
-               do jj=1,yhalo
-                  global_lats_h(jpt_h-yhalo+jj) = min(lat_val+jj,latg)
-               enddo
-            endif
+            jpt_h   = jpt_h + lats_nodes_h(nn)
+            lat_val = global_lats_h(jpt_h-yhalo)
+            do jj=1,yhalo
+               global_lats_h(jpt_h-yhalo+jj) = min(lat_val+jj,latg)
+            enddo
          enddo
 !
 !       set non-polar north yhalos
          jpt_h = 0
-         !if (me==0) print*,'in setlats',nodes,yhalo,size(lats_nodes_h)
          do nn=1,nodes-1
-         !   if (me==0) print*,'in loop',nn,jpt_h,lats_nodes_h(nn)
-            if(lats_nodes_h(nn).GT.0) then
-               jpt_h   = jpt_h + lats_nodes_h(nn)
-               lat_val = global_lats_h(jpt_h+yhalo+1)
-               do jj=1,yhalo
-                  global_lats_h(jpt_h+yhalo-(jj-1)) = max(lat_val-jj,1)
-               enddo
-            endif
+            jpt_h   = jpt_h + lats_nodes_h(nn)
+            lat_val = global_lats_h(jpt_h+yhalo+1)
+            do jj=1,yhalo
+               global_lats_h(jpt_h+yhalo-(jj-1)) = max(lat_val-jj,1)
+            enddo
          enddo
 !
       endif

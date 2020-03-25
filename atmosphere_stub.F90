@@ -44,6 +44,7 @@ private
 public :: atmosphere_init_stub
 
 !--- utility routines
+!public ::  atmosphere_return_winds, atmosphere_smooth_noise
 public ::  atmosphere_resolution,atmosphere_domain,&
            atmosphere_scalar_field_halo,atmosphere_control_data
 
@@ -174,6 +175,111 @@ contains
       
  end subroutine atmosphere_init_stub
 
+! subroutine atmosphere_smooth_noise (wnoise,npass,ns_type,renorm_type)
+!   
+!   !--- interface variables ---
+!   real,intent(inout)     :: wnoise(isd:ied,jsd:jed,1)
+!   integer, intent(in) :: npass,ns_type,renorm_type
+!   !--- local variables
+!   integer:: i,j,nloops,nlast
+!   real ::inflation(isc:iec,jsc:jec),inflation2
+!   ! scale factor for restoring inflation
+!   ! logic:  
+!   ! if box mean: scalar get basic scaling, vector gets 1/grid dependent scaling  0-0 ; 0 - 1
+!   ! if box mean2: no scaling
+!   ! if del2   : scalar gets grid dependent scaling,vector get basic scaling  1  0; 1 1
+!   if(npass.GT.0) then
+!      if (ns_type.NE.2) then
+!         if (ns_type.EQ. 0) then
+!             !inflation2=1.0/sqrt(1.0/(4.0*npass))
+!             inflation2=1.0/sqrt(1.0/(9.0*npass))
+!         else
+!             inflation2=1.0/sqrt(1.0/(11.0/3.0*npass))
+!         endif
+!        if ( ns_type.EQ.1) then ! del2 smoothing needs to be scaled by grid-size
+!           do j=jsc,jec
+!              do i=isc,iec
+!                 inflation(i,j)=inflation2*Atm(mytile)%gridstruct%dxAV/(0.5*(Atm(mytile)%gridstruct%dx(i,j)+Atm(mytile)%gridstruct%dy(i,j)))
+!              enddo
+!           enddo
+!        else  
+!           if ( renorm_type.EQ.1) then  ! box smooth does not need scaling for scalar
+!               do j=jsc,jec
+!                  do i=isc,iec
+!                   inflation(i,j)=inflation2
+!                  enddo
+!               enddo
+!           else 
+!              ! box mean needs inversize grid-size scaling for vector
+!              do j=jsc,jec
+!                 do i=isc,iec
+!                    inflation(i,j)=inflation2*(0.5*(Atm(mytile)%gridstruct%dx(i,j)+Atm(mytile)%gridstruct%dy(i,j)))/Atm(mytile)%gridstruct%dxAV
+!                 enddo
+!              enddo
+!           endif
+!        endif
+!     endif
+!     nloops=npass/3
+!     nlast=mod(npass,3)
+!     do j=1,nloops 
+!        if (ns_type.EQ.1) then
+!           !call del2_cubed(wnoise , 0.25*Atm(mytile)%gridstruct%da_min, Atm(mytile)%gridstruct, &
+!           call del2_cubed(wnoise , 0.20*Atm(mytile)%gridstruct%da_min, Atm(mytile)%gridstruct, &
+!                           Atm(mytile)%domain, npx, npy, 1, 3, Atm(mytile)%bd)
+!        else if (ns_type .EQ. 0) then
+!           call box_mean(wnoise , Atm(mytile)%gridstruct, Atm(mytile)%domain, Atm(mytile)%npx, Atm(mytile)%npy, 1, 3, Atm(mytile)%bd)
+!        else if (ns_type .EQ. 2) then
+!           call box_mean2(wnoise , Atm(mytile)%gridstruct, Atm(mytile)%domain, Atm(mytile)%npx, Atm(mytile)%npy, 1, 3, Atm(mytile)%bd)
+!        endif
+!     enddo
+!     if(nlast>0) then
+!        if (ns_type.EQ.1) then
+!           !call del2_cubed(wnoise , 0.25*Atm(mytile)%gridstruct%da_min, Atm(mytile)%gridstruct, &
+!           call del2_cubed(wnoise , 0.20*Atm(mytile)%gridstruct%da_min, Atm(mytile)%gridstruct, &
+!                           Atm(mytile)%domain, npx, npy, 1, nlast, Atm(mytile)%bd)
+!        else if (ns_type .EQ. 0) then
+!           call box_mean(wnoise , Atm(mytile)%gridstruct, Atm(mytile)%domain, Atm(mytile)%npx, Atm(mytile)%npy, 1, nlast, Atm(mytile)%bd)
+!        else if (ns_type .EQ. 2) then
+!           call box_mean2(wnoise , Atm(mytile)%gridstruct, Atm(mytile)%domain, Atm(mytile)%npx, Atm(mytile)%npy, 1, nlast, Atm(mytile)%bd)
+!        endif
+!     endif
+!  ! restore amplitude
+!    if (ns_type.NE.2) then
+!       do j=jsc,jec
+!          do i=isc,iec
+!             wnoise(i,j,1)=wnoise(i,j,1)*inflation(i,j)
+!          enddo
+!       enddo
+!      endif
+!   endif
+! end subroutine atmosphere_smooth_noise
+
+! subroutine atmosphere_return_winds (psi,ua,va,edge,km,vwts)
+! integer,intent(in) :: edge
+! real,intent(inout) :: psi(isd:ied,jsd:jed)
+! real,intent(inout) :: ua(isc:iec+edge,jsc:jec)
+! real,intent(inout) :: va(isc:iec,jsc:jec+edge)
+! integer, optional,intent(in):: km
+! real, optional,intent(in):: vwts(:)
+! integer :: k
+! call timing_on('COMM_TOTAL')
+! call mpp_update_domains(psi, Atm(mytile)%domain, complete=.true.)
+! call timing_off('COMM_TOTAL')
+! if (edge.EQ.0) then
+!    call make_a_winds(ua, va, psi,Atm(mytile)%ng,Atm(mytile)%gridstruct,Atm(mytile)%bd,Atm(mytile)%npx,Atm(mytile)%npy)
+! endif
+! if (edge.EQ.1) then
+!    call make_c_winds(ua, va, psi,Atm(mytile)%ng,Atm(mytile)%gridstruct,Atm(mytile)%bd,Atm(mytile)%npx,Atm(mytile)%npy)
+!! populate wind perturbations right here
+!    do k=1,km
+!       Atm(mytile)%urandom_c(isc:iec+edge,jsc:jec     ,k)=ua*vwts(k) 
+!       Atm(mytile)%vrandom_c(isc:iec     ,jsc:jec+edge,k)=va*vwts(k) 
+!    enddo
+!    !call mpp_update_domains(Atm(mytile)%urandom_c, Atm(mytile)%domain, complete=.true.)
+!    !call mpp_update_domains(Atm(mytile)%vrandom_c, Atm(mytile)%domain, complete=.true.)
+! endif
+! end subroutine atmosphere_return_winds
+!
   subroutine del2_cubed(q, cd, gridstruct, domain, npx, npy, km, nmax, bd)
       !---------------------------------------------------------------
       ! This routine is for filtering the omega field for the physics
@@ -276,6 +382,189 @@ contains
 
  end subroutine del2_cubed
 
+!>@brief The subroutine 'box_mean' filters a field with a 9-point mean stencil
+
+ subroutine box_mean(q, gridstruct, domain, npx, npy, km, nmax, bd)
+      !---------------------------------------------------------------
+      ! This routine is for filtering the omega field for the physics
+      !---------------------------------------------------------------
+      integer, intent(in):: npx, npy, km, nmax
+      type(fv_grid_bounds_type), intent(IN) :: bd
+      real, intent(inout):: q(bd%isd:bd%ied,bd%jsd:bd%jed,km)
+      type(fv_grid_type), intent(IN), target :: gridstruct
+      type(domain2d), intent(INOUT) :: domain
+      real, parameter:: r3  = 1./3.,r9=1./9.
+      real :: q2(bd%isd:bd%ied,bd%jsd:bd%jed)
+      integer i,j,k, n, nt, ntimes
+      integer :: is,  ie,  js,  je
+      integer :: isd, ied, jsd, jed
+
+      !Local routine pointers
+!     real, pointer, dimension(:,:) :: rarea
+!     real, pointer, dimension(:,:) :: del6_u, del6_v
+!     logical, pointer :: sw_corner, se_corner, ne_corner, nw_corner
+
+      is  = bd%is
+      ie  = bd%ie
+      js  = bd%js
+      je  = bd%je
+      isd = bd%isd
+      ied = bd%ied
+      jsd = bd%jsd
+      jed = bd%jed
+
+      ntimes = min(3, nmax)
+
+      call timing_on('COMM_TOTAL')
+      call mpp_update_domains(q, domain, complete=.true.)
+      call timing_off('COMM_TOTAL')
+
+
+      do n=1,ntimes
+         nt = ntimes !- n
+
+!$OMP parallel do default(none) shared(km,is,ie,js,je,npx,npy, &
+!$OMP                                  q,nt,isd,jsd,gridstruct,bd) &
+!$OMP                          private(q2)
+         do k=1,km
+
+            if ( gridstruct%sw_corner ) then
+               q(1,1,k) = (q(1,1,k)+q(0,1,k)+q(1,0,k)) * r3
+               q(0,1,k) =  q(1,1,k)
+               q(1,0,k) =  q(1,1,k)
+            endif
+            if ( gridstruct%se_corner ) then
+               q(ie, 1,k) = (q(ie,1,k)+q(npx,1,k)+q(ie,0,k)) * r3
+               q(npx,1,k) =  q(ie,1,k)
+               q(ie, 0,k) =  q(ie,1,k)
+            endif
+            if ( gridstruct%ne_corner ) then
+               q(ie, je,k) = (q(ie,je,k)+q(npx,je,k)+q(ie,npy,k)) * r3
+               q(npx,je,k) =  q(ie,je,k)
+               q(ie,npy,k) =  q(ie,je,k)
+            endif
+            if ( gridstruct%nw_corner ) then
+               q(1, je,k) = (q(1,je,k)+q(0,je,k)+q(1,npy,k)) * r3
+               q(0, je,k) =  q(1,je,k)
+               q(1,npy,k) =  q(1,je,k)
+            endif
+
+            if(nt>0) call copy_corners(q(isd,jsd,k), npx, npy, 1, gridstruct%nested, bd, &
+                 gridstruct%sw_corner, gridstruct%se_corner, gridstruct%nw_corner, gridstruct%ne_corner )
+
+            if(nt>0) call copy_corners(q(isd,jsd,k), npx, npy, 2, gridstruct%nested, bd, &
+                 gridstruct%sw_corner, gridstruct%se_corner, gridstruct%nw_corner, gridstruct%ne_corner)
+
+            !do j=js-nt,je+nt
+            !   do i=is-nt,ie+nt
+            do j=jsd+1,jed-1
+               do i=isd+1,ied-1
+                  !q2(i,j) = (gridstruct%area(i-1,j+1)*q(i-1,j+1,k) + gridstruct%area(i,j+1)*q(i,j+1,k) + gridstruct%area(i+1,j+1)*q(i+1,j+1,k) +&
+                  !           gridstruct%area(i-1,j  )*q(i-1,j,k)   + gridstruct%area(i,j  )*q(i,j  ,k) + gridstruct%area(i+1,j  )*q(i+1,j  ,k) +&
+                  !           gridstruct%area(i-1,j-1)*q(i-1,j-1,k) + gridstruct%area(i,j-1)*q(i,j-1,k) + gridstruct%area(i+1,j-1)*q(i+1,j-1,k))/SUM(gridstruct%area(i-1:i+1,j-1:j+1))
+                  q2(i,j) = r9*(q(i-1,j+1,k)+q(i,j+1,k)+q(i+1,j+1,k)+q(i-1,j,k)+q(i,j,k)+q(i+1,j,k)+q(i-1,j-1,k)+q(i,j-1,k)+q(i+1,j-1,k))
+                  !if (j.GE. je .AND. i.GE. ie) print*,'area +1=',gridstruct%area(i-1:i+1,j+1)
+                  !if (j.GE. je .AND. i.GE. ie) print*,'area   =',gridstruct%area(i-1:i+1,j)
+                  !if (j.GE. je .AND. i.GE. ie) print*,'area -1=',gridstruct%area(i-1:i+1,j-1)
+                  !if (j.GE. je .AND. i.GE. ie) print*,'q    +1=',q(i-1:i+1,j+1,k)
+                  !if (j.GE. je .AND. i.GE. ie) print*,'q      =',q(i-1:i+1,j,k)
+                  !if (j.GE. je .AND. i.GE. ie) print*,'q    -1=',q(i-1:i+1,j-1,k)
+               enddo
+            enddo
+            do j=js-nt,je+nt
+               do i=is-nt,ie+nt
+                  q(i,j,k)=q2(i,j)
+               enddo
+            enddo
+         enddo
+      enddo
+ end subroutine box_mean
+
+ subroutine box_mean2(q, gridstruct, domain, npx, npy, km, nmax, bd)
+      !---------------------------------------------------------------
+      ! This routine is for filtering the omega field for the physics
+      !---------------------------------------------------------------
+      integer, intent(in):: npx, npy, km, nmax
+      type(fv_grid_bounds_type), intent(IN) :: bd
+      real, intent(inout):: q(bd%isd:bd%ied,bd%jsd:bd%jed,km)
+      type(fv_grid_type), intent(IN), target :: gridstruct
+      type(domain2d), intent(INOUT) :: domain
+      real, parameter:: r3  = 1./3.,r10=0.1
+      real :: q2(bd%isd:bd%ied,bd%jsd:bd%jed)
+      integer i,j,k, n, nt, ntimes
+      integer :: is,  ie,  js,  je
+      integer :: isd, ied, jsd, jed
+
+      !Local routine pointers
+!     real, pointer, dimension(:,:) :: rarea
+!     real, pointer, dimension(:,:) :: del6_u, del6_v
+!     logical, pointer :: sw_corner, se_corner, ne_corner, nw_corner
+
+      is  = bd%is
+      ie  = bd%ie
+      js  = bd%js
+      je  = bd%je
+      isd = bd%isd
+      ied = bd%ied
+      jsd = bd%jsd
+      jed = bd%jed
+
+      ntimes = min(3, nmax)
+
+      call timing_on('COMM_TOTAL')
+      call mpp_update_domains(q, domain, complete=.true.)
+      call timing_off('COMM_TOTAL')
+
+
+      do n=1,ntimes
+         nt = ntimes !- n
+
+!$OMP parallel do default(none) shared(km,is,ie,js,je,npx,npy, &
+!$OMP                                  q,nt,isd,jsd,gridstruct,bd) &
+!$OMP                          private(q2)
+         do k=1,km
+
+            if ( gridstruct%sw_corner ) then
+               q(1,1,k) = (q(1,1,k)+q(0,1,k)+q(1,0,k)) * r3
+               q(0,1,k) =  q(1,1,k)
+               q(1,0,k) =  q(1,1,k)
+            endif
+            if ( gridstruct%se_corner ) then
+               q(ie, 1,k) = (q(ie,1,k)+q(npx,1,k)+q(ie,0,k)) * r3
+               q(npx,1,k) =  q(ie,1,k)
+               q(ie, 0,k) =  q(ie,1,k)
+            endif
+            if ( gridstruct%ne_corner ) then
+               q(ie, je,k) = (q(ie,je,k)+q(npx,je,k)+q(ie,npy,k)) * r3
+               q(npx,je,k) =  q(ie,je,k)
+               q(ie,npy,k) =  q(ie,je,k)
+            endif
+            if ( gridstruct%nw_corner ) then
+               q(1, je,k) = (q(1,je,k)+q(0,je,k)+q(1,npy,k)) * r3
+               q(0, je,k) =  q(1,je,k)
+               q(1,npy,k) =  q(1,je,k)
+            endif
+
+            if(nt>0) call copy_corners(q(isd,jsd,k), npx, npy, 1, gridstruct%nested, bd, &
+                 gridstruct%sw_corner, gridstruct%se_corner, gridstruct%nw_corner, gridstruct%ne_corner )
+
+            if(nt>0) call copy_corners(q(isd,jsd,k), npx, npy, 2, gridstruct%nested, bd, &
+                 gridstruct%sw_corner, gridstruct%se_corner, gridstruct%nw_corner, gridstruct%ne_corner)
+
+            do j=jsd+1,jed-1
+               do i=isd+1,ied-1
+                  q2(i,j) = r10*(q(i-1,j+1,k)+q(i,j+1,k)+q(i+1,j+1,k)+q(i-1,j,k)+2*q(i,j,k)+q(i+1,j,k)+q(i-1,j-1,k)+q(i,j-1,k)+q(i+1,j-1,k))
+               enddo
+            enddo
+            do j=js-nt,je+nt
+               do i=is-nt,ie+nt
+                  q(i,j,k)=q2(i,j)
+               enddo
+            enddo
+         enddo
+      enddo
+
+ end subroutine box_mean2
 subroutine make_a_winds(ua, va, psi, ng, gridstruct, bd, npx, npy)
 
 integer, intent(IN) :: ng, npx, npy
