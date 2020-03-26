@@ -187,17 +187,17 @@ module compns_stochy_mod
       IF (skebint == 0.) skebint=deltim
       nsskeb=nint(skebint/deltim)                              ! skebint in seconds
       IF(nsskeb<=0 .or. abs(nsskeb-skebint/deltim)>tol) THEN
-         WRITE(0,*) "SKEB interval will be adjusted for model time-step interval is now",nsskeb*deltim
+         if(me==0) print*, "SKEB interval will be adjusted for model time-step, interval is now",nsskeb*deltim
       ENDIF
       IF (spptint == 0.) spptint=deltim
       nssppt=nint(spptint/deltim)                              ! spptint in seconds
       IF(nssppt<=0 .or. abs(nssppt-spptint/deltim)>tol) THEN
-         WRITE(0,*) "SPPT interval will be adjusted for model time-step interval is now",nssppt*deltim
+         if(me==0) print*, "SPPT interval will be adjusted for model time-step, interval is now",nssppt*deltim
       ENDIF
       IF (shumint == 0.) shumint=deltim
       nsshum=nint(shumint/deltim)                              ! shumint in seconds
       IF(nsshum<=0 .or. abs(nsshum-shumint/deltim)>tol) THEN
-         WRITE(0,*) "SHUM interval will be adjusted for model time-step interval is now",nsshum*deltim
+         if (me==0) print*, "SHUM interval will be adjusted for model time-step, interval is now",nsshum*deltim
       ENDIF
 ! mg, sfcperts
       IF (pertz0(1) > 0 .OR. pertshc(1) > 0 .OR. pertzt(1) > 0 .OR. &
