@@ -88,6 +88,7 @@ k_in=1
 ! stop
 ! endif
 
+
  call atmosphere_resolution (nlon, nlat, global=.false.)
  isize=nlon+2*halo
  jsize=nlat+2*halo
@@ -129,7 +130,6 @@ k_in=1
  CA2(:,:) = 0.0 
  CA3(:,:) = 0.0
  
-
 !Put the blocks of model fields into a 2d array
  levs=nlev
  blocksz=blocksize
@@ -169,7 +169,6 @@ do nf=1,nca
   enddo
  enddo
 
-
 !Initiate the cellular automaton with random numbers larger than nfracseed
  
   do j = 1,nyc
@@ -188,8 +187,8 @@ do nf=1,nca
 !we here set the "condition" variable to a different model field depending
 !on nf. (this is not used if ca_global = .true.)
 
-do nf=1,nca !update each ca
- 
+
+  do nf=1,nca !update each ca
    do j = 1,nyc
     do i = 1,nxc
      ilives_g(i,j)=int(real(nlives)*1.5*noise(i,j,nf))

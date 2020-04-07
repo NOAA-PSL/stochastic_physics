@@ -522,6 +522,13 @@ do j=1,nlat
  enddo
 enddo
 
+if(kstep == 1)then
+do j=1,nlat
+ do i=1,nlon
+   ca_plumes(i,j)=0.
+ enddo
+enddo
+endif
 
 !Put back into blocks 1D array to be passed to physics
 !or diagnostics output
