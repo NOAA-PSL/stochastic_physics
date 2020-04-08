@@ -213,6 +213,7 @@ module compns_stochy_mod
            if (shum(k).GT.0) l_min=min(shum_lscale(k),l_min)
            if (skeb(k).GT.0) l_min=min(skeb_lscale(k),l_min)
        enddo
+       if (lndp_type.GT.0) l_min=min(lndp_lscale(1),l_min)
        !ntrunc=1.5*circ/l_min
        ntrunc=circ/l_min
        if (me==0) print*,'ntrunc calculated from l_min',l_min,ntrunc
