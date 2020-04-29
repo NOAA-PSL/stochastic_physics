@@ -16,12 +16,12 @@ implicit none
 
 contains
 
-subroutine update_cells_sgs(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,CA,ca_plumes,iini,ilives, &
+subroutine update_cells_sgs(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,iseed_ca,CA,ca_plumes,iini,ilives, &
                         nlives,ncells,nfracseed,nseed,nthresh,nspinup,nf,nca_plumes)
 
 implicit none
 
-integer, intent(in) :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca
+integer, intent(in) :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca,iseed_ca
 integer, intent(in) :: iini(nxc,nyc,nca)
 integer, intent(inout) :: ilives(nxc,nyc,nca)
 real, intent(out) :: CA(nlon,nlat)
@@ -72,13 +72,20 @@ k_in=1
  noise1D1 = 0.0
  noise1D2 = 0.0
 
- call system_clock(count, count_rate, count_max)
- count_trunc = iscale*(count/iscale)
- count5 = count - count_trunc
- count6=count5+9827
- !broadcast to all tasks                                                                                                                                                                                                                          
- !call mp_bcst(count5)                                                                                                                                                                                                                            
- !call mp_bcst(count6)                                                                                                                                                                                                                            
+ if (iseed_ca == 0) then
+    ! generate a random seed from system clock and ens member number
+    call system_clock(count, count_rate, count_max)
+    ! iseed is elapsed time since unix epoch began (secs)
+    ! truncate to 4 byte integer
+    count_trunc = iscale*(count/iscale)
+    count5 = count - count_trunc 
+    count6 = count5+9827
+  else
+    ! don't rely on compiler to truncate integer(8) to integer(4) on
+    ! overflow, do wrap around explicitly.
+    count5 = mod(iseed_ca + 2147483648, 4294967296) - 2147483648 
+    count6 = count5 + 9827
+  endif
 
  call random_setseed(count5)
  call random_number(noise1D1)
@@ -298,12 +305,12 @@ end subroutine update_cells_sgs
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine update_cells_global(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,CA,iini_g,ilives_g, &
+subroutine update_cells_global(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,iseed_ca,CA,iini_g,ilives_g, &
                         nlives,ncells,nfracseed,nseed,nthresh,nspinup,nf)
 
 implicit none
 
-integer, intent(in) :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca
+integer, intent(in) :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca,iseed_ca
 integer, intent(in) :: iini_g(nxc,nyc,nca), ilives_g(nxc,nyc)
 real, intent(out) :: CA(nlon,nlat)
 integer, intent(in) :: nlives, ncells, nseed, nspinup, nf
@@ -350,10 +357,20 @@ k_in=1
  noise1D1 = 0.0
  noise1D2 = 0.0
 
- call system_clock(count, count_rate, count_max)
- count_trunc = iscale*(count/iscale)
- count5 = count - count_trunc
- count6=count5+9827
+ if (iseed_ca == 0) then
+    ! generate a random seed from system clock and ens member number
+    call system_clock(count, count_rate, count_max)
+    ! iseed is elapsed time since unix epoch began (secs)
+    ! truncate to 4 byte integer
+    count_trunc = iscale*(count/iscale)
+    count5 = count - count_trunc
+    count6 = count5+9827
+  else
+    ! don't rely on compiler to truncate integer(8) to integer(4) on
+    ! overflow, do wrap around explicitly.
+    count5 = mod(iseed_ca + 2147483648, 4294967296) - 2147483648
+    count6 = count5 + 9827
+  endif
 
  call random_setseed(count5)
  call random_number(noise1D1)

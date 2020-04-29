@@ -203,7 +203,7 @@ do nf=1,nca
 
   CA(:,:)=0. 
 
-  call update_cells_global(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,CA,iini_g,ilives_g, &
+  call update_cells_global(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,iseed_ca,CA,iini_g,ilives_g, &
                    nlives, ncells, nfracseed, nseed,nthresh, nspinup,nf) 
 
    

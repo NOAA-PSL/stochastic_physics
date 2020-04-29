@@ -363,7 +363,7 @@ do nf=1,nca !update each ca
 !Calculate neighbours and update the automata                                                                                                                                                            
 !If ca-global is used, then nca independent CAs are called and weighted together to create one field; CA                                                                                                                                                                                                                                  
   
-  call update_cells_sgs(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,CA,ca_plumes,iini,ilives, &
+  call update_cells_sgs(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,iseed_ca,CA,ca_plumes,iini,ilives, &
                    nlives, ncells, nfracseed, nseed,nthresh,nspinup,nf,nca_plumes)
 
    if(nf==1)then
