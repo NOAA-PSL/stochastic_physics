@@ -50,7 +50,7 @@ integer :: nlon, nlat, isize,jsize,nf,nn
 integer :: inci, incj, nxc, nyc, nxch, nych
 integer :: halo, k_in, i, j, k, iec, jec, isc, jsc
 integer :: seed, ierr7,blk, ix, iix, count4,ih,jh
-integer :: blocksz,levs
+integer :: blocksz,levs,k350,k850
 integer(8) :: count, count_rate, count_max, count_trunc
 integer(8) :: iscale = 10000000000
 integer, allocatable :: iini(:,:,:),ilives(:,:,:),iini_g(:,:,:),ilives_g(:,:),ca_plumes(:,:)
@@ -79,6 +79,18 @@ logical              :: nca_plumes
 
 halo=1
 k_in=1
+
+if (nlev .EQ. 64) then
+   k350=29
+   k850=13
+elseif (nlev .EQ. 127) then
+   k350=61
+   k850=28
+else ! make a guess
+   k350=int(nlev/2)
+   k850=int(nlev/5)
+   print*,'this level selection is not supported, making an approximation for k350 and k850'
+endif
 
 nca_plumes = .true.
 !----------------------------------------------------------------------------
@@ -180,8 +192,8 @@ nca_plumes = .true.
       shalp(i,j) = Coupling(blk)%ca_shal(ix)
       gamt(i,j) = Coupling(blk)%ca_turb(ix)
       surfp(i,j) = Statein(blk)%pgr(ix)
-      humidity(i,j)=Statein(blk)%qgrs(ix,13,1) !about 850 hpa
-      do k = 1,29 !Lower troposphere: level 29 is about 350hPa 
+      humidity(i,j)=Statein(blk)%qgrs(ix,k850,1) !about 850 hpa
+      do k = 1,k350 !Lower troposphere
       omega(i,j,k) = Statein(blk)%vvl(ix,k) ! layer mean vertical velocity in pa/sec
       pressure(i,j,k) = Statein(blk)%prsl(ix,k) ! layer mean pressure in Pa
       enddo
@@ -198,11 +210,11 @@ nca_plumes = .true.
  do j=1,nlat
   do i =1,nlon
     dp(i,j,1)=(surfp(i,j)-pressure(i,j,1))
-    do k=2,29
+    do k=2,k350
      dp(i,j,k)=(pressure(i,j,k-1)-pressure(i,j,k))
     enddo
     count1=0.
-    do k=1,29
+    do k=1,k350
      count1=count1+1.
      vertvelsum(i,j)=vertvelsum(i,j)+(omega(i,j,k)*dp(i,j,k))
    enddo
@@ -211,7 +223,7 @@ nca_plumes = .true.
 
  do j=1,nlat
   do i=1,nlon
-   vertvelmean(i,j)=vertvelsum(i,j)/(surfp(i,j)-pressure(i,j,29))
+   vertvelmean(i,j)=vertvelsum(i,j)/(surfp(i,j)-pressure(i,j,k350))
   enddo
  enddo
 
