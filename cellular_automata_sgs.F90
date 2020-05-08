@@ -17,6 +17,7 @@ use mersenne_twister,  only: random_setseed,random_gauss,random_stat,random_numb
 use mpp_domains_mod,   only: domain2D
 use block_control_mod, only: block_control_type, define_blocks_packed
 use fv_mp_mod,         only : mp_reduce_sum,mp_bcst,mp_reduce_max,mp_reduce_min,is_master
+use mpp_mod, only : mpp_pe
 
 
 implicit none
@@ -228,44 +229,47 @@ nca_plumes = .true.
  enddo
 
 !Generate random number, following stochastic physics code:
-do nf=1,nca
 
+if(kstep==2) then
   if (iseed_ca == 0) then
     ! generate a random seed from system clock and ens member number
     call system_clock(count, count_rate, count_max)
     ! iseed is elapsed time since unix epoch began (secs)
     ! truncate to 4 byte integer
     count_trunc = iscale*(count/iscale)
-    count4 = count - count_trunc + nf*201 
+    count4 = count - count_trunc 
   else
     ! don't rely on compiler to truncate integer(8) to integer(4) on
     ! overflow, do wrap around explicitly.
-    count4 = mod(iseed_ca + 2147483648, 4294967296) - 2147483648 + nf*201
+    count4 = mod(mpp_pe() + iseed_ca + 2147483648, 4294967296) - 2147483648 
   endif
 
- call random_setseed(count4)
- call random_number(noise1D)
- !Put on 2D:
- do j=1,nyc
-  do i=1,nxc
-   noise(i,j,nf)=noise1D(i+(j-1)*nxc)
-  enddo
- enddo
+  call random_setseed(count4)
+
+  do nf=1,nca
+    call random_number(noise1D)
+    !Put on 2D:
+    do j=1,nyc
+      do i=1,nxc
+        noise(i,j,nf)=noise1D(i+(j-1)*nxc)
+      enddo
+    enddo
 
 
 !Initiate the cellular automaton with random numbers larger than nfracseed
  
-   do j = 1,nyc
-    do i = 1,nxc
-     if (noise(i,j,nf) > nfracseed ) then
-      iini(i,j,nf)=1
-     else
-      iini(i,j,nf)=0
-    endif
+    do j = 1,nyc
+      do i = 1,nxc
+        if (noise(i,j,nf) > nfracseed ) then
+          iini(i,j,nf)=1
+        else
+          iini(i,j,nf)=0
+        endif
+      enddo
     enddo
-   enddo
  
- enddo !nf
+  enddo !nf
+endif ! kstep=0
  
 !In case we want to condition the cellular automaton on a large scale field
 !we here set the "condition" variable to a different model field depending
@@ -280,7 +284,7 @@ do nf=1,nca !update each ca
   incj=ncells
   do j=1,nyc
    do i=1,nxc
-     condition(i,j)=conditiongrid(inci/ncells,incj/ncells) !conditiongrid(inci/ncells,incj/ncells) 
+     condition(i,j)=conditiongrid(inci/ncells,incj/ncells) 
      if(i.eq.inci)then
      inci=inci+ncells
      endif
@@ -375,7 +379,7 @@ do nf=1,nca !update each ca
 !Calculate neighbours and update the automata                                                                                                                                                            
 !If ca-global is used, then nca independent CAs are called and weighted together to create one field; CA                                                                                                                                                                                                                                  
   
-  call update_cells_sgs(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,iseed_ca,CA,ca_plumes,iini,ilives, &
+  call update_cells_sgs(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,CA,ca_plumes,iini,ilives, &
                    nlives, ncells, nfracseed, nseed,nthresh,nspinup,nf,nca_plumes)
 
    if(nf==1)then

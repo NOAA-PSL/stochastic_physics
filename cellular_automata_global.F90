@@ -17,6 +17,7 @@ use mersenne_twister,  only: random_setseed,random_gauss,random_stat,random_numb
 use mpp_domains_mod,   only: domain2D
 use block_control_mod, only: block_control_type, define_blocks_packed
 use fv_mp_mod,         only : mp_reduce_sum,mp_bcst,mp_reduce_max,mp_reduce_min,is_master
+use mpp_mod, only : mpp_pe
 
 
 implicit none
@@ -26,7 +27,8 @@ implicit none
 !This program evolves a cellular automaton uniform over the globe given
 !the flag ca_global
 
-integer,intent(in) :: kstep,ncells,nca,nlives,nseed,iseed_ca,nspinup,nsmooth
+integer,intent(in) :: kstep,ncells,nca,nlives,nseed,nspinup,nsmooth
+integer,intent(in) :: iseed_ca
 real,intent(in) :: nfracseed,nthresh,ca_amplitude
 logical,intent(in) :: ca_global, ca_sgs, ca_smooth
 integer, intent(in) :: nblks,nlev,blocksize
@@ -144,44 +146,47 @@ k_in=1
   jec = Atm_block%jec 
 
 !Generate random number, following stochastic physics code:
-do nf=1,nca
-
+if(kstep==0) then
   if (iseed_ca == 0) then
     ! generate a random seed from system clock and ens member number
     call system_clock(count, count_rate, count_max)
     ! iseed is elapsed time since unix epoch began (secs)
     ! truncate to 4 byte integer
     count_trunc = iscale*(count/iscale)
-    count4 = count - count_trunc + nf*201 
-  else
+    count4 = count - count_trunc
+  else if (iseed_ca > 0) then
     ! don't rely on compiler to truncate integer(8) to integer(4) on
     ! overflow, do wrap around explicitly.
-    count4 = mod(iseed_ca + 2147483648, 4294967296) - 2147483648 + nf*201
+    count4 = mod(mpp_pe() + iseed_ca + 2147483648, 4294967296) - 2147483648 
   endif
+endif !kstep == 0
 
- !Set seed (to be the same) on all tasks. Save random state.
- call random_setseed(count4,rstate)
- call random_number(noise1D,rstate)
- !Put on 2D:
- do j=1,nyc
-  do i=1,nxc
-  noise(i,j,nf)=noise1D(i+(j-1)*nxc)
-  enddo
- enddo
-
-!Initiate the cellular automaton with random numbers larger than nfracseed
- 
-  do j = 1,nyc
-    do i = 1,nxc
-     if (noise(i,j,nf) > nfracseed ) then
-      iini_g(i,j,nf)=1
-     else
-      iini_g(i,j,nf)=0
-    endif
+  call random_setseed(count4,rstate)
+  do nf=1,nca
+  !Set seed (to be different) on all tasks. Save random state.
+    call random_number(noise1D,rstate)
+  !Put on 2D:
+    do j=1,nyc
+      do i=1,nxc
+        noise(i,j,nf)=noise1D(i+(j-1)*nxc)
+      enddo
     enddo
    enddo
 
- enddo !nf
+!Initiate the cellular automaton with random numbers larger than nfracseed
+if(kstep ==0)then
+   do nf=1,nca
+    do j = 1,nyc
+      do i = 1,nxc
+        if (noise(i,j,nf) > nfracseed ) then
+          iini_g(i,j,nf)=1
+        else
+          iini_g(i,j,nf)=0
+        endif
+      enddo
+    enddo
+  enddo !nf
+endif ! kstep==0
  
 !In case we want to condition the cellular automaton on a large scale field
 !we here set the "condition" variable to a different model field depending
@@ -189,6 +194,7 @@ do nf=1,nca
 
 
   do nf=1,nca !update each ca
+
    do j = 1,nyc
     do i = 1,nxc
      ilives_g(i,j)=int(real(nlives)*1.5*noise(i,j,nf))
@@ -203,7 +209,7 @@ do nf=1,nca
 
   CA(:,:)=0. 
 
-  call update_cells_global(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,iseed_ca,CA,iini_g,ilives_g, &
+  call update_cells_global(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,CA,iini_g,ilives_g, &
                    nlives, ncells, nfracseed, nseed,nthresh, nspinup,nf) 
 
    
