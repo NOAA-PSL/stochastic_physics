@@ -17,7 +17,7 @@ endif
 
 LIBRARY  = libstochastic_physics.a
 
-FFLAGS   += -I../FV3/gfsphysics/ -I../FV3/atmos_cubed_sphere -I$(FMS_DIR) -I../FV3/namphysics
+FFLAGS   += -I../FV3/gfsphysics/ -I../FV3/atmos_cubed_sphere -I$(FMS_DIR)
 
 SRCS_F   =
 
