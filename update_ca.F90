@@ -225,7 +225,7 @@ enddo !spinup
      incj=incj+ncells
   ENDDO
 
-if(nca_plumes == .true.) then
+if(nca_plumes) then
 !COMPUTE NUMBER OF CLUSTERS (CONVECTIVE PLUMES) IN EACH CA-CELL
 !Note, at the moment we only use the count of the plumes found in a grid-cell
 !In the future the routine "plumes" can also be used to give the size of 
