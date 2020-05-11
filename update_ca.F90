@@ -5,7 +5,7 @@ use atmosphere_stub_mod,    only: atmosphere_scalar_field_halo
 #else
 use atmosphere_mod,    only: atmosphere_scalar_field_halo
 #endif
-use mersenne_twister,  only: random_setseed,random_gauss,random_stat,random_number
+use mersenne_twister,  only: random_gauss,random_stat,random_number
 use fv_mp_mod, only : mp_reduce_sum,mp_bcst,mp_reduce_min,mp_reduce_max
 
 implicit none
@@ -16,12 +16,12 @@ implicit none
 
 contains
 
-subroutine update_cells_sgs(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,iseed_ca,CA,ca_plumes,iini,ilives, &
+subroutine update_cells_sgs(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,CA,ca_plumes,iini,ilives, &
                         nlives,ncells,nfracseed,nseed,nthresh,nspinup,nf,nca_plumes)
 
 implicit none
 
-integer, intent(in) :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca,iseed_ca
+integer, intent(in) :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca
 integer, intent(in) :: iini(nxc,nyc,nca)
 integer, intent(inout) :: ilives(nxc,nyc,nca)
 real, intent(out) :: CA(nlon,nlat)
@@ -34,20 +34,15 @@ integer, dimension(nlon,nlat) :: maxlives
 integer,allocatable,save :: board(:,:,:), lives(:,:,:)
 integer,allocatable :: V(:),L(:),B(:)
 integer,allocatable :: AG(:,:)
-integer :: inci, incj, i, j, k, iii,sub,spinup,it,halo,k_in,isize,jsize
+integer :: inci, incj, i, j, k,sub,spinup,it,halo,k_in,isize,jsize
 integer :: ih, jh,kend
-real :: threshc,threshk,wp_max,wp_min,mthresh,kthresh
 real, allocatable :: field_in(:,:),board_halo(:,:,:)
 integer, dimension(nxc,nyc) :: neighbours, birth, newlives,thresh,maxliveshigh
 integer, dimension(nxc,nyc) :: neg, newcell, oldlives, newval,temp,newseed
 integer, dimension(ncells,ncells) :: onegrid
 
-integer(8) :: count, count_rate, count_max, count_trunc
-integer(8) :: iscale = 10000000000                                                                               
-integer :: count5, count6
-type(random_stat) :: rstate
-real, dimension(nxc,nyc) :: NOISE_A, NOISE_B
-real, dimension(nxc*nyc) :: noise1D2, noise1D1
+real, dimension(nxc,nyc) :: NOISE_B
+real, dimension(nxc*nyc) :: noise1D2
 
 
 !-------------------------------------------------------------------------------------------------
@@ -69,29 +64,16 @@ k_in=1
  allocate(board_halo(nxch,nych,1))   
  endif
   
- noise1D1 = 0.0
  noise1D2 = 0.0
-
- if (iseed_ca == 0) then
-    ! generate a random seed from system clock and ens member number
-    call system_clock(count, count_rate, count_max)
-    ! iseed is elapsed time since unix epoch began (secs)
-    ! truncate to 4 byte integer
-    count_trunc = iscale*(count/iscale)
-    count5 = count - count_trunc 
-    count6 = count5+9827
-  else
-    ! don't rely on compiler to truncate integer(8) to integer(4) on
-    ! overflow, do wrap around explicitly.
-    count5 = mod(iseed_ca + 2147483648, 4294967296) - 2147483648 
-    count6 = count5 + 9827
-  endif
-
- call random_setseed(count5)
- call random_number(noise1D1)
-
- call random_setseed(count6)
+!
  call random_number(noise1D2)
+
+ !Put on 2D:
+ do j=1,nyc
+  do i=1,nxc
+  NOISE_B(i,j)=noise1D2(i+(j-1)*nxc)    
+  enddo
+ enddo
 
   if(kstep <= 1)then
    do j=1,nyc
@@ -305,12 +287,12 @@ end subroutine update_cells_sgs
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine update_cells_global(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,iseed_ca,CA,iini_g,ilives_g, &
+subroutine update_cells_global(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,CA,iini_g,ilives_g, &
                         nlives,ncells,nfracseed,nseed,nthresh,nspinup,nf)
 
 implicit none
 
-integer, intent(in) :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca,iseed_ca
+integer, intent(in) :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca
 integer, intent(in) :: iini_g(nxc,nyc,nca), ilives_g(nxc,nyc)
 real, intent(out) :: CA(nlon,nlat)
 integer, intent(in) :: nlives, ncells, nseed, nspinup, nf
@@ -318,19 +300,13 @@ real, intent(in) :: nfracseed, nthresh
 real, dimension(nlon,nlat) :: frac
 integer,allocatable,save :: board_g(:,:,:), lives_g(:,:,:)
 integer,allocatable :: V(:),L(:)
-integer :: inci, incj, i, j, k, iii,sub,spinup,it,halo,k_in,isize,jsize
+integer :: inci, incj, i, j, k ,sub,spinup,it,halo,k_in,isize,jsize
 integer :: ih, jh
-real :: threshc,threshk,wp_max,wp_min,mthresh,kthresh
 real, allocatable :: field_in(:,:),board_halo(:,:,:)
 integer, dimension(nxc,nyc) :: neighbours, birth, newlives, thresh
 integer, dimension(nxc,nyc) :: neg, newcell, oldlives, newval,temp,newseed
-
-integer(8) :: count, count_rate, count_max, count_trunc
-integer(8) :: iscale = 10000000000                                                                               
-integer :: count5, count6
-type(random_stat) :: rstate
-real, dimension(nxc,nyc) :: NOISE_A, NOISE_B, g2D
-real, dimension(nxc*nyc) :: noise1D2, noise1D1
+real, dimension(nxc,nyc) :: NOISE_B
+real, dimension(nxc*nyc) :: noise1D2
 
 
 !-------------------------------------------------------------------------------------------------
@@ -354,36 +330,15 @@ k_in=1
 
  
  !random numbers:
- noise1D1 = 0.0
  noise1D2 = 0.0
 
- if (iseed_ca == 0) then
-    ! generate a random seed from system clock and ens member number
-    call system_clock(count, count_rate, count_max)
-    ! iseed is elapsed time since unix epoch began (secs)
-    ! truncate to 4 byte integer
-    count_trunc = iscale*(count/iscale)
-    count5 = count - count_trunc
-    count6 = count5+9827
-  else
-    ! don't rely on compiler to truncate integer(8) to integer(4) on
-    ! overflow, do wrap around explicitly.
-    count5 = mod(iseed_ca + 2147483648, 4294967296) - 2147483648
-    count6 = count5 + 9827
-  endif
-
- call random_setseed(count5)
- call random_number(noise1D1)
-
- call random_setseed(count6)
  call random_number(noise1D2)
 
  !Put on 2D:                                                                                                                                                                          
- do j=1,nyc                                                                                                                                                                              
-  do i=1,nxc                                                                                                                                                                             
-  NOISE_A(i,j)=noise1D1(i+(j-1)*nxc)-0.5                                                                                                                                                 
-  NOISE_B(i,j)=noise1D2(i+(j-1)*nxc)                                                                                                                                                     
-  enddo                                                                                                                                                                                  
+ do j=1,nyc
+  do i=1,nxc
+  NOISE_B(i,j)=noise1D2(i+(j-1)*nxc)
+  enddo
  enddo                        
 
 
