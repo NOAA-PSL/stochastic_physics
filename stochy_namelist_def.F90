@@ -1,3 +1,6 @@
+!>@brief The module 'stochy_namelist_def' declares the variables to be read from the namelist
+! and are publicly available
+
       module stochy_namelist_def
 !
 ! program log

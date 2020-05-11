@@ -32,7 +32,6 @@ SRCS_f   =  \
 		./glats_stochy.f                            \
 		./sumfln_stochy.f                           \
 		./gozrineo_stochy.f                         \
-		./num_parthds_stochy.f                      \
 		./get_ls_node_stochy.f                      \
 		./get_lats_node_a_stochy.f                  \
 		./setlats_a_stochy.f                        \
