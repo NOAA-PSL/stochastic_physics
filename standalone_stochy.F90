@@ -20,8 +20,8 @@ type(GFS_init_type)     :: Init_parm
 integer, parameter      :: nlevs=64
 integer                 :: ntasks,fid
 integer                 :: nthreads,omp_get_num_threads
-integer                 :: ncid,xt_dim_id,yt_dim_id,time_dim_id,xt_var_id,yt_var_id,time_var_id
-integer                 :: varid1,varid2,varid3,varid4
+integer                 :: ncid,xt_dim_id,yt_dim_id,time_dim_id,xt_var_id,yt_var_id,time_var_id,var_id_lat,var_id_lon,var_id_tile
+integer                 :: varid1,varid2,varid3,varid4,varid_lon,varid_lat,varid_tile
 integer                 :: zt_dim_id,zt_var_id
 character*1             :: strid
 type(GFS_grid_type),allocatable     :: Grid(:)
@@ -75,7 +75,7 @@ integer  :: nargs,ntile_out,nlunit,pe,npes,stackmax=4000000
 character*80 :: fname
 character*1  :: ntile_out_str
 
-real(kind=4),allocatable,dimension(:,:) :: workg
+real(kind=4),allocatable,dimension(:,:) :: workg,tile_number
 real(kind=4),allocatable,dimension(:,:,:) :: workg3d
 real(kind=4),allocatable,dimension(:) :: grid_xt,grid_yt
 real(kind=8),pointer    ,dimension(:,:) :: area
@@ -140,6 +140,7 @@ jec=Atm(1)%bd%jec
 nx=Atm(1)%npx-1
 ny=Atm(1)%npy-1
 allocate(workg(nx,ny))
+allocate(tile_number(nx,ny))
 allocate(workg3d(nx,ny,nlevs))
 nblks=ny
 blksz=nx
@@ -212,6 +213,20 @@ ierr=NF90_DEF_VAR(ncid,"grid_yt",NF90_FLOAT,(/ yt_dim_id /), yt_var_id)
 ierr=NF90_PUT_ATT(ncid,yt_var_id,"long_name","T-cell latitude")
 ierr=NF90_PUT_ATT(ncid,yt_var_id,"cartesian_axis","Y")
 ierr=NF90_PUT_ATT(ncid,yt_var_id,"units","degrees_N")
+ierr=NF90_DEF_VAR(ncid,"grid_lat",NF90_FLOAT,(/ xt_dim_id, yt_dim_id, time_dim_id /), var_id_lat)
+ierr=NF90_PUT_ATT(ncid,var_id_lat,"long_name","T-cell latitudes")
+ierr=NF90_PUT_ATT(ncid,var_id_lat,"units","degrees_N")
+ierr=NF90_PUT_ATT(ncid,var_id_lat,"missing_value",undef)
+ierr=NF90_PUT_ATT(ncid,var_id_lat,"_FillValue",undef)
+ierr=NF90_DEF_VAR(ncid,"grid_lon",NF90_FLOAT,(/ xt_dim_id, yt_dim_id, time_dim_id /), var_id_lon)
+ierr=NF90_PUT_ATT(ncid,var_id_lon,"long_name","T-cell longitudes")
+ierr=NF90_PUT_ATT(ncid,var_id_lon,"units","degrees_N")
+ierr=NF90_PUT_ATT(ncid,var_id_lon,"missing_value",undef)
+ierr=NF90_PUT_ATT(ncid,var_id_lon,"_FillValue",undef)
+ierr=NF90_DEF_VAR(ncid,"tile_num",NF90_FLOAT,(/ xt_dim_id, yt_dim_id, time_dim_id /), var_id_tile)
+ierr=NF90_PUT_ATT(ncid,var_id_tile,"long_name","tile number")
+ierr=NF90_PUT_ATT(ncid,var_id_tile,"missing_value",undef)
+ierr=NF90_PUT_ATT(ncid,var_id_tile,"_FillValue",undef)
 if (Model%do_skeb)then
    ierr=NF90_DEF_VAR(ncid,"p_ref",NF90_FLOAT,(/ zt_dim_id /), zt_var_id)
    ierr=NF90_PUT_ATT(ncid,zt_var_id,"long_name","reference pressure")
@@ -262,7 +277,11 @@ if (Model%do_skeb)then
    ierr=NF90_PUT_VAR(ncid,zt_var_id,pressl)
 endif
 endif
-
+! put lat lon and tile number
+ierr=NF90_PUT_VAR(ncid,var_id_lon,Init_parm%xlon,(/1,1,1/))
+ierr=NF90_PUT_VAR(ncid,var_id_lat,Init_parm%xlat,(/1,1,1/))
+tile_number=my_id+1
+ierr=NF90_PUT_VAR(ncid,var_id_tile,tile_number,(/1,1,1/))
 do i=1,nblks
    if (Model%do_sppt)allocate(Coupling(i)%sppt_wts(blksz,nlevs))
    if (Model%do_shum)allocate(Coupling(i)%shum_wts(blksz,nlevs))

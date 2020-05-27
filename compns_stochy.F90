@@ -1,3 +1,4 @@
+!>@brief The module 'compns_stochy_mod' contains the subroutine compns_stochy
 module compns_stochy_mod
 
    implicit none
@@ -5,6 +6,9 @@ module compns_stochy_mod
    contains
 
 !-----------------------------------------------------------------------
+!>@brief The module 'compns_stochy_mod' set the default namelist options reads in the stochastic physics namelist
+!! and  sets logicals and other parameters based on the namelist
+!>@details Namelist can be either a file, or an internal namelist
       subroutine compns_stochy (me,sz_nml,input_nml_file,fn_nml,nlunit,deltim,iret)
 !$$$  Subprogram Documentation Block
 !

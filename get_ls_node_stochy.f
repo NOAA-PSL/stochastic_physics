@@ -1,10 +1,13 @@
+!>@brief The module 'get_ls_node_stochy_mod' contains the subroutine get_ls_node_stochy
       module get_ls_node_stochy_mod
 
       implicit none
 
       contains
 
+!>@brief The subroutine 'get_ls_node_stochy' calculates the decomposition of the spherical harmonics based on the processor layout
       subroutine get_ls_node_stochy(me_fake,ls_node,ls_max_node_fake,
+!>@details This code is taken from the legacy spectral GFS
      c    iprint)
 !
       use stochy_resol_def
