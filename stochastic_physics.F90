@@ -204,8 +204,10 @@ subroutine run_stochastic_physics(Model, Grid, Coupling, nthreads)
 use fv_mp_mod, only : is_master
 use stochy_internal_state_mod
 use stochy_data_mod, only : nshum,rpattern_shum,rpattern_sppt,nsppt,rpattern_skeb,nskeb,&
-                            rad2deg,INTTYP,wlon,rnlat,gis_stochy,vfact_sppt,vfact_shum,vfact_skeb
-use get_stochy_pattern_mod,only : get_random_pattern_fv3,get_random_pattern_fv3_vect,dump_patterns
+                            rad2deg,INTTYP,wlon,rnlat,gis_stochy,vfact_sppt,vfact_shum,vfact_skeb, & 
+                            rpattern_sfc, nlndp
+use get_stochy_pattern_mod,only : get_random_pattern_fv3,get_random_pattern_fv3_vect,dump_patterns, & 
+                                  get_random_pattern_fv3_sfc
 use stochy_resol_def , only : latg,lonf
 use stochy_namelist_def
 use spectral_layout_mod,only:me,ompthreads
@@ -221,15 +223,16 @@ type(GFS_grid_type),      intent(in) :: Grid(:)
 type(GFS_coupling_type),  intent(inout) :: Coupling(:)
 integer,                  intent(in)    :: nthreads
 
-real,allocatable :: tmp_wts(:,:),tmpu_wts(:,:,:),tmpv_wts(:,:,:)
+real,allocatable :: tmp_wts(:,:),tmpu_wts(:,:,:),tmpv_wts(:,:,:), tmps_wts(:,:,:)
 !D-grid
 integer :: k
 integer j,ierr,i
 integer :: nblks, blk, len, maxlen
 character*120 :: sfile
 character*6   :: STRFH
+logical :: do_advance_pattern
 
-if ( (.NOT. Model%do_sppt) .AND. (.NOT. Model%do_shum) .AND. (.NOT. Model%do_skeb) ) return
+if ( (.NOT. Model%do_sppt) .AND. (.NOT. Model%do_shum) .AND. (.NOT. Model%do_skeb) .AND. (Model%lndp_type==0 ) ) return
 
 ! Update number of threads in shared variables in spectral_layout_mod and set block-related variables
 ompthreads = nthreads
@@ -245,6 +248,7 @@ endif
 allocate(tmp_wts(nblks,maxlen))
 allocate(tmpu_wts(nblks,maxlen,Model%levs))
 allocate(tmpv_wts(nblks,maxlen,Model%levs))
+allocate(tmps_wts(nblks,maxlen,Model%n_var_lndp))
 if (Model%do_sppt) then
    if (mod(Model%kdt,nssppt) == 1 .or. nssppt == 1) then
       call get_random_pattern_fv3(rpattern_sppt,nsppt,gis_stochy,Model,Grid,nblks,maxlen,tmp_wts)
@@ -281,72 +285,26 @@ if (Model%do_skeb) then
       ENDDO
    endif
 endif
+if (lndp_type .GT. 0) then
+    if (lndp_type==1) then  ! this scheme applies same pert every time step
+        do_advance_pattern=.false. 
+    else  ! this scheme evolves the patterns through time
+        do_advance_pattern=.true. 
+    endif
+    call get_random_pattern_fv3_sfc(rpattern_sfc,nlndp,gis_stochy,Model,Grid,nblks,maxlen,do_advance_pattern,tmps_wts)
+    DO blk=1,nblks
+       len=size(Grid(blk)%xlat,1)
+       ! for perturbing vars or states, saved value is N(0,1)  and apply scaling later.
+       DO k=1,Model%n_var_lndp
+           Coupling(blk)%sfc_wts(:,k) = tmps_wts(blk,1:len,k)
+       ENDDO
+    ENDDO
+endif
 deallocate(tmp_wts)
 deallocate(tmpu_wts)
 deallocate(tmpv_wts)
+deallocate(tmps_wts)
 
 end subroutine run_stochastic_physics
 
 end module stochastic_physics
-
-
-module stochastic_physics_sfc
-
-implicit none
-
-private
-
-public :: run_stochastic_physics_sfc
-
-contains
-
-subroutine run_stochastic_physics_sfc(Model, Grid, Coupling)
-use fv_mp_mod, only : is_master
-use stochy_internal_state_mod
-use stochy_data_mod, only : rad2deg,INTTYP,wlon,rnlat,gis_stochy, rpattern_sfc,nlndp                 ! mg, sfc-perts
-use get_stochy_pattern_mod,only : get_random_pattern_sfc_fv3                                              ! mg, sfc-perts
-use stochy_resol_def , only : latg,lonf
-use stochy_namelist_def
-!use mpp_mod
-#ifdef STOCHY_UNIT_TEST
-  use standalone_stochy_module,   only: GFS_control_type, GFS_grid_type, GFS_Coupling_type
-#else
-use GFS_typedefs,       only: GFS_control_type, GFS_grid_type, GFS_Coupling_type
-#endif
-implicit none
-type(GFS_control_type),   intent(in) :: Model
-type(GFS_grid_type),      intent(in) :: Grid(:)
-type(GFS_coupling_type),  intent(inout) :: Coupling(:)
-
-real,allocatable :: tmpsfc_wts(:,:,:)
-!D-grid
-integer :: k
-integer j,ierr,i
-integer :: nblks, blk, len, maxlen
-character*120 :: sfile
-character*6   :: STRFH
-if (Model%lndp_type==0) return
-
-! Set block-related variables
-nblks = size(Model%blksz)
-maxlen = maxval(Model%blksz(:))
-
-allocate(tmpsfc_wts(nblks,maxlen,Model%n_var_lndp))  ! mg, sfc-perts
-if (is_master()) then
-  print*,'In run_stochastic_physics_sfc'
-endif
-call get_random_pattern_sfc_fv3(rpattern_sfc,nlndp,gis_stochy,Model,Grid,nblks,maxlen,tmpsfc_wts)
-DO blk=1,nblks
-   len=size(Grid(blk)%xlat,1)
-   DO k=1,Model%n_var_lndp
-      Coupling(blk)%sfc_wts(:,k)=tmpsfc_wts(blk,1:len,k)
-   ENDDO
-ENDDO
-if (is_master()) then
-   print*,'min(tmpsfc_wts(:,:,:)) =',minval(tmpsfc_wts(:,:,:))
-endif
-deallocate(tmpsfc_wts)
-
-end subroutine run_stochastic_physics_sfc
-
-end module stochastic_physics_sfc

@@ -46,7 +46,7 @@ module stochy_data_mod
    character(len=64), intent(in) :: fn_nml
    real, intent(in) :: delt
    integer, intent(out) :: iret
-   real :: pertsfc(1)
+   real :: ones(5)
 
    real :: rnn1
    integer :: nn,nspinup,k,nm,spinup_efolds,stochlun,ierr,n
@@ -131,7 +131,7 @@ module stochy_data_mod
    spinup_efolds = 0
    if (nsppt > 0) then
        if (is_master()) print *, 'Initialize random pattern for SPPT'
-       call patterngenerator_init(sppt_lscale,spptint,sppt_tau,sppt,iseed_sppt,rpattern_sppt, &
+       call patterngenerator_init(sppt_lscale(1:nsppt),spptint,sppt_tau(1:nsppt),sppt(1:nsppt),iseed_sppt,rpattern_sppt, &
            lonf,latg,jcap,gis_stochy%ls_node,nsppt,1,0,new_lscale)
        do n=1,nsppt
           nspinup = spinup_efolds*sppt_tau(n)/spptint
@@ -163,7 +163,7 @@ module stochy_data_mod
    endif
    if (nshum > 0) then
        if (is_master()) print *, 'Initialize random pattern for SHUM'
-       call patterngenerator_init(shum_lscale,shumint,shum_tau,shum,iseed_shum,rpattern_shum, &
+       call patterngenerator_init(shum_lscale(1:nshum),shumint,shum_tau(1:nshum),shum(1:nshum),iseed_shum,rpattern_shum, &
            lonf,latg,jcap,gis_stochy%ls_node,nshum,1,0,new_lscale)
        do n=1,nshum
           nspinup = spinup_efolds*shum_tau(n)/shumint
@@ -198,8 +198,8 @@ module stochy_data_mod
   ! determine number of skeb levels to deal with temperoal/vertical correlations
    skeblevs=nint(skeb_tau(1)/skebint*skeb_vdof)
 ! backscatter noise.
-       if (is_master()) print *, 'Initialize random pattern for SKEB',skeblevs
-       call patterngenerator_init(skeb_lscale,skebint,skeb_tau,skeb,iseed_skeb,rpattern_skeb, &
+       if (is_master()) print *, 'CSDCSDInitialize random pattern for SKEB',skeblevs
+       call patterngenerator_init(skeb_lscale(1:nskeb),skebint,skeb_tau(1:nskeb),skeb(1:nskeb),iseed_skeb,rpattern_skeb, &
            lonf,latg,jcap,gis_stochy%ls_node,nskeb,skeblevs,skeb_varspect_opt,new_lscale)
        do n=1,nskeb
           do k=1,skeblevs
@@ -290,34 +290,39 @@ enddo
    endif ! skeb > 0
 ! mg, sfc-perts
 if (nlndp > 0) then
-       pertsfc(1) = 1.
-       call patterngenerator_init(lndp_lscale,delt,lndp_tau,pertsfc,iseed_lndp,rpattern_sfc, &
+       ones = 1.
+       call patterngenerator_init(lndp_lscale(1:nlndp),delt,lndp_tau(1:nlndp),ones(1:nlndp),iseed_lndp,rpattern_sfc, &
               lonf,latg,jcap,gis_stochy%ls_node,nlndp,n_var_lndp,0,new_lscale)
        do n=1,nlndp
-          if (is_master()) print *, 'Initialize random pattern for SFC-PERTS',n
+          if (is_master()) print *, 'Initialize random pattern for SFC-PERTS'
           do k=1,n_var_lndp
            nspinup = spinup_efolds*lndp_tau(n)/delt
-           call getnoise(rpattern_sfc(n),noise_e,noise_o)
-           do nn=1,len_trie_ls
-              rpattern_sfc(n)%spec_e(nn,1,k)=noise_e(nn,1)
-              rpattern_sfc(n)%spec_e(nn,2,k)=noise_e(nn,2)
-              nm = rpattern_sfc(n)%idx_e(nn)
-              if (nm .eq. 0) cycle
-              rpattern_sfc(n)%spec_e(nn,1,k) = rpattern_sfc(n)%stdev*rpattern_sfc(n)%spec_e(nn,1,k)*rpattern_sfc(n)%varspectrum(nm)
-              rpattern_sfc(n)%spec_e(nn,2,k) = rpattern_sfc(n)%stdev*rpattern_sfc(n)%spec_e(nn,2,k)*rpattern_sfc(n)%varspectrum(nm)
-           enddo
-           do nn=1,len_trio_ls
-              rpattern_sfc(n)%spec_o(nn,1,k)=noise_o(nn,1)
-              rpattern_sfc(n)%spec_o(nn,2,k)=noise_o(nn,2)
-              nm = rpattern_sfc(n)%idx_o(nn)
-              if (nm .eq. 0) cycle
-              rpattern_sfc(n)%spec_o(nn,1,k) = rpattern_sfc(n)%stdev*rpattern_sfc(n)%spec_o(nn,1,k)*rpattern_sfc(n)%varspectrum(nm)
-              rpattern_sfc(n)%spec_o(nn,2,k) = rpattern_sfc(n)%stdev*rpattern_sfc(n)%spec_o(nn,2,k)*rpattern_sfc(n)%varspectrum(nm)
-           enddo
-           do nn=1,nspinup
-              call patterngenerator_advance(rpattern_sfc(n),k,.false.)
-           enddo
-           if (is_master()) print *, 'Random pattern for SFC-PERTS: k, min, max ',k, minval(rpattern_sfc(1)%spec_o(:,:,k)), maxval(rpattern_sfc(1)%spec_o(:,:,k))
+          if (stochini) then
+             call read_pattern(rpattern_sfc(n),k,stochlun)
+             if (is_master()) print *, 'lndp pattern read',n,k,minval(rpattern_sfc(n)%spec_o(:,:,k)), maxval(rpattern_sfc(n)%spec_o(:,:,k))
+          else
+               call getnoise(rpattern_sfc(n),noise_e,noise_o)
+               do nn=1,len_trie_ls
+                  rpattern_sfc(n)%spec_e(nn,1,k)=noise_e(nn,1)
+                  rpattern_sfc(n)%spec_e(nn,2,k)=noise_e(nn,2)
+                  nm = rpattern_sfc(n)%idx_e(nn)
+                  if (nm .eq. 0) cycle
+                  rpattern_sfc(n)%spec_e(nn,1,k) = rpattern_sfc(n)%stdev*rpattern_sfc(n)%spec_e(nn,1,k)*rpattern_sfc(n)%varspectrum(nm)
+                  rpattern_sfc(n)%spec_e(nn,2,k) = rpattern_sfc(n)%stdev*rpattern_sfc(n)%spec_e(nn,2,k)*rpattern_sfc(n)%varspectrum(nm)
+               enddo
+               do nn=1,len_trio_ls
+                  rpattern_sfc(n)%spec_o(nn,1,k)=noise_o(nn,1)
+                  rpattern_sfc(n)%spec_o(nn,2,k)=noise_o(nn,2)
+                  nm = rpattern_sfc(n)%idx_o(nn)
+                  if (nm .eq. 0) cycle
+                  rpattern_sfc(n)%spec_o(nn,1,k) = rpattern_sfc(n)%stdev*rpattern_sfc(n)%spec_o(nn,1,k)*rpattern_sfc(n)%varspectrum(nm)
+                  rpattern_sfc(n)%spec_o(nn,2,k) = rpattern_sfc(n)%stdev*rpattern_sfc(n)%spec_o(nn,2,k)*rpattern_sfc(n)%varspectrum(nm)
+               enddo
+               do nn=1,nspinup
+                  call patterngenerator_advance(rpattern_sfc(n),k,.false.)
+               enddo
+               if (is_master()) print *, 'lndp pattern initialized, ',n, k, minval(rpattern_sfc(n)%spec_o(:,:,k)), maxval(rpattern_sfc(n)%spec_o(:,:,k))
+          endif ! stochini
          enddo ! k, n_var_lndp
        enddo ! n, nlndp
    endif ! nlndp > 0

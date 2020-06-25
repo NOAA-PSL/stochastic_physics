@@ -8,7 +8,7 @@ module get_stochy_pattern_mod
  use stochy_data_mod, only : gg_lats, gg_lons, inttyp, nskeb, nshum, nsppt, &
                              rad2deg, rnlat, rpattern_sfc, rpattern_skeb,   &
                              rpattern_shum, rpattern_sppt, skebu_save,      &
-                             skebv_save, skeb_vwts, skeb_vpts, wlon
+                             skebv_save, skeb_vwts, skeb_vpts, wlon, nlndp
  use stochy_gg_def, only : coslat_a
  use stochy_patterngenerator_mod, only: random_pattern, ndimspec,           &
                                         patterngenerator_advance
@@ -28,7 +28,7 @@ use GFS_typedefs,       only: GFS_control_type, GFS_grid_type
  private
 
  public  get_random_pattern_fv3,get_random_pattern_fv3_vect
- public  get_random_pattern_sfc_fv3
+ public  get_random_pattern_fv3_sfc
  public  dump_patterns
  logical :: first_call=.true.
  contains
@@ -43,6 +43,7 @@ subroutine get_random_pattern_fv3(rpattern,npatterns,&
  type(GFS_control_type),   intent(in) :: Model
  type(GFS_grid_type),      intent(in) :: Grid(nblks)
  integer,intent(in)::   npatterns,nblks,maxlen
+ real(kind=kind_dbl_prec), intent(out) :: pattern_2d(nblks,maxlen)
 
  integer i,j,l,lat,ierr,n,nn,k,nt
  real(kind=kind_dbl_prec), dimension(lonf,gis_stochy%lats_node_a,1):: wrk2d
@@ -54,7 +55,6 @@ subroutine get_random_pattern_fv3(rpattern,npatterns,&
  real (kind=kind_dbl_prec)   glolal(lonf,gis_stochy%lats_node_a)
  integer kmsk0(lonf,gis_stochy%lats_node_a),len
  real(kind=kind_dbl_prec) :: globalvar,globalvar0
- real(kind=kind_dbl_prec) :: pattern_2d(nblks,maxlen)
  real(kind=kind_dbl_prec) :: pattern_1d(maxlen)
  real(kind=kind_dbl_prec), allocatable, dimension(:,:) :: rslmsk
  integer :: blk
@@ -101,8 +101,8 @@ subroutine get_random_pattern_fv3(rpattern,npatterns,&
 end subroutine get_random_pattern_fv3
 
 
-subroutine get_random_pattern_sfc_fv3(rpattern,npatterns,&
-           gis_stochy,Model,Grid,nblks,maxlen,pattern_3d)
+subroutine get_random_pattern_fv3_sfc(rpattern,npatterns,&
+           gis_stochy,Model,Grid,nblks,maxlen,do_advance_pattern,pattern_3d)
 
 ! generate a random pattern for stochastic physics
  implicit none
@@ -111,6 +111,8 @@ subroutine get_random_pattern_sfc_fv3(rpattern,npatterns,&
  type(GFS_control_type),   intent(in) :: Model
  type(GFS_grid_type),      intent(in) :: Grid(nblks)
  integer,intent(in)::   npatterns,nblks,maxlen
+ logical, intent(in) :: do_advance_pattern
+ real(kind=kind_dbl_prec), intent(out) :: pattern_3d(nblks,maxlen,n_var_lndp)
 
  integer i,j,l,lat,ierr,n,nn,k,nt
  real(kind=kind_dbl_prec), dimension(lonf,gis_stochy%lats_node_a,1):: wrk2d
@@ -122,7 +124,6 @@ subroutine get_random_pattern_sfc_fv3(rpattern,npatterns,&
  real (kind=kind_dbl_prec)   glolal(lonf,gis_stochy%lats_node_a)
  integer kmsk0(lonf,gis_stochy%lats_node_a),len
  real(kind=kind_dbl_prec) :: globalvar,globalvar0
- real(kind=kind_dbl_prec) :: pattern_3d(nblks,maxlen,n_var_lndp)
  real(kind=kind_dbl_prec) :: pattern_1d(maxlen)
  real(kind=kind_dbl_prec), allocatable, dimension(:,:) :: rslmsk
  integer :: blk
@@ -131,7 +132,8 @@ subroutine get_random_pattern_sfc_fv3(rpattern,npatterns,&
    kmsk0 = 0
    glolal = 0.
    do n=1,npatterns
-     if (is_master()) print *, 'Random pattern for SFC-PERTS in get_random_pattern_sfc_fv3: k, min, max ',k,minval(rpattern_sfc(n)%spec_o(:,:,k)), maxval(rpattern_sfc(n)%spec_o(:,:,k))
+     if (do_advance_pattern)  call patterngenerator_advance(rpattern(n),k,.false.)
+     if (is_master()) print *, 'Random pattern for SFC-PERTS in get_random_pattern_fv3_sfc: k, min, max ',k,minval(rpattern_sfc(n)%spec_o(:,:,k)), maxval(rpattern_sfc(n)%spec_o(:,:,k))
      call scalarspect_to_gaugrid(                       &
          rpattern(n)%spec_e(:,:,k),rpattern(n)%spec_o(:,:,k),wrk2d,&
          gis_stochy%ls_node,gis_stochy%ls_nodes,gis_stochy%max_ls_nodes,&
@@ -150,7 +152,7 @@ subroutine get_random_pattern_sfc_fv3(rpattern,npatterns,&
    enddo
 
    call mp_reduce_sum(workg,lonf,latg)
-   if (is_master()) print *, 'workg after mp_reduce_sum for SFC-PERTS in get_random_pattern_sfc_fv3: k, min, max ',k,minval(workg), maxval(workg)
+   if (is_master()) print *, 'workg after mp_reduce_sum for SFC-PERTS in get_random_pattern_fv3_sfc: k, min, max ',k,minval(workg), maxval(workg)
 
 ! interpolate to cube grid
 
@@ -165,13 +167,13 @@ subroutine get_random_pattern_sfc_fv3(rpattern,npatterns,&
       pattern_3d(blk,:,k)=pattern_1d(:)
       end associate
    enddo
-   if (is_master()) print *, '3D pattern for SFC-PERTS in get_random_pattern_sfc_fv3: k, min, max ',k,minval(pattern_3d(:,:,k)), maxval(pattern_3d(:,:,k))
+   if (is_master()) print *, '3D pattern for SFC-PERTS in get_random_pattern_fv3_sfc: k, min, max ',k,minval(pattern_3d(:,:,k)), maxval(pattern_3d(:,:,k))
    deallocate(rslmsk)
    deallocate(workg)
 
  enddo  ! loop over k, n_var_lndp
 
-end subroutine get_random_pattern_sfc_fv3
+end subroutine get_random_pattern_fv3_sfc
 
 
 subroutine get_random_pattern_fv3_vect(rpattern,npatterns,&
@@ -183,13 +185,13 @@ subroutine get_random_pattern_fv3_vect(rpattern,npatterns,&
  type(GFS_grid_type),      intent(in) :: Grid(nblks)
  type(stochy_internal_state), target :: gis_stochy
  type(random_pattern), intent(inout) :: rpattern(npatterns)
+ real(kind=kind_dbl_prec), intent(out)  :: upattern_3d(nblks,maxlen,levs)
+ real(kind=kind_dbl_prec), intent(out) :: vpattern_3d(nblks,maxlen,levs)
 
  real(kind=kind_evod), dimension(len_trie_ls,2,1) ::  vrtspec_e,divspec_e
  real(kind=kind_evod), dimension(len_trio_ls,2,1) ::  vrtspec_o,divspec_o
  integer::   npatterns,nblks,blk,len,maxlen
 
- real(kind=kind_dbl_prec) :: upattern_3d(nblks,maxlen,levs)
- real(kind=kind_dbl_prec) :: vpattern_3d(nblks,maxlen,levs)
  real(kind=kind_dbl_prec) :: pattern_1d(maxlen)
  real(kind=kind_dbl_prec), allocatable, dimension(:,:) :: rslmsk
  integer i,j,l,lat,ierr,n,nn,k,nt
@@ -382,7 +384,7 @@ subroutine dump_patterns(sfile)
     integer :: stochlun,k,n
     stochlun=99
     if (is_master()) then
-       if (nsppt > 0 .OR. nshum > 0 .OR. nskeb > 0) then
+       if (nsppt > 0 .OR. nshum > 0 .OR. nskeb > 0 .OR. nlndp > 0 ) then
           OPEN(stochlun,file=sfile,form='unformatted')
           print*,'open ',sfile,' for output'
        endif
@@ -401,6 +403,13 @@ subroutine dump_patterns(sfile)
        do n=1,nskeb
        do k=1,skeblevs
           call write_pattern(rpattern_skeb(n),k,stochlun)
+       enddo
+       enddo
+    endif
+    if (nlndp > 0) then
+       do n=1,nlndp
+       do k=1,n_var_lndp
+          call write_pattern(rpattern_sfc(n),k,stochlun)
        enddo
        enddo
     endif
