@@ -1,9 +1,12 @@
+!>@brief The module 'epslon_stochy_mod' contains the subroute epslon_stochy
       module epslon_stochy_mod
 
       implicit none
 
       contains
 
+!>@brief The subroutine 'epslon_stochy' calculate coeffients for use in spectral space
+!>@details This code is taken from the legacy spectral GFS
       subroutine epslon_stochy(epse,epso,epsedn,epsodn,
      &                  ls_node)
 cc

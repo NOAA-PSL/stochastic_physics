@@ -1,3 +1,5 @@
+!>@brief The module 'stochy_data_mod' contains the initilization routine that read the stochastic phyiscs
+!! namelist and determins the number of random patterns.
 module stochy_data_mod
 
 ! set up and initialize stochastic random patterns.
@@ -37,7 +39,11 @@ module stochy_data_mod
  type(stochy_internal_state),public :: gis_stochy
 
  contains
+!>@brief The subroutine 'init_stochdata' determins which stochastic physics
+!!pattern genertors are needed.
+!>@details it reads the nam_stochy namelist and allocates necessary arrays
  subroutine init_stochdata(nlevs,delt,input_nml_file,fn_nml,nlunit,iret)
+!\callgraph
 
 ! initialize random patterns.  A spinup period of spinup_efolds times the
 ! temporal time scale is run for each pattern.
@@ -59,16 +65,19 @@ module stochy_data_mod
    levs=nlevs
 
    iret=0
+! read in namelist
    call compns_stochy (me,size(input_nml_file,1),input_nml_file(:),fn_nml,nlunit,delt,iret)
-   if (iret/=0) stop  ! CSD - error trapping is not currently set-up properly. 
+   if (iret/=0) return  ! need to make sure that non-zero irets are being trapped.
    if(is_master()) print*,'in init stochdata',nodes,lat_s
    if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb)  .AND. (lndp_type==0) ) return
+! initialize the specratl pattern generatore (including gaussian grid decomposition)
 !   if (nodes.GE.lat_s/2) then
 !      lat_s=(int(nodes/12)+1)*24
 !      lon_s=lat_s*2
 !      ntrunc=lat_s-2
 !      if (is_master()) print*,'WARNING: spectral resolution is too low for number of mpi_tasks, resetting lon_s,lat_s,and ntrunc to',lon_s,lat_s,ntrunc
 !   endif
+
    call initialize_spectral(gis_stochy, iret)
    if (iret/=0) return
    allocate(noise_e(len_trie_ls,2),noise_o(len_trio_ls,2))
@@ -97,7 +106,7 @@ module stochy_data_mod
      endif
    enddo
    if (is_master()) print *,'nskeb = ',nskeb
-   ! CSD - nlndp>1 was not properly coded. Hardcode to 1 for now
+   ! Draper: nlndp>1 was not properly coded. Hardcode to 1 for now
    !do n=1,size(lndp_z0)
    !  if (lndp_z0(n) > 0 .or. lndp_zt(n)>0 .or. lndp_hc(n)>0 .or. &
    !      lndp_vf(n)>0 .or. lndp_la(n)>0 .or. lndp_al(n)>0) then
@@ -198,7 +207,6 @@ module stochy_data_mod
   ! determine number of skeb levels to deal with temperoal/vertical correlations
    skeblevs=nint(skeb_tau(1)/skebint*skeb_vdof)
 ! backscatter noise.
-       if (is_master()) print *, 'CSDCSDInitialize random pattern for SKEB',skeblevs
        call patterngenerator_init(skeb_lscale(1:nskeb),skebint,skeb_tau(1:nskeb),skeb(1:nskeb),iseed_skeb,rpattern_skeb, &
            lonf,latg,jcap,gis_stochy%ls_node,nskeb,skeblevs,skeb_varspect_opt,new_lscale)
        do n=1,nskeb
@@ -327,11 +335,13 @@ if (nlndp > 0) then
        enddo ! n, nlndp
    endif ! nlndp > 0
    if (is_master() .and. stochini) CLOSE(stochlun)
-   if (is_master() ) print *, 'CSD - leaving init_stochdata' 
    deallocate(noise_e,noise_o)
  end subroutine init_stochdata
-
+!>@brief This subroutine 'read_pattern' will read in the spectral coeffients from a previous run (stored in stoch_ini,
+!!turned on by setting STOCHINI=.true.)
+!>@details Data read in are flat binary, so the number of stochastic physics patterns running must match previous run
 subroutine read_pattern(rpattern,k,lunptn)
+!\callgraph
    type(random_pattern), intent(inout) :: rpattern
    integer, intent(in) :: lunptn
    real(kind_dbl_prec),allocatable  :: pattern2d(:),pattern2din(:)

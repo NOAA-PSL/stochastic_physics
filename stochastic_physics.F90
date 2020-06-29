@@ -15,7 +15,9 @@ contains
 !!pattern genertors
 !>@details It reads the stochastic physics namelist (nam_stoch and nam_sfcperts)
 !allocates and polulates the necessary arrays
-subroutine init_stochastic_physics(Model, Init_parm, ntasks, nthreads)
+
+subroutine init_stochastic_physics(Model, Init_parm, ntasks, nthreads, iret)
+!\callgraph
 use fv_mp_mod, only : is_master
 use stochy_internal_state_mod
 use stochy_data_mod, only : nshum,rpattern_shum,init_stochdata,rpattern_sppt,nsppt,rpattern_skeb,nskeb,gg_lats,gg_lons,&
@@ -37,9 +39,9 @@ type(GFS_control_type),   intent(inout) :: Model
 type(GFS_init_type),      intent(in)    :: Init_parm
 integer,                  intent(in)    :: ntasks
 integer,                  intent(in)    :: nthreads
+integer, intent(out)                    :: iret
 
 integer :: nblks
-integer :: iret
 real*8 :: PRSI(Model%levs),PRSL(Model%levs),dx
 real, allocatable :: skeb_vloc(:)
 integer :: k,kflip,latghf,blk,k2
@@ -47,6 +49,9 @@ character*2::proc
 
 ! Set/update shared variables in spectral_layout_mod
 ompthreads  = nthreads
+
+iret = 0 ! Draper, abnormal returns were not being error trapped 
+         ! I fixed those I noticed, by there may be more
 
 ! ------------------------------------------
 
@@ -60,6 +65,7 @@ nodes=ntasks
 gis_stochy%me=me
 gis_stochy%nodes=nodes
 call init_stochdata(Model%levs,Model%dtp,Model%input_nml_file,Model%fn_nml,Init_parm%nlunit,iret)
+if (iret .ne. 0) return
 ! check to see decomposition
 !if(Model%isppt_deep == .true.)then
 !do_sppt = .true.
@@ -68,24 +74,28 @@ call init_stochdata(Model%levs,Model%dtp,Model%input_nml_file,Model%fn_nml,Init_
 if (Model%do_sppt.neqv.do_sppt) then
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
                    & ' namelist settings do_sppt and sppt'
-   stop
+   iret = 20 
+   return
 else if (Model%do_shum.neqv.do_shum) then
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
                    & ' namelist settings do_shum and shum'
-   stop
+   iret = 20 
+   return
 else if (Model%do_skeb.neqv.do_skeb) then
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
                    & ' namelist settings do_skeb and skeb'
-   stop
+   iret = 20 
+   return
 else if (Model%lndp_type.neqv.lndp_type) then
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
                    & ' namelist settings lndp_type in physics and nam_sfcperts'
-   stop
+   iret = 20 
+   return
 else if (Model%n_var_lndp .ne. n_var_lndp) then
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
                    & ' namelist settings n_var_lndp in physics nml, and lndp_* in nam_sfcperts'
-   stop !  return is not being error-trapped. Need to either kill the execution here, 
-        ! or set iret non-zero, then trap it from the calling routine (also, in many other places)
+   iret = 20 
+   return
 end if
 ! update remaining model configuration parameters from namelist
 Model%use_zmtnblck=use_zmtnblck
@@ -198,9 +208,14 @@ RNLAT=gg_lats(1)*2-gg_lats(2)
 
 
 end subroutine init_stochastic_physics
+
 !>@brief The subroutine 'run_stochastic_physics' updates the random patterns if
-!!necessary 
+!!necessary
+!>@details It updates the AR(1) in spectral space
+!allocates and polulates the necessary arrays
+
 subroutine run_stochastic_physics(Model, Grid, Coupling, nthreads)
+!\callgraph
 use fv_mp_mod, only : is_master
 use stochy_internal_state_mod
 use stochy_data_mod, only : nshum,rpattern_shum,rpattern_sppt,nsppt,rpattern_skeb,nskeb,&

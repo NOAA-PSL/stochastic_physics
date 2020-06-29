@@ -1,3 +1,4 @@
+! this function is no longer used, and will be removed soon
       function num_parthds_stochy()
       integer:: number_of_openMP_threads
       character(2) :: omp_threads

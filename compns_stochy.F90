@@ -1,3 +1,4 @@
+!>@brief The module 'compns_stochy_mod' contains the subroutine compns_stochy
 module compns_stochy_mod
 
    implicit none
@@ -5,6 +6,9 @@ module compns_stochy_mod
    contains
 
 !-----------------------------------------------------------------------
+!>@brief The module 'compns_stochy_mod' set the default namelist options reads in the stochastic physics namelist
+!! and  sets logicals and other parameters based on the namelist
+!>@details Namelist can be either a file, or an internal namelist
       subroutine compns_stochy (me,sz_nml,input_nml_file,fn_nml,nlunit,deltim,iret)
 !$$$  Subprogram Documentation Block
 !
@@ -79,6 +83,7 @@ module compns_stochy_mod
       new_lscale = .false.
       do_shum = .false.
       do_skeb = .false.
+! C. Draper July 2020.
 ! input land pert variables: 
 ! LNDP_TYPE = 0
 ! no explicit land perturbations
@@ -86,7 +91,11 @@ module compns_stochy_mod
 ! this is the initial land sfc pert scheme, introduced and tested for impact on GEFS forecasts.
 ! see https://journals.ametsoc.org/doi/full/10.1175/MWR-D-18-0057.1
 ! perturbations are assigned once at the start of the forecast
-      lndp_type = 0 ! 0 -none, 1 - lndp_fcst, 2  - lndp_edas
+! LNDP_TYPE = 2
+! this is the newer land pert scheme, introduced and tested for impact on UFS/GDAS cycling stsyem
+! perturbations are assigned at each time step (for state variables), or each time parameters are updated 
+! and the perturbations evolve over time. 
+      lndp_type = 0 !
       lndp_lscale  = -999.       ! length scales
       lndp_tau     = -999.       ! time scales
       iseed_lndp   = 0           ! random seeds (if 0 use system clock)
@@ -248,7 +257,13 @@ module compns_stochy_mod
                cycle
             else
                 n_var_lndp=n_var_lndp+1
-                lndp_var_list( n_var_lndp) = lndp_var_list(k) 
+                lndp_var_list( n_var_lndp) = lndp_var_list(k)  ! for lndp_type==2: 
+                                                               ! for state variables, unit is pert per hour
+                                                               ! for parmaters, no time dimension in unit 
+                                                               ! since perturbations do not accumulate
+                                                               ! (i.e., global_cycle overwrites the paramaters 
+                                                               ! each time it's called, so any previous perturbations 
+                                                               ! are lost). 
                 lndp_prt_list( n_var_lndp) = lndp_prt_list(k) 
             endif
         enddo 
@@ -264,12 +279,22 @@ module compns_stochy_mod
                case default
                   print*, 'ERROR: land perturbation requested for unknown parameter', lndp_var_list(k)
                   iret = 10 
-                  stop
+                  return
                end select 
            enddo
         elseif(lndp_type==2) then
             if (me==0) print*, & 
             'land perturbations will be applied to selected paramaters, using newer scheme designed for DA ens spread'
+               do k =1,n_var_lndp
+                   select case (lndp_var_list(k))
+                   case('vgf','smc','stc') 
+                       if (me==0) print*, 'land perturbation will be applied to ', lndp_var_list(k)
+                   case default
+                      print*, 'ERROR: land perturbation requested for new parameter - will need to be coded in GFS_land_pert', lndp_var_list(k)
+                      iret = 10 
+                      return
+                   end select 
+               enddo
         endif
 
      case default 
