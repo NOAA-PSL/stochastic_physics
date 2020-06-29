@@ -1,9 +1,14 @@
+!>@brief The module 'dezouv_stochy_mod' contains the subroutine dezouv_stochy
+! of divergence and odd harmonics of vorticty
       module dezouv_stochy_mod
 
       implicit none
 
       contains
 
+!>@brief The subroutine 'dezouv_stochy' caculates even u and odd v winds harmonics from the even harmonics
+! of divergence and odd harmonics of vorticty
+!>@details This code is taken from the legacy spectral GFS
       subroutine dezouv_stochy(dev,zod,uev,vod,epsedn,epsodn,
      &                  snnp1ev,snnp1od,ls_node)
 cc

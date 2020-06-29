@@ -1,4 +1,5 @@
-
+!>@brief The module 'stochy_internal_state_mod' contains the spherical harmonic definitions and arrays
+!! describing the target gaussian grid
 !
 ! !module: stochy_internal_state_mod
 !                         --- internal state definition of the
@@ -27,6 +28,8 @@
       private
 
 ! -----------------------------------------------
+!>@brief Derived type 'stochy_internal_state' contains all of the spherical harmonic and gaussian grid information
+!>@details This code is taken from the legacy spectral GFS
       type,public::stochy_internal_state		! start type define
 ! -----------------------------------------------
 

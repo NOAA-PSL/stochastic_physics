@@ -1,3 +1,5 @@
+!>@brief The module 'spectral_layout_mod' contains the gaussian grid domain decompostion
+! and the subroutine to interpolate from the gaussian grid to cubed-sphere (or any lat-lon pair)
 module spectral_layout_mod
 
       implicit none
@@ -35,6 +37,9 @@ contains
 !
    !  interpolation from lat/lon or gaussian grid to other lat/lon grid
    !
+!>@brief The subroutine 'stochy_la2ga' intepolates from the global gaussian grid
+!! to the cubed sphere points
+!>@details This code is taken from the legacy spectral GFS
    subroutine stochy_la2ga(regin,imxin,jmxin,rinlon,rinlat,rlon,rlat, &
                            gauout,len,rslmsk, outlat, outlon)
       use machine , only : kind_io8, kind_io4

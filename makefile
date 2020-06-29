@@ -17,13 +17,11 @@ endif
 
 LIBRARY  = libstochastic_physics.a
 
-FFLAGS   += -I../FV3/gfsphysics/ -I../FV3/atmos_cubed_sphere -I$(FMS_DIR) -I../FV3/namphysics
+FFLAGS   += -I../FV3/gfsphysics/ -I../FV3/atmos_cubed_sphere -I$(FMS_DIR)
 
 SRCS_F   =
 
 SRCS_f90 =  \
-                ./cellular_automata.f90                     \
-                ./update_ca.f90                             \
                 ./plumes.f90
 
 SRCS_f   =  \
@@ -34,7 +32,6 @@ SRCS_f   =  \
 		./glats_stochy.f                            \
 		./sumfln_stochy.f                           \
 		./gozrineo_stochy.f                         \
-		./num_parthds_stochy.f                      \
 		./get_ls_node_stochy.f                      \
 		./get_lats_node_a_stochy.f                  \
 		./setlats_a_stochy.f                        \
@@ -55,7 +52,10 @@ SRCS_F90 = \
 		./stochy_patterngenerator.F90               \
 		./stochy_data_mod.F90                       \
 		./get_stochy_pattern.F90                    \
-		./initialize_spectral_mod.F90
+		./initialize_spectral_mod.F90               \
+                ./cellular_automata_global.F90              \
+                ./cellular_automata_sgs.F90                 \
+                ./update_ca.F90 
 
 SRCS_c   =
 

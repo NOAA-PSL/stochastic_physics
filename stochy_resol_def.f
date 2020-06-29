@@ -1,3 +1,5 @@
+!>@brief The module 'stochy_resol_def' contains specherical harmoninc and gaussian
+!! grid definitions as weel as legeacy GFS indicies
       module stochy_resol_def
 
 ! program log:

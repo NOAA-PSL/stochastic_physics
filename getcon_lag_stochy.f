@@ -1,9 +1,12 @@
+!>@brief The module 'getcon_lag_stochy_mod' contains the subroute getcon_lag_stochy
       module getcon_lag_stochy_mod
 
       implicit none
 
       contains
 
+!>@brief The subroutine 'getcon_lag' calculates grid properties and domain decompostion for the gaussian grid
+!>@details This code is taken from the legacy spectral GFS
       subroutine getcon_lag_stochy(lats_nodes_a,global_lats_a,
      &                      lats_nodes_h,global_lats_h_sn,
      &                      lonsperlat,xhalo,yhalo)
