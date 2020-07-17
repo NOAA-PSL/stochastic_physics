@@ -17,9 +17,9 @@ module get_stochy_pattern_mod
  use stochy_internal_state_mod, only: stochy_internal_state
  use fv_mp_mod, only : mp_reduce_sum,is_master
 #ifdef STOCHY_UNIT_TEST
-use standalone_stochy_module,   only: GFS_control_type, GFS_grid_type
+use standalone_stochy_module,   only: GFS_grid_type
 # else
-use GFS_typedefs,       only: GFS_control_type, GFS_grid_type
+use GFS_typedefs,       only: GFS_grid_type
 #endif
  use mersenne_twister, only: random_seed
  use dezouv_stochy_mod, only: dezouv_stochy
@@ -38,14 +38,13 @@ use GFS_typedefs,       only: GFS_control_type, GFS_grid_type
 !>@brief The subroutine 'get_random_pattern_fv3' converts spherical harmonics to the gaussian grid then interpolates to the cubed-sphere grid
 !>@details This subroutine is for a 2-D (lat-lon) scalar field
 subroutine get_random_pattern_fv3(rpattern,npatterns,&
-           gis_stochy,Model,Grid,nblks,maxlen,pattern_2d)
+           gis_stochy,Grid,nblks,maxlen,pattern_2d)
 !\callgraph
 
 ! generate a random pattern for stochastic physics
  implicit none
  type(random_pattern), intent(inout)  :: rpattern(npatterns)
  type(stochy_internal_state)          :: gis_stochy
- type(GFS_control_type),   intent(in) :: Model
  type(GFS_grid_type),      intent(in) :: Grid(nblks)
  integer,intent(in)::   npatterns,nblks,maxlen
 
@@ -109,14 +108,13 @@ end subroutine get_random_pattern_fv3
 !>@brief The subroutine 'get_random_pattern_fv3_sfc' converts spherical harmonics to the gaussian grid then interpolates to the cubed-sphere grid once
 !>@details This subroutine is for a 2-D (lat-lon) scalar field
 subroutine get_random_pattern_sfc_fv3(rpattern,npatterns,&
-           gis_stochy,Model,Grid,nblks,maxlen,pattern_3d)
+           gis_stochy,Grid,nblks,maxlen,pattern_3d)
 !\callgraph
 
 ! generate a random pattern for stochastic physics
  implicit none
  type(random_pattern), intent(inout) :: rpattern(npatterns)
  type(stochy_internal_state), target :: gis_stochy
- type(GFS_control_type),   intent(in) :: Model
  type(GFS_grid_type),      intent(in) :: Grid(nblks)
  integer,intent(in)::   npatterns,nblks,maxlen
 
@@ -185,14 +183,14 @@ end subroutine get_random_pattern_sfc_fv3
 !>@brief The subroutine 'get_random_pattern_fv3_vect' converts spherical harmonics to a vector on gaussian grid then interpolates to the cubed-sphere grid 
 !>@details This subroutine is for a 2-D (lat-lon) vector field
 subroutine get_random_pattern_fv3_vect(rpattern,npatterns,&
-           gis_stochy,Model,Grid,nblks,maxlen,upattern_3d,vpattern_3d)
+           gis_stochy,levs,Grid,nblks,maxlen,upattern_3d,vpattern_3d)
 !\callgraph
 
 ! generate a random pattern for stochastic physics
  implicit none
- type(GFS_control_type),   intent(in) :: Model
  type(GFS_grid_type),      intent(in) :: Grid(nblks)
  type(stochy_internal_state), target :: gis_stochy
+ integer,              intent(in)    :: levs
  type(random_pattern), intent(inout) :: rpattern(npatterns)
 
  real(kind=kind_evod), dimension(len_trie_ls,2,1) ::  vrtspec_e,divspec_e
@@ -324,7 +322,7 @@ subroutine get_random_pattern_fv3_vect(rpattern,npatterns,&
   deallocate(workgu)
   deallocate(workgv)
 ! interpolate in the vertical  ! consider moving to cubed sphere side,  more memory, but less interpolations
- do k=1,Model%levs
+ do k=1,levs
     do blk=1,nblks
        upattern_3d(blk,:,k) = skeb_vwts(k,1)*skebu_save(blk,:,skeb_vpts(k,1))+skeb_vwts(k,2)*skebu_save(blk,:,skeb_vpts(k,2))
        vpattern_3d(blk,:,k) = skeb_vwts(k,1)*skebv_save(blk,:,skeb_vpts(k,1))+skeb_vwts(k,2)*skebv_save(blk,:,skeb_vpts(k,2))

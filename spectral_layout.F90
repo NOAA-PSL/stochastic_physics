@@ -12,6 +12,7 @@ module spectral_layout_mod
 !
    integer :: nodes,             &
               me,                &
+              master,            &
               lon_dim_a,         &
               ls_dim,            &
               ls_max_node,       &
@@ -34,7 +35,14 @@ module spectral_layout_mod
 
 contains
 
-!
+   logical function is_master()
+      if (me == master) then
+         is_master = .true.
+      else
+         is_master = .false.
+      end if
+   end function is_master
+
    !  interpolation from lat/lon or gaussian grid to other lat/lon grid
    !
 !>@brief The subroutine 'stochy_la2ga' intepolates from the global gaussian grid
