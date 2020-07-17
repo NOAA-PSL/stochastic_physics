@@ -146,7 +146,7 @@ k_in=1
   jec = Atm_block%jec 
 
 !Generate random number, following stochastic physics code:
-if(kstep==0) then
+!if(kstep==0) then
   if (iseed_ca == 0) then
     ! generate a random seed from system clock and ens member number
     call system_clock(count, count_rate, count_max)
@@ -159,7 +159,7 @@ if(kstep==0) then
     ! overflow, do wrap around explicitly.
     count4 = mod(mpp_pe() + iseed_ca + 2147483648, 4294967296) - 2147483648 
   endif
-endif !kstep == 0
+!endif !kstep == 0
 
   call random_setseed(count4,rstate)
   do nf=1,nca

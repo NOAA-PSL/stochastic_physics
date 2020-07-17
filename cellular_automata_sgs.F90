@@ -229,8 +229,7 @@ nca_plumes = .true.
  enddo
 
 !Generate random number, following stochastic physics code:
-
-if(kstep==2) then
+!if(kstep==2) then
   if (iseed_ca == 0) then
     ! generate a random seed from system clock and ens member number
     call system_clock(count, count_rate, count_max)
@@ -269,7 +268,7 @@ if(kstep==2) then
     enddo
  
   enddo !nf
-endif ! kstep=0
+!endif ! kstep=0
  
 !In case we want to condition the cellular automaton on a large scale field
 !we here set the "condition" variable to a different model field depending
