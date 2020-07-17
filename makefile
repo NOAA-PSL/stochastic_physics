@@ -43,6 +43,7 @@ SRCS_f   =  \
 		./dezouv_stochy.f
 
 SRCS_F90 = \
+		./mpi_wrapper.F90                           \
 		./spectral_layout.F90                       \
 		./getcon_spectral.F90                       \
 		./stochy_namelist_def.F90                   \
@@ -53,9 +54,9 @@ SRCS_F90 = \
 		./stochy_data_mod.F90                       \
 		./get_stochy_pattern.F90                    \
 		./initialize_spectral_mod.F90               \
-                ./cellular_automata_global.F90              \
-                ./cellular_automata_sgs.F90                 \
-                ./update_ca.F90 
+		./cellular_automata_global.F90              \
+		./cellular_automata_sgs.F90                 \
+		./update_ca.F90 
 
 SRCS_c   =
 

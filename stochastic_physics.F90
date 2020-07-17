@@ -20,10 +20,10 @@ contains
 !>@details It reads the stochastic physics namelist (nam_stoch and nam_sfcperts)
 !allocates and polulates the necessary arrays
 
-subroutine init_stochastic_physics(levs, blksz, me_in, master_in, dtp, input_nml_file_in, fn_nml, nlunit, &
+subroutine init_stochastic_physics(levs, blksz, dtp, input_nml_file_in, fn_nml, nlunit, &
     do_sppt_in, do_shum_in, do_skeb_in, do_sfcperts_in, use_zmtnblck_out, skeb_npass_out,                 &
     nsfcpert_out, pertz0_out, pertzt_out, pertshc_out, pertlai_out, pertalb_out, pertvegf_out,            &
-    ak, bk, ntasks, nthreads)
+    ak, bk, nthreads, mpiroot, mpicomm)
 !\callgraph
 !use stochy_internal_state_mod
 use stochy_data_mod, only : nshum,rpattern_shum,init_stochdata,rpattern_sppt,nsppt,rpattern_skeb,nskeb,gg_lats,gg_lons,&
@@ -32,14 +32,14 @@ use stochy_resol_def , only : latg,lonf,skeblevs
 use stochy_gg_def,only : colrad_a
 use stochy_namelist_def
 use physcons, only: con_pi
-use spectral_layout_mod,only:me,master,nodes,is_master,ompthreads
-use mpp_mod
+use spectral_layout_mod,only:me,master,nodes,ompthreads
+use mpi_wrapper, only : mpi_wrapper_initialize,mype,npes,is_master
 
 implicit none
 
 ! Interface variables
 
-integer,                  intent(in)    :: levs, me_in, master_in, nlunit, ntasks, nthreads
+integer,                  intent(in)    :: levs, nlunit, nthreads, mpiroot, mpicomm
 integer,                  intent(in)    :: blksz(:)
 real(kind=kind_dbl_prec), intent(in)    :: dtp
 character(len=*),         intent(in)    :: input_nml_file_in(:)
@@ -62,10 +62,11 @@ integer :: k,kflip,latghf,blk,k2
 character*2::proc
 
 ! Set/update shared variables in spectral_layout_mod
-me         = me_in
-master     = master_in
+call mpi_wrapper_initialize(mpiroot,mpicomm)
+me         = mype
+nodes      = npes
+master     = mpiroot
 ompthreads = nthreads
-nodes      = ntasks
 
 ! ------------------------------------------
 
@@ -225,8 +226,8 @@ use stochy_data_mod, only : nshum,rpattern_shum,rpattern_sppt,nsppt,rpattern_ske
 use get_stochy_pattern_mod,only : get_random_pattern_fv3,get_random_pattern_fv3_vect,dump_patterns
 use stochy_resol_def , only : latg,lonf
 use stochy_namelist_def, only : do_shum,do_sppt,do_skeb,fhstoch,nssppt,nsshum,nsskeb,sppt_logit
-use spectral_layout_mod,only:me,is_master,ompthreads
-use mpp_mod
+use mpi_wrapper, only: is_master
+use spectral_layout_mod,only:ompthreads
 #ifdef STOCHY_UNIT_TEST
 use standalone_stochy_module,   only: GFS_grid_type, GFS_Coupling_type
 #else
@@ -324,13 +325,12 @@ contains
 subroutine run_stochastic_physics_sfc(blksz, Grid, Coupling)
 
 !\callgraph
-use fv_mp_mod, only : is_master
+use mpi_wrapper, only : is_master
 use stochy_internal_state_mod
 use stochy_data_mod, only : rad2deg,INTTYP,wlon,rnlat,gis_stochy, rpattern_sfc,npsfc                      ! mg, sfc-perts
 use get_stochy_pattern_mod,only : get_random_pattern_sfc_fv3                                              ! mg, sfc-perts
 use stochy_resol_def , only : latg,lonf
 use stochy_namelist_def, only : do_sfcperts, nsfcpert
-!use mpp_mod
 #ifdef STOCHY_UNIT_TEST
   use standalone_stochy_module,   only: GFS_grid_type, GFS_Coupling_type
 #else

@@ -20,7 +20,6 @@
      &                               ls_dim,ls_max_node,me,nodes
       use machine
       use spectral_layout_mod, only : num_parthds_stochy => ompthreads
-      !or : use fv_mp_mod ?
       use mpp_mod, only: mpp_pe,mpp_npes, mpp_alltoall,
      &                   mpp_get_current_pelist
 

@@ -25,12 +25,11 @@
       use spectral_layout_mod,only:lon_dims_a, num_parthds_stochy => ompthreads
       use stochy_resol_def
       use stochy_namelist_def
-      use fv_mp_mod, only : is_master
       use stochy_gg_def, only : wgt_a,sinlat_a,coslat_a,colrad_a,wgtcs_a,rcs2_a,lats_nodes_h,global_lats_h
       use getcon_spectral_mod, only: getcon_spectral
       use get_ls_node_stochy_mod, only: get_ls_node_stochy
       use getcon_lag_stochy_mod, only: getcon_lag_stochy
-      !use mpp_mod
+      !use mpi_wrapper, only : is_master
 #ifndef IBM
       USE omp_lib
 #endif

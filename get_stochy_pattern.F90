@@ -15,7 +15,7 @@ module get_stochy_pattern_mod
  use stochy_patterngenerator_mod, only: random_pattern, ndimspec,           &
                                         patterngenerator_advance
  use stochy_internal_state_mod, only: stochy_internal_state
- use fv_mp_mod, only : mp_reduce_sum,is_master
+ use mpi_wrapper, only : mp_reduce_sum,is_master
 #ifdef STOCHY_UNIT_TEST
 use standalone_stochy_module,   only: GFS_grid_type
 # else
