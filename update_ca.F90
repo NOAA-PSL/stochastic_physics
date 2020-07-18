@@ -6,7 +6,7 @@ use atmosphere_stub_mod,    only: atmosphere_scalar_field_halo
 use atmosphere_mod,    only: atmosphere_scalar_field_halo
 #endif
 use mersenne_twister,  only: random_gauss,random_stat,random_number
-use fv_mp_mod, only : mp_reduce_sum,mp_bcst,mp_reduce_min,mp_reduce_max
+use mpi_wrapper, only : mp_reduce_sum,mp_bcst,mp_reduce_min,mp_reduce_max
 
 implicit none
 

@@ -2,6 +2,12 @@ module mpi_wrapper
 
    implicit none
 
+   private
+
+   public :: mype, npes, root, comm, is_master
+   public :: mpi_wrapper_initialize, mpi_wrapper_finalize
+   public :: mp_bcst, mp_reduce_min, mp_reduce_max, mp_reduce_sum
+
 #include "mpif.h"
 
    integer, save :: mype = -999
@@ -28,6 +34,19 @@ module mpi_wrapper
      MODULE PROCEDURE mp_bcst_2d_i
      MODULE PROCEDURE mp_bcst_3d_i
      MODULE PROCEDURE mp_bcst_4d_i
+   END INTERFACE
+
+   INTERFACE mp_reduce_min
+     MODULE PROCEDURE mp_reduce_min_r4
+     MODULE PROCEDURE mp_reduce_min_r8
+   END INTERFACE
+
+   INTERFACE mp_reduce_max
+     MODULE PROCEDURE mp_reduce_max_r4_1d
+     MODULE PROCEDURE mp_reduce_max_r4
+     MODULE PROCEDURE mp_reduce_max_r8_1d
+     MODULE PROCEDURE mp_reduce_max_r8
+     MODULE PROCEDURE mp_reduce_max_i
    END INTERFACE
 
    INTERFACE mp_reduce_sum
@@ -310,6 +329,129 @@ contains
          call MPI_BCAST(q, idim*jdim*kdim*ldim, MPI_INTEGER, root, comm, ierror)
 
       end subroutine mp_bcst_4d_i
+!
+! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
+!-------------------------------------------------------------------------------
+
+!-------------------------------------------------------------------------------
+! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
+!       
+!     mp_reduce_max_r4_1d :: Call SPMD REDUCE_MAX 
+!
+      subroutine mp_reduce_max_r4_1d(mymax,npts)
+         integer, intent(IN)  :: npts
+         real(kind=4), intent(INOUT)  :: mymax(npts)
+        
+         real(kind=4) :: gmax(npts)
+        
+         call MPI_ALLREDUCE( mymax, gmax, npts, MPI_REAL, MPI_MAX, &
+                             comm, ierror )
+      
+         mymax = gmax
+        
+      end subroutine mp_reduce_max_r4_1d
+!     
+! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
+!-------------------------------------------------------------------------------
+
+!-------------------------------------------------------------------------------
+! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
+!       
+!     mp_reduce_max_r8_1d :: Call SPMD REDUCE_MAX 
+!
+      subroutine mp_reduce_max_r8_1d(mymax,npts)
+         integer, intent(IN)  :: npts
+         real(kind=8), intent(INOUT)  :: mymax(npts)
+        
+         real(kind=8) :: gmax(npts)
+        
+         call MPI_ALLREDUCE( mymax, gmax, npts, MPI_DOUBLE_PRECISION, MPI_MAX, &
+                             comm, ierror )
+      
+         mymax = gmax
+        
+      end subroutine mp_reduce_max_r8_1d
+!     
+! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
+!-------------------------------------------------------------------------------
+
+!-------------------------------------------------------------------------------
+! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
+!
+!     mp_reduce_max_r4 :: Call SPMD REDUCE_MAX 
+!
+      subroutine mp_reduce_max_r4(mymax)
+         real(kind=4), intent(INOUT)  :: mymax
+
+         real(kind=4) :: gmax
+
+         call MPI_ALLREDUCE( mymax, gmax, 1, MPI_REAL, MPI_MAX, &
+                             comm, ierror )
+
+         mymax = gmax
+
+      end subroutine mp_reduce_max_r4
+
+!-------------------------------------------------------------------------------
+! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
+!
+!     mp_reduce_max_r8 :: Call SPMD REDUCE_MAX 
+!
+      subroutine mp_reduce_max_r8(mymax)
+         real(kind=8), intent(INOUT)  :: mymax
+
+         real(kind=8) :: gmax
+
+         call MPI_ALLREDUCE( mymax, gmax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, &
+                             comm, ierror )
+
+         mymax = gmax
+
+      end subroutine mp_reduce_max_r8
+
+      subroutine mp_reduce_min_r4(mymin)
+         real(kind=4), intent(INOUT)  :: mymin
+
+         real(kind=4) :: gmin
+
+         call MPI_ALLREDUCE( mymin, gmin, 1, MPI_REAL, MPI_MIN, &
+                             comm, ierror )
+
+         mymin = gmin
+
+      end subroutine mp_reduce_min_r4
+
+      subroutine mp_reduce_min_r8(mymin)
+         real(kind=8), intent(INOUT)  :: mymin
+
+         real(kind=8) :: gmin
+
+         call MPI_ALLREDUCE( mymin, gmin, 1, MPI_DOUBLE_PRECISION, MPI_MIN, &
+                             comm, ierror )
+
+         mymin = gmin
+
+      end subroutine mp_reduce_min_r8
+!
+! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
+!-------------------------------------------------------------------------------
+
+!-------------------------------------------------------------------------------
+! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
+!
+!     mp_bcst_4d_i :: Call SPMD REDUCE_MAX 
+!
+      subroutine mp_reduce_max_i(mymax)
+         integer, intent(INOUT)  :: mymax
+
+         integer :: gmax
+
+         call MPI_ALLREDUCE( mymax, gmax, 1, MPI_INTEGER, MPI_MAX, &
+                             comm, ierror )
+
+         mymax = gmax
+
+      end subroutine mp_reduce_max_i
 !
 ! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
 !-------------------------------------------------------------------------------

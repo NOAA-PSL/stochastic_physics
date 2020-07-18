@@ -1,6 +1,6 @@
 subroutine cellular_automata_sgs(kstep,Statein,Coupling,Diag,nblks,nlev, &
             nca,ncells,nlives,nfracseed,nseed,nthresh,ca_global,ca_sgs,iseed_ca, &
-            ca_smooth,nspinup,blocksize)
+            ca_smooth,nspinup,blocksize,mpiroot, mpicomm)
 
 use machine
 use update_ca,         only: update_cells_sgs, update_cells_global
@@ -16,8 +16,8 @@ use atmosphere_mod,    only: atmosphere_resolution, atmosphere_domain, &
 use mersenne_twister,  only: random_setseed,random_gauss,random_stat,random_number
 use mpp_domains_mod,   only: domain2D
 use block_control_mod, only: block_control_type, define_blocks_packed
-use fv_mp_mod,         only : mp_reduce_sum,mp_bcst,mp_reduce_max,mp_reduce_min,is_master
-use mpp_mod, only : mpp_pe
+use mpi_wrapper,       only: mype,mp_reduce_sum,mp_bcst,mp_reduce_max,mp_reduce_min, &
+                             mpi_wrapper_initialize
 
 
 implicit none
@@ -38,7 +38,7 @@ implicit none
 !PLEASE NOTE: This is considered to be version 0 of the cellular automata code for FV3GFS, some functionally 
 !is missing/limited. 
 
-integer,intent(in) :: kstep,ncells,nca,nlives,nseed,iseed_ca,nspinup
+integer,intent(in) :: kstep,ncells,nca,nlives,nseed,iseed_ca,nspinup,mpiroot,mpicomm
 real,intent(in) :: nfracseed,nthresh
 logical,intent(in) :: ca_global, ca_sgs, ca_smooth
 integer, intent(in) :: nblks,nlev,blocksize
@@ -77,6 +77,11 @@ logical              :: nca_plumes
 !ca_smooth   :: switch to smooth the cellular automata
 !nthresh     :: threshold of perturbed vertical velocity used in case of sgs
 !nca_plumes   :: compute number of CA-cells ("plumes") within a NWP gridbox.
+
+! Initialize MPI and OpenMP
+if (kstep==0) then
+   call mpi_wrapper_initialize(mpiroot,mpicomm)
+end if
 
 halo=1
 k_in=1
@@ -240,7 +245,7 @@ nca_plumes = .true.
   else
     ! don't rely on compiler to truncate integer(8) to integer(4) on
     ! overflow, do wrap around explicitly.
-    count4 = mod(mpp_pe() + iseed_ca + 2147483648, 4294967296) - 2147483648 
+    count4 = mod(mype + iseed_ca + 2147483648, 4294967296) - 2147483648
   endif
 
   call random_setseed(count4)

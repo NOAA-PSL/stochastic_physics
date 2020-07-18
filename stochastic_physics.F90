@@ -61,7 +61,7 @@ real, allocatable :: skeb_vloc(:)
 integer :: k,kflip,latghf,blk,k2
 character*2::proc
 
-! Set/update shared variables in spectral_layout_mod
+! Initialize MPI and OpenMP
 call mpi_wrapper_initialize(mpiroot,mpicomm)
 me         = mype
 nodes      = npes

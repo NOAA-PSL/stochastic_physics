@@ -1,6 +1,6 @@
 subroutine cellular_automata_global(kstep,Statein,Coupling,Diag,nblks,nlev, &
             nca,ncells,nlives,nfracseed,nseed,nthresh,ca_global,ca_sgs,iseed_ca, &
-            ca_smooth,nspinup,blocksize,nsmooth,ca_amplitude)
+            ca_smooth,nspinup,blocksize,nsmooth,ca_amplitude,mpiroot, mpicomm)
 
 use machine
 use update_ca,         only: update_cells_sgs, update_cells_global
@@ -16,8 +16,8 @@ use atmosphere_mod,    only: atmosphere_resolution, atmosphere_domain, &
 use mersenne_twister,  only: random_setseed,random_gauss,random_stat,random_number
 use mpp_domains_mod,   only: domain2D
 use block_control_mod, only: block_control_type, define_blocks_packed
-use fv_mp_mod,         only : mp_reduce_sum,mp_bcst,mp_reduce_max,mp_reduce_min,is_master
-use mpp_mod, only : mpp_pe
+use mpi_wrapper,       only: mype,mp_reduce_sum,mp_bcst,mp_reduce_max,mp_reduce_min, &
+                             mpi_wrapper_initialize
 
 
 implicit none
@@ -27,7 +27,7 @@ implicit none
 !This program evolves a cellular automaton uniform over the globe given
 !the flag ca_global
 
-integer,intent(in) :: kstep,ncells,nca,nlives,nseed,nspinup,nsmooth
+integer,intent(in) :: kstep,ncells,nca,nlives,nseed,nspinup,nsmooth,mpiroot,mpicomm
 integer,intent(in) :: iseed_ca
 real,intent(in) :: nfracseed,nthresh,ca_amplitude
 logical,intent(in) :: ca_global, ca_sgs, ca_smooth
@@ -64,6 +64,10 @@ logical,save         :: block_message=.true.
 !ca_smooth   :: switch to smooth the cellular automata
 !nthresh     :: threshold of perturbed vertical velocity used in case of sgs
 
+! Initialize MPI and OpenMP
+if (kstep==0) then
+   call mpi_wrapper_initialize(mpiroot,mpicomm)
+end if
 
 halo=1
 k_in=1
@@ -157,7 +161,7 @@ k_in=1
   else if (iseed_ca > 0) then
     ! don't rely on compiler to truncate integer(8) to integer(4) on
     ! overflow, do wrap around explicitly.
-    count4 = mod(mpp_pe() + iseed_ca + 2147483648, 4294967296) - 2147483648 
+    count4 = mod(mype + iseed_ca + 2147483648, 4294967296) - 2147483648
   endif
 !endif !kstep == 0
 
