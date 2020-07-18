@@ -9,7 +9,7 @@ module stochy_patterngenerator_mod
 ! use mersenne_twister_stochy, only: random_setseed,random_gauss,random_stat
  use mersenne_twister, only: random_setseed,random_gauss,random_stat
  ! DH* replacing this with mpi_wrapper changes results - look for value of iseed?
- use fv_mp_mod,only: is_master, mp_bcst
+ use mpi_wrapper,only: is_master, mp_bcst
  ! *DH
  implicit none
  private

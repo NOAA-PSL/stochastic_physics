@@ -4,12 +4,11 @@ module mpi_wrapper
 
 #include "mpif.h"
 
-   integer :: mype = -999
-   integer :: npes = -999
-   integer :: root = -999
-   integer :: comm = -999
-   logical :: master = .false.
-   logical :: initialized = .false.
+   integer, save :: mype = -999
+   integer, save :: npes = -999
+   integer, save :: root = -999
+   integer, save :: comm = -999
+   logical, save :: initialized = .false.
 
    integer :: ierror
 
@@ -44,7 +43,12 @@ module mpi_wrapper
 
 contains
 
-   logical function is_master() result(master)
+   logical function is_master()
+      if (mype==root) then
+         is_master = .true.
+      else
+         is_master = .false.
+      end if
    end function is_master
 
    subroutine mpi_wrapper_initialize(mpiroot, mpicomm)
@@ -56,14 +60,9 @@ contains
       comm = mpicomm
       call MPI_COMM_RANK(comm, mype, ierror)
       call MPI_COMM_SIZE(comm, npes, ierror)
-      if (mype==root) then
-          master = .true.
-      else
-          master = .false.
-      end if
       initialized = .true.
       !
-      write(0,'(a,3i10,i20,1x,l)') 'DH DEBUG: mype, npes, root, comm, master:', mype, npes, root, comm, master
+      write(0,'(a,3i10,i20,1x,l)') 'DH DEBUG: mype, npes, root, comm, is_master:', mype, npes, root, comm, is_master()
       !
    end subroutine mpi_wrapper_initialize
 
@@ -75,7 +74,6 @@ contains
       npes = -999
       root = -999
       comm = -999
-      master = .false.
       initialized = .false.
    end subroutine mpi_wrapper_finalize
 
