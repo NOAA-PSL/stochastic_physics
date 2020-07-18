@@ -1,4 +1,5 @@
-subroutine cellular_automata_global(kstep,Statein,Coupling,Diag,nblks,nlev, &
+subroutine cellular_automata_global(kstep,Statein,Coupling,Diag,domain_for_coupler, &
+            nblks,isc,iec,jsc,jec,npx,npy,nlev, &
             nca,ncells,nlives,nfracseed,nseed,nthresh,ca_global,ca_sgs,iseed_ca, &
             ca_smooth,nspinup,blocksize,nsmooth,ca_amplitude,mpiroot, mpicomm)
 
@@ -6,12 +7,10 @@ use machine
 use update_ca,         only: update_cells_sgs, update_cells_global
 #ifdef STOCHY_UNIT_TEST
 use standalone_stochy_module,      only: GFS_Coupling_type, GFS_diag_type, GFS_statein_type
-use atmosphere_stub_mod,    only: atmosphere_resolution, atmosphere_domain, &
-                                   atmosphere_scalar_field_halo, atmosphere_control_data
+use atmosphere_stub_mod,    only: atmosphere_scalar_field_halo
 #else
 use GFS_typedefs,      only: GFS_Coupling_type, GFS_diag_type, GFS_statein_type
-use atmosphere_mod,    only: atmosphere_resolution, atmosphere_domain, &
-                             atmosphere_scalar_field_halo, atmosphere_control_data
+use atmosphere_mod,    only: atmosphere_scalar_field_halo
 #endif
 use mersenne_twister,  only: random_setseed,random_gauss,random_stat,random_number
 use mpp_domains_mod,   only: domain2D
@@ -31,15 +30,16 @@ integer,intent(in) :: kstep,ncells,nca,nlives,nseed,nspinup,nsmooth,mpiroot,mpic
 integer,intent(in) :: iseed_ca
 real,intent(in) :: nfracseed,nthresh,ca_amplitude
 logical,intent(in) :: ca_global, ca_sgs, ca_smooth
-integer, intent(in) :: nblks,nlev,blocksize
+integer, intent(in) :: nblks,isc,iec,jsc,jec,npx,npy,nlev,blocksize
 type(GFS_coupling_type),intent(inout) :: Coupling(nblks)
 type(GFS_diag_type),intent(inout) :: Diag(nblks)
 type(GFS_statein_type),intent(in) :: Statein(nblks)
 type(block_control_type)          :: Atm_block
+type(domain2D), intent(inout)     :: domain_for_coupler
 type(random_stat) :: rstate
 integer :: nlon, nlat, isize,jsize,nf,nn
 integer :: inci, incj, nxc, nyc, nxch, nych
-integer :: halo, k_in, i, j, k, iec, jec, isc, jsc
+integer :: halo, k_in, i, j, k
 integer :: seed, ierr7,blk, ix, iix, count4,ih,jh
 integer :: blocksz,levs
 integer(8) :: count, count_rate, count_max, count_trunc
@@ -94,19 +94,17 @@ k_in=1
 ! stop
 ! endif
 
-
- call atmosphere_resolution (nlon, nlat, global=.false.)
+ nlon=iec-isc+1
+ nlat=jec-jsc+1
  isize=nlon+2*halo
  jsize=nlat+2*halo
- !nlon,nlat is the compute domain - without haloes       
- !mlon,mlat is the cubed-sphere tile size. 
 
  inci=ncells
  incj=ncells
- 
+
  nxc=nlon*ncells
  nyc=nlat*ncells
- 
+
  nxch=nxc+2*halo
  nych=nyc+2*halo
 
@@ -136,18 +134,13 @@ k_in=1
  CA2(:,:) = 0.0 
  CA3(:,:) = 0.0
  
-!Put the blocks of model fields into a 2d array
+ !Put the blocks of model fields into a 2d array - can't use nlev and blocksize directly,
+ !because the arguments to define_blocks_packed are intent(inout) and not intent(in).
  levs=nlev
  blocksz=blocksize
 
- call atmosphere_control_data(isc, iec, jsc, jec, levs)
  call define_blocks_packed('cellular_automata', Atm_block, isc, iec, jsc, jec, levs, &
                               blocksz, block_message)
-
-  isc = Atm_block%isc
-  iec = Atm_block%iec
-  jsc = Atm_block%jsc
-  jec = Atm_block%jec 
 
 !Generate random number, following stochastic physics code:
 !if(kstep==0) then
@@ -219,7 +212,7 @@ endif ! kstep==0
    
 if (ca_smooth) then
 
-do nn=1,nsmooth !number of itterations for the smoothing. 
+do nn=1,nsmooth !number of iterations for the smoothing. 
 
 field_in=0.
 
@@ -326,7 +319,7 @@ endif
     endif  
 
 enddo !nf
-  
+
   do blk = 1, Atm_block%nblks
   do ix = 1,Atm_block%blksz(blk)
      i = Atm_block%index(blk)%ii(ix) - isc + 1
