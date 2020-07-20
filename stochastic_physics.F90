@@ -217,7 +217,7 @@ end subroutine init_stochastic_physics
 !>@details It updates the AR(1) in spectral space
 !allocates and polulates the necessary arrays
 
-subroutine run_stochastic_physics(levs, kdt, phour, blksz, Grid, Coupling, nthreads)
+subroutine run_stochastic_physics(levs, kdt, phour, blksz, Grid, sppt_wts, shum_wts, skebu_wts, skebv_wts, nthreads)
 
 !\callgraph
 !use stochy_internal_state_mod
@@ -229,9 +229,9 @@ use stochy_namelist_def, only : do_shum,do_sppt,do_skeb,fhstoch,nssppt,nsshum,ns
 use mpi_wrapper, only: is_master
 use spectral_layout_mod,only:ompthreads
 #ifdef STOCHY_UNIT_TEST
-use standalone_stochy_module,   only: GFS_grid_type, GFS_Coupling_type
+use standalone_stochy_module,   only: GFS_grid_type
 #else
-use GFS_typedefs,       only: GFS_grid_type, GFS_Coupling_type
+use GFS_typedefs,       only: GFS_grid_type
 #endif
 implicit none
 
@@ -240,7 +240,10 @@ integer,                  intent(in) :: levs, kdt
 real(kind=kind_dbl_prec), intent(in) :: phour
 integer,                  intent(in) :: blksz(:)
 type(GFS_grid_type),      intent(in) :: Grid(:)
-type(GFS_coupling_type),  intent(inout) :: Coupling(:)
+real(kind=kind_dbl_prec), intent(inout) :: sppt_wts(:,:,:)
+real(kind=kind_dbl_prec), intent(inout) :: shum_wts(:,:,:)
+real(kind=kind_dbl_prec), intent(inout) :: skebu_wts(:,:,:)
+real(kind=kind_dbl_prec), intent(inout) :: skebv_wts(:,:,:)
 integer,                  intent(in)    :: nthreads
 
 real,allocatable :: tmp_wts(:,:),tmpu_wts(:,:,:),tmpv_wts(:,:,:)
@@ -273,10 +276,10 @@ if (do_sppt) then
       DO blk=1,nblks
          len=size(Grid(blk)%xlat,1)
          DO k=1,levs
-            Coupling(blk)%sppt_wts(:,k)=tmp_wts(blk,1:len)*vfact_sppt(k)
+            sppt_wts(blk,1:len,k)=tmp_wts(blk,1:len)*vfact_sppt(k)
          ENDDO
-         if (sppt_logit) Coupling(blk)%sppt_wts(:,:) = (2./(1.+exp(Coupling(blk)%sppt_wts(:,:))))-1.
-          Coupling(blk)%sppt_wts(:,:)= Coupling(blk)%sppt_wts(:,:)+1.0
+         if (sppt_logit) sppt_wts(blk,:,:) = (2./(1.+exp(sppt_wts(blk,:,:))))-1.
+         sppt_wts(blk,:,:) = sppt_wts(blk,:,:)+1.0
       ENDDO
    endif
 endif
@@ -286,7 +289,7 @@ if (do_shum) then
       DO blk=1,nblks
          len=size(Grid(blk)%xlat,1)
          DO k=1,levs
-            Coupling(blk)%shum_wts(:,k)=tmp_wts(blk,1:len)*vfact_shum(k)
+            shum_wts(blk,1:len,k)=tmp_wts(blk,1:len)*vfact_shum(k)
          ENDDO
       ENDDO
    endif
@@ -297,8 +300,8 @@ if (do_skeb) then
       DO blk=1,nblks
          len=size(Grid(blk)%xlat,1)
          DO k=1,levs
-            Coupling(blk)%skebu_wts(:,k)=tmpu_wts(blk,1:len,k)*vfact_skeb(k)
-            Coupling(blk)%skebv_wts(:,k)=tmpv_wts(blk,1:len,k)*vfact_skeb(k)
+            skebu_wts(blk,1:len,k)=tmpu_wts(blk,1:len,k)*vfact_skeb(k)
+            skebv_wts(blk,1:len,k)=tmpv_wts(blk,1:len,k)*vfact_skeb(k)
          ENDDO
       ENDDO
    endif
@@ -314,6 +317,10 @@ end module stochastic_physics
 
 module stochastic_physics_sfc
 
+! DH* TEMPORARY
+use machine, only : kind_dbl_prec
+! *DH
+
 implicit none
 
 private
@@ -322,7 +329,7 @@ public :: run_stochastic_physics_sfc
 
 contains
 
-subroutine run_stochastic_physics_sfc(blksz, Grid, Coupling)
+subroutine run_stochastic_physics_sfc(blksz, Grid, sfc_wts)
 
 !\callgraph
 use mpi_wrapper, only : is_master
@@ -332,16 +339,16 @@ use get_stochy_pattern_mod,only : get_random_pattern_sfc_fv3                    
 use stochy_resol_def , only : latg,lonf
 use stochy_namelist_def, only : do_sfcperts, nsfcpert
 #ifdef STOCHY_UNIT_TEST
-  use standalone_stochy_module,   only: GFS_grid_type, GFS_Coupling_type
+  use standalone_stochy_module,   only: GFS_grid_type
 #else
-use GFS_typedefs,       only: GFS_grid_type, GFS_Coupling_type
+use GFS_typedefs,       only: GFS_grid_type
 #endif
 implicit none
 
 ! Interface variables
 integer,                  intent(in) :: blksz(:)
 type(GFS_grid_type),      intent(in) :: Grid(:)
-type(GFS_coupling_type),  intent(inout) :: Coupling(:)
+real(kind=kind_dbl_prec), intent(out) :: sfc_wts(:,:,:)
 
 real,allocatable :: tmpsfc_wts(:,:,:)
 !D-grid
@@ -365,7 +372,7 @@ call get_random_pattern_sfc_fv3(rpattern_sfc,npsfc,gis_stochy,Grid,nblks,maxlen,
 DO blk=1,nblks
    len=size(Grid(blk)%xlat,1)
    DO k=1,nsfcpert
-      Coupling(blk)%sfc_wts(:,k)=tmpsfc_wts(blk,1:len,k)
+      sfc_wts(blk,1:len,k)=tmpsfc_wts(blk,1:len,k)
    ENDDO
 ENDDO
 if (is_master()) then
