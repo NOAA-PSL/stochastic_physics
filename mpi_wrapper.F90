@@ -6,7 +6,8 @@ module mpi_wrapper
 
    public :: mype, npes, root, comm, is_master
    public :: mpi_wrapper_initialize, mpi_wrapper_finalize
-   public :: mp_bcst, mp_reduce_min, mp_reduce_max, mp_reduce_sum
+   public :: mp_reduce_min, mp_reduce_max, mp_reduce_sum
+   public :: mp_bcst, mp_alltoall
 
 #include "mpif.h"
 
@@ -58,6 +59,10 @@ module mpi_wrapper
      MODULE PROCEDURE mp_reduce_sum_r8_1d
      MODULE PROCEDURE mp_reduce_sum_r8_1darr
      MODULE PROCEDURE mp_reduce_sum_r8_2darr
+   END INTERFACE
+
+   INTERFACE mp_alltoall
+     MODULE PROCEDURE mp_alltoall_r4_1darr
    END INTERFACE
 
 contains
@@ -634,8 +639,6 @@ contains
 
          gsum = 0.0
 
-         ! DH*
-         write (0,*) "Going into MPI_ALLREDUCE with comm=", comm
          call MPI_ALLREDUCE( mysum, gsum, npts1*npts2,      &
                              MPI_DOUBLE_PRECISION, MPI_SUM, &
                              comm, ierror )
@@ -643,6 +646,27 @@ contains
          mysum = gsum
 
       end subroutine mp_reduce_sum_r8_2darr
+!
+! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+! !
+
+!-------------------------------------------------------------------------------
+! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+! !
+!
+!     mp_reduce_sum_r8_2darr :: Call SPMD REDUCE_SUM
+!
+      subroutine mp_alltoall_r4_1darr(sbuf, ssize, sdispl, rbuf, rsize, rdispl)
+         real(kind=4), intent(in)    :: sbuf(:)
+         real(kind=4), intent(inout) :: rbuf(:)
+         integer, intent(in) :: ssize(:),  rsize(:)
+         integer, intent(in) :: sdispl(:), rdispl(:)
+
+         call MPI_ALLTOALLV( sbuf, ssize, sdispl, MPI_REAL, &
+                             rbuf, rsize, rdispl, MPI_REAL, &
+                             comm, ierror )
+
+      end subroutine mp_alltoall_r4_1darr
 !
 ! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ! !

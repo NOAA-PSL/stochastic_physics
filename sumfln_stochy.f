@@ -16,12 +16,11 @@
      &                         lons_lat,londi,latl,nvars_0)
 !
       use stochy_resol_def , only : jcap,latgd
-      use spectral_layout_mod   , only : len_trie_ls,len_trio_ls,
-     &                               ls_dim,ls_max_node,me,nodes
+      use spectral_layout_mod, only : len_trie_ls,len_trio_ls,
+     &                                ls_dim,ls_max_node,me,nodes
       use machine
       use spectral_layout_mod, only : num_parthds_stochy => ompthreads
-      use mpp_mod, only: mpp_pe,mpp_npes, mpp_alltoall,
-     &                   mpp_get_current_pelist
+      use mpi_wrapper, only : mp_alltoall
 
       implicit none
 !
@@ -30,8 +29,6 @@
       integer lat1s(0:jcap),latl2
 !
       integer              nvars,nvars_0
-      integer,                allocatable :: pelist(:)
-      integer :: npes
       real(kind=kind_dbl_prec) flnev(len_trie_ls,2*nvars)
       real(kind=kind_dbl_prec) flnod(len_trio_ls,2*nvars)
 !
@@ -95,10 +92,6 @@
       arrsz=2*nvars*ls_dim*workdim*nodes
       num_threads     = min(num_parthds_stochy,nvars)
       nvar_thread_max = (nvars+num_threads-1)/num_threads
-      npes = mpp_npes()
-      my_pe=mpp_pe()
-      allocate(pelist(0:npes-1))
-      call mpp_get_current_pelist(pelist)
       kpts   = 0
 !     write(0,*)' londi=',londi,'nvarsdim=',nvarsdim,'workdim=',workdim
 !
@@ -252,8 +245,8 @@ ccxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
       end do
       work1dr(1:arrsz)=>workr
       work1ds(1:arrsz)=>works
-      call mpp_alltoall(work1ds, sendcounts, sdispls,
-     &                  work1dr,recvcounts,sdispls,pelist)
+      call mp_alltoall(work1ds,sendcounts,sdispls,
+     &                 work1dr,recvcounts,sdispls)
       nullify(work1dr)
       nullify(work1ds)
 !$omp parallel do num_threads(num_threads)
