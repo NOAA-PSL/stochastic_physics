@@ -55,12 +55,12 @@ logical,save         :: block_message=.true.
 
 !nca         :: switch for number of cellular automata to be used.
 !ca_global   :: switch for global cellular automata
-!ca_sgs      :: switch for cellular automata conditioned on SGS perturbed vertvel. 
+!ca_sgs      :: switch for cellular automata conditioned on SGS perturbed vertvel.
 !nfracseed   :: switch for number of random cells initially seeded
 !nlives      :: switch for maximum number of lives a cell can have
 !nspinup     :: switch for number of itterations to spin up the ca
-!ncells      :: switch for higher resolution grid e.g ncells=4 
-!               gives 4x4 times the FV3 model grid resolution.                
+!ncells      :: switch for higher resolution grid e.g ncells=4
+!               gives 4x4 times the FV3 model grid resolution.
 !ca_smooth   :: switch to smooth the cellular automata
 !nthresh     :: threshold of perturbed vertical velocity used in case of sgs
 
@@ -123,17 +123,17 @@ k_in=1
  allocate(CA3(nlon,nlat))
  allocate(noise(nxc,nyc,nca))
  allocate(noise1D(nxc*nyc))
-  
+
  !Initialize:
- 
- noise(:,:,:) = 0.0 
+
+ noise(:,:,:) = 0.0
  noise1D(:) = 0.0
  iini_g(:,:,:) = 0
  ilives_g(:,:) = 0
  CA1(:,:) = 0.0
- CA2(:,:) = 0.0 
+ CA2(:,:) = 0.0
  CA3(:,:) = 0.0
- 
+
  !Put the blocks of model fields into a 2d array - can't use nlev and blocksize directly,
  !because the arguments to define_blocks_packed are intent(inout) and not intent(in).
  levs=nlev
@@ -184,7 +184,7 @@ if(kstep ==0)then
     enddo
   enddo !nf
 endif ! kstep==0
- 
+
 !In case we want to condition the cellular automaton on a large scale field
 !we here set the "condition" variable to a different model field depending
 !on nf. (this is not used if ca_global = .true.)
@@ -198,21 +198,21 @@ endif ! kstep==0
     enddo
    enddo
 
- 
-
-!Calculate neighbours and update the automata                                                                                                                                                            
-!If ca-global is used, then nca independent CAs are called and weighted together to create one field; CA                                                                                                                             
 
 
-  CA(:,:)=0. 
+!Calculate neighbours and update the automata
+!If ca-global is used, then nca independent CAs are called and weighted together to create one field; CA
+
+
+  CA(:,:)=0.
 
   call update_cells_global(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,CA,iini_g,ilives_g, &
-                   nlives, ncells, nfracseed, nseed,nthresh, nspinup,nf) 
+                   nlives, ncells, nfracseed, nseed,nthresh, nspinup,nf)
 
-   
+
 if (ca_smooth) then
 
-do nn=1,nsmooth !number of iterations for the smoothing. 
+do nn=1,nsmooth !number of iterations for the smoothing.
 
 field_in=0.
 
@@ -231,7 +231,7 @@ do j=1,nlat
  do i=1,nlon
     ih=i+halo
     jh=j+halo
-    field_smooth(i,j)=(2.0*field_out(ih,jh,1)+2.0*field_out(ih-1,jh,1)+ & 
+    field_smooth(i,j)=(2.0*field_out(ih,jh,1)+2.0*field_out(ih-1,jh,1)+ &
                        2.0*field_out(ih,jh-1,1)+2.0*field_out(ih+1,jh,1)+&
                        2.0*field_out(ih,jh+1,1)+2.0*field_out(ih-1,jh-1,1)+&
                        2.0*field_out(ih-1,jh+1,1)+2.0*field_out(ih+1,jh+1,1)+&
@@ -278,23 +278,23 @@ call mp_reduce_sum(csum)
 CAmean=psum/csum
 
 !std:
-CAstdv=0.                                                                                                                                                                                             
-sq_diff = 0.                                                                                                                                                                                          
-do j=1,nlat                                                                                                                                                                                           
- do i=1,nlon                                                                                                                                                                                          
-  sq_diff = sq_diff + (CA(i,j)-CAmean)**2.0                                                                                                                                                        
- enddo                                                                                                                                                                                                
-enddo                                                                                                                                                                                                 
+CAstdv=0.
+sq_diff = 0.
+do j=1,nlat
+ do i=1,nlon
+  sq_diff = sq_diff + (CA(i,j)-CAmean)**2.0
+ enddo
+enddo
 
-call mp_reduce_sum(sq_diff)                                                                                                                                                                           
+call mp_reduce_sum(sq_diff)
 
-CAstdv = sqrt(sq_diff/csum)                                                                                                                                                                 
+CAstdv = sqrt(sq_diff/csum)
 
 !Transform to mean of 1 and ca_amplitude standard deviation
 
 do j=1,nlat
  do i=1,nlon
-  CA(i,j)=1.0 + (CA(i,j)-CAmean)*(ca_amplitude/CAstdv)  
+  CA(i,j)=1.0 + (CA(i,j)-CAmean)*(ca_amplitude/CAstdv)
  enddo
 enddo
 
@@ -310,13 +310,13 @@ if(kstep < 1)then
 CA(:,:)=1.
 endif
 
-    if(nf==1)then                                                                                                                                                                                                                          
-    CA1(:,:)=CA(:,:)                                                                                                                                                                                                                       
-    elseif(nf==2)then                                                                                                                                                                                                                      
-    CA2(:,:)=CA(:,:)                                                                                                                                                                                                                       
-    else                                                                                                                                                                                                                                   
-    CA3(:,:)=CA(:,:)                                                                                                                                                                                                                       
-    endif  
+    if(nf==1)then
+    CA1(:,:)=CA(:,:)
+    elseif(nf==2)then
+    CA2(:,:)=CA(:,:)
+    else
+    CA3(:,:)=CA(:,:)
+    endif
 
 enddo !nf
 
