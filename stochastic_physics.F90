@@ -217,7 +217,7 @@ end subroutine init_stochastic_physics
 !>@details It updates the AR(1) in spectral space
 !allocates and polulates the necessary arrays
 
-subroutine run_stochastic_physics(levs, kdt, phour, blksz, Grid, sppt_wts, shum_wts, skebu_wts, skebv_wts, nthreads)
+subroutine run_stochastic_physics(levs, kdt, phour, blksz, xlat, xlon, sppt_wts, shum_wts, skebu_wts, skebv_wts, nthreads)
 
 !\callgraph
 !use stochy_internal_state_mod
@@ -228,18 +228,14 @@ use stochy_resol_def , only : latg,lonf
 use stochy_namelist_def, only : do_shum,do_sppt,do_skeb,fhstoch,nssppt,nsshum,nsskeb,sppt_logit
 use mpi_wrapper, only: is_master
 use spectral_layout_mod,only:ompthreads
-#ifdef STOCHY_UNIT_TEST
-use standalone_stochy_module,   only: GFS_grid_type
-#else
-use GFS_typedefs,       only: GFS_grid_type
-#endif
 implicit none
 
 ! Interface variables
 integer,                  intent(in) :: levs, kdt
 real(kind=kind_dbl_prec), intent(in) :: phour
 integer,                  intent(in) :: blksz(:)
-type(GFS_grid_type),      intent(in) :: Grid(:)
+real(kind=kind_dbl_prec), intent(in) :: xlat(:,:)
+real(kind=kind_dbl_prec), intent(in) :: xlon(:,:)
 real(kind=kind_dbl_prec), intent(inout) :: sppt_wts(:,:,:)
 real(kind=kind_dbl_prec), intent(inout) :: shum_wts(:,:,:)
 real(kind=kind_dbl_prec), intent(inout) :: skebu_wts(:,:,:)
@@ -272,9 +268,9 @@ allocate(tmpu_wts(nblks,maxlen,levs))
 allocate(tmpv_wts(nblks,maxlen,levs))
 if (do_sppt) then
    if (mod(kdt,nssppt) == 1 .or. nssppt == 1) then
-      call get_random_pattern_fv3(rpattern_sppt,nsppt,gis_stochy,Grid,nblks,maxlen,tmp_wts)
+      call get_random_pattern_fv3(rpattern_sppt,nsppt,gis_stochy,xlat,xlon,blksz,nblks,maxlen,tmp_wts)
       DO blk=1,nblks
-         len=size(Grid(blk)%xlat,1)
+         len=blksz(blk)
          DO k=1,levs
             sppt_wts(blk,1:len,k)=tmp_wts(blk,1:len)*vfact_sppt(k)
          ENDDO
@@ -285,9 +281,9 @@ if (do_sppt) then
 endif
 if (do_shum) then
    if (mod(kdt,nsshum) == 1 .or. nsshum == 1) then
-      call get_random_pattern_fv3(rpattern_shum,nshum,gis_stochy,Grid,nblks,maxlen,tmp_wts)
+      call get_random_pattern_fv3(rpattern_shum,nshum,gis_stochy,xlat,xlon,blksz,nblks,maxlen,tmp_wts)
       DO blk=1,nblks
-         len=size(Grid(blk)%xlat,1)
+         len=blksz(blk)
          DO k=1,levs
             shum_wts(blk,1:len,k)=tmp_wts(blk,1:len)*vfact_shum(k)
          ENDDO
@@ -296,9 +292,9 @@ if (do_shum) then
 endif
 if (do_skeb) then
    if (mod(kdt,nsskeb) == 1 .or. nsskeb == 1) then
-      call get_random_pattern_fv3_vect(rpattern_skeb,nskeb,gis_stochy,levs,Grid,nblks,maxlen,tmpu_wts,tmpv_wts)
+      call get_random_pattern_fv3_vect(rpattern_skeb,nskeb,gis_stochy,levs,xlat,xlon,blksz,nblks,maxlen,tmpu_wts,tmpv_wts)
       DO blk=1,nblks
-         len=size(Grid(blk)%xlat,1)
+         len=blksz(blk)
          DO k=1,levs
             skebu_wts(blk,1:len,k)=tmpu_wts(blk,1:len,k)*vfact_skeb(k)
             skebv_wts(blk,1:len,k)=tmpv_wts(blk,1:len,k)*vfact_skeb(k)
@@ -329,7 +325,7 @@ public :: run_stochastic_physics_sfc
 
 contains
 
-subroutine run_stochastic_physics_sfc(blksz, Grid, sfc_wts)
+subroutine run_stochastic_physics_sfc(blksz, xlat, xlon, sfc_wts)
 
 !\callgraph
 use mpi_wrapper, only : is_master
@@ -338,16 +334,12 @@ use stochy_data_mod, only : rad2deg,INTTYP,wlon,rnlat,gis_stochy, rpattern_sfc,n
 use get_stochy_pattern_mod,only : get_random_pattern_sfc_fv3                                              ! mg, sfc-perts
 use stochy_resol_def , only : latg,lonf
 use stochy_namelist_def, only : do_sfcperts, nsfcpert
-#ifdef STOCHY_UNIT_TEST
-  use standalone_stochy_module,   only: GFS_grid_type
-#else
-use GFS_typedefs,       only: GFS_grid_type
-#endif
 implicit none
 
 ! Interface variables
 integer,                  intent(in) :: blksz(:)
-type(GFS_grid_type),      intent(in) :: Grid(:)
+real(kind=kind_dbl_prec), intent(in) :: xlat(:,:)
+real(kind=kind_dbl_prec), intent(in) :: xlon(:,:)
 real(kind=kind_dbl_prec), intent(out) :: sfc_wts(:,:,:)
 
 real,allocatable :: tmpsfc_wts(:,:,:)
@@ -368,9 +360,9 @@ allocate(tmpsfc_wts(nblks,maxlen,nsfcpert))  ! mg, sfc-perts
 if (is_master()) then
   print*,'In run_stochastic_physics_sfc'
 endif
-call get_random_pattern_sfc_fv3(rpattern_sfc,npsfc,gis_stochy,Grid,nblks,maxlen,tmpsfc_wts)
+call get_random_pattern_sfc_fv3(rpattern_sfc,npsfc,gis_stochy,xlat,xlon,blksz,nblks,maxlen,tmpsfc_wts)
 DO blk=1,nblks
-   len=size(Grid(blk)%xlat,1)
+   len=blksz(blk)
    DO k=1,nsfcpert
       sfc_wts(blk,1:len,k)=tmpsfc_wts(blk,1:len,k)
    ENDDO
