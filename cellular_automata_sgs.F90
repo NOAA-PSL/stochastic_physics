@@ -4,18 +4,14 @@ implicit none
 
 contains
 
-subroutine cellular_automata_sgs(kstep,Statein,Coupling,Diag,domain_for_coupler, &
+subroutine cellular_automata_sgs(kstep,ugrs,qgrs,pgr,vvl,prsl,condition_cpl, &
+            ca_deep_cpl,ca_turb_cpl,ca_shal_cpl,ca_deep_diag,ca_turb_diag,ca_shal_diag,domain_for_coupler, &
             nblks,isc,iec,jsc,jec,npx,npy,nlev, &
             nca,ncells,nlives,nfracseed,nseed,nthresh,ca_global,ca_sgs,iseed_ca, &
             ca_smooth,nspinup,blocksize,mpiroot, mpicomm)
 
 use machine
 use update_ca,         only: update_cells_sgs, update_cells_global
-#ifdef STOCHY_UNIT_TEST
-use standalone_stochy_module, only: GFS_Coupling_type, GFS_diag_type, GFS_statein_type
-#else
-use GFS_typedefs,      only: GFS_Coupling_type, GFS_diag_type, GFS_statein_type
-#endif
 use mersenne_twister,  only: random_setseed,random_gauss,random_stat,random_number
 use mpp_domains_mod,   only: domain2D
 use block_control_mod, only: block_control_type, define_blocks_packed
@@ -45,10 +41,19 @@ integer,intent(in) :: kstep,ncells,nca,nlives,nseed,iseed_ca,nspinup,mpiroot,mpi
 real(kind=kind_phys), intent(in)    :: nfracseed,nthresh
 logical,intent(in) :: ca_global, ca_sgs, ca_smooth
 integer, intent(in) :: nblks,isc,iec,jsc,jec,npx,npy,nlev,blocksize
-type(GFS_coupling_type),intent(inout) :: Coupling(nblks)
-type(GFS_diag_type),intent(inout) :: Diag(nblks)
-type(GFS_statein_type),intent(in) :: Statein(nblks)
-type(domain2D), intent(inout)     :: domain_for_coupler
+real(kind=kind_phys), intent(in)    :: ugrs(:,:,:)
+real(kind=kind_phys), intent(in)    :: qgrs(:,:,:)
+real(kind=kind_phys), intent(in)    :: pgr(:,:)
+real(kind=kind_phys), intent(in)    :: vvl(:,:,:)
+real(kind=kind_phys), intent(in)    :: prsl(:,:,:)
+real(kind=kind_phys), intent(inout) :: condition_cpl(:,:)
+real(kind=kind_phys), intent(inout) :: ca_deep_cpl(:,:)
+real(kind=kind_phys), intent(inout) :: ca_turb_cpl(:,:)
+real(kind=kind_phys), intent(inout) :: ca_shal_cpl(:,:)
+real(kind=kind_phys), intent(out)   :: ca_deep_diag(:,:)
+real(kind=kind_phys), intent(out)   :: ca_turb_diag(:,:)
+real(kind=kind_phys), intent(out)   :: ca_shal_diag(:,:)
+type(domain2D), intent(inout)       :: domain_for_coupler
 
 type(block_control_type)          :: Atm_block
 type(random_stat) :: rstate
@@ -193,15 +198,15 @@ nca_plumes = .true.
   do ix = 1, Atm_block%blksz(blk)
       i = Atm_block%index(blk)%ii(ix) - isc + 1
       j = Atm_block%index(blk)%jj(ix) - jsc + 1
-      uwind(i,j) = Statein(blk)%ugrs(ix,k350)
-      conditiongrid(i,j) = Coupling(blk)%condition(ix)
-      shalp(i,j) = Coupling(blk)%ca_shal(ix)
-      gamt(i,j) = Coupling(blk)%ca_turb(ix)
-      surfp(i,j) = Statein(blk)%pgr(ix)
-      humidity(i,j)=Statein(blk)%qgrs(ix,k850,1) !about 850 hpa
+      uwind(i,j)         = ugrs(blk,ix,k350)
+      conditiongrid(i,j) = condition_cpl(blk,ix)
+      shalp(i,j)         = ca_shal_cpl(blk,ix)
+      gamt(i,j)          = ca_turb_cpl(blk,ix)
+      surfp(i,j)         = pgr(blk,ix)
+      humidity(i,j)      = qgrs(blk,ix,k850) !about 850 hpa
       do k = 1,k350 !Lower troposphere
-      omega(i,j,k) = Statein(blk)%vvl(ix,k) ! layer mean vertical velocity in pa/sec
-      pressure(i,j,k) = Statein(blk)%prsl(ix,k) ! layer mean pressure in Pa
+      omega(i,j,k)       = vvl(blk,ix,k) ! layer mean vertical velocity in pa/sec
+      pressure(i,j,k)    = prsl(blk,ix,k) ! layer mean pressure in Pa
       enddo
   enddo
  enddo
@@ -557,12 +562,12 @@ endif
   do ix = 1,Atm_block%blksz(blk)
      i = Atm_block%index(blk)%ii(ix) - isc + 1
      j = Atm_block%index(blk)%jj(ix) - jsc + 1
-     Diag(blk)%ca_deep(ix)=ca_plumes(i,j)
-     Diag(blk)%ca_turb(ix)=conditiongrid(i,j)
-     Diag(blk)%ca_shal(ix)=CA_SHAL(i,j)
-     Coupling(blk)%ca_deep(ix)=ca_plumes(i,j)
-     Coupling(blk)%ca_turb(ix)=CA_TURB(i,j)
-     Coupling(blk)%ca_shal(ix)=CA_SHAL(i,j)
+     ca_deep_diag(blk,ix)=ca_plumes(i,j)
+     ca_turb_diag(blk,ix)=conditiongrid(i,j)
+     ca_shal_diag(blk,ix)=CA_SHAL(i,j)
+     ca_deep_cpl(blk,ix)=ca_plumes(i,j)
+     ca_turb_cpl(blk,ix)=CA_TURB(i,j)
+     ca_shal_cpl(blk,ix)=CA_SHAL(i,j)
   enddo
   enddo
 
