@@ -76,24 +76,17 @@ contains
    end function is_master
 
    subroutine mpi_wrapper_initialize(mpiroot, mpicomm)
-
       integer, intent(in) :: mpiroot, mpicomm
-      !
       if (initialized) return
       root = mpiroot
       comm = mpicomm
       call MPI_COMM_RANK(comm, mype, ierror)
       call MPI_COMM_SIZE(comm, npes, ierror)
       initialized = .true.
-      !
-      write(0,'(a,3i10,i20,1x,l)') 'DH DEBUG: mype, npes, root, comm, is_master:', mype, npes, root, comm, is_master()
-      !
    end subroutine mpi_wrapper_initialize
 
    subroutine mpi_wrapper_finalize()
-
       if (.not.initialized) return
-
       mype = -999
       npes = -999
       root = -999

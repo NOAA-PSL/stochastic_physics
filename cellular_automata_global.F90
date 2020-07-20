@@ -1,17 +1,17 @@
-subroutine cellular_automata_global(kstep,Statein,Coupling,Diag,domain_for_coupler, &
-            nblks,isc,iec,jsc,jec,npx,npy,nlev, &
+module cellular_automata_global_mod
+
+implicit none
+
+contains
+
+subroutine cellular_automata_global(kstep,ca1_cpl,ca2_cpl,ca3_cpl,ca1_diag,ca2_diag,ca3_diag, &
+            domain_for_coupler,nblks,isc,iec,jsc,jec,npx,npy,nlev, &
             nca,ncells,nlives,nfracseed,nseed,nthresh,ca_global,ca_sgs,iseed_ca, &
-            ca_smooth,nspinup,blocksize,nsmooth,ca_amplitude,mpiroot, mpicomm)
+            ca_smooth,nspinup,blocksize,nsmooth,ca_amplitude,mpiroot,mpicomm)
 
 use machine
 use update_ca,         only: update_cells_sgs, update_cells_global
-#ifdef STOCHY_UNIT_TEST
-use standalone_stochy_module, only: GFS_Coupling_type, GFS_diag_type, GFS_statein_type
 use halo_exchange,     only: atmosphere_scalar_field_halo
-#else
-use GFS_typedefs,      only: GFS_Coupling_type, GFS_diag_type, GFS_statein_type
-use halo_exchange,     only: atmosphere_scalar_field_halo
-#endif
 use mersenne_twister,  only: random_setseed,random_gauss,random_stat,random_number
 use mpp_domains_mod,   only: domain2D
 use block_control_mod, only: block_control_type, define_blocks_packed
@@ -26,16 +26,16 @@ implicit none
 !This program evolves a cellular automaton uniform over the globe given
 !the flag ca_global
 
-integer,intent(in) :: kstep,ncells,nca,nlives,nseed,nspinup,nsmooth,mpiroot,mpicomm
-integer,intent(in) :: iseed_ca
-real,intent(in) :: nfracseed,nthresh,ca_amplitude
-logical,intent(in) :: ca_global, ca_sgs, ca_smooth
-integer, intent(in) :: nblks,isc,iec,jsc,jec,npx,npy,nlev,blocksize
-type(GFS_coupling_type),intent(inout) :: Coupling(nblks)
-type(GFS_diag_type),intent(inout) :: Diag(nblks)
-type(GFS_statein_type),intent(in) :: Statein(nblks)
-type(block_control_type)          :: Atm_block
-type(domain2D), intent(inout)     :: domain_for_coupler
+integer,              intent(in)    :: kstep,ncells,nca,nlives,nseed,nspinup,nsmooth,mpiroot,mpicomm
+integer,              intent(in)    :: iseed_ca
+real(kind=kind_phys), intent(in)    :: nfracseed,nthresh,ca_amplitude
+logical,              intent(in)    :: ca_global, ca_sgs, ca_smooth
+integer,              intent(in)    :: nblks,isc,iec,jsc,jec,npx,npy,nlev,blocksize
+real(kind=kind_phys), intent(out)   :: ca1_cpl(:,:),ca2_cpl(:,:),ca3_cpl(:,:)
+real(kind=kind_phys), intent(out)   :: ca1_diag(:,:),ca2_diag(:,:),ca3_diag(:,:)
+type(domain2D),       intent(inout) :: domain_for_coupler
+    
+type(block_control_type) :: Atm_block
 type(random_stat) :: rstate
 integer :: nlon, nlat, isize,jsize,nf,nn
 integer :: inci, incj, nxc, nyc, nxch, nych
@@ -324,12 +324,12 @@ enddo !nf
   do ix = 1,Atm_block%blksz(blk)
      i = Atm_block%index(blk)%ii(ix) - isc + 1
      j = Atm_block%index(blk)%jj(ix) - jsc + 1
-     Diag(blk)%ca1(ix)=CA1(i,j)
-     Diag(blk)%ca2(ix)=CA2(i,j)
-     Diag(blk)%ca3(ix)=CA3(i,j)
-     Coupling(blk)%ca1(ix)=CA1(i,j)
-     Coupling(blk)%ca2(ix)=CA2(i,j)
-     Coupling(blk)%ca3(ix)=CA3(i,j)
+     ca1_diag(blk,ix)=CA1(i,j)
+     ca2_diag(blk,ix)=CA2(i,j)
+     ca3_diag(blk,ix)=CA3(i,j)
+     ca1_cpl(blk,ix)=CA1(i,j)
+     ca2_cpl(blk,ix)=CA2(i,j)
+     ca3_cpl(blk,ix)=CA3(i,j)
   enddo
   enddo
 
@@ -347,3 +347,5 @@ enddo !nf
  deallocate(noise1D)
 
 end subroutine cellular_automata_global
+
+end module cellular_automata_global_mod
