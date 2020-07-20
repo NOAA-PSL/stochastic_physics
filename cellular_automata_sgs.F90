@@ -6,11 +6,9 @@ subroutine cellular_automata_sgs(kstep,Statein,Coupling,Diag,domain_for_coupler,
 use machine
 use update_ca,         only: update_cells_sgs, update_cells_global
 #ifdef STOCHY_UNIT_TEST
-use standalone_stochy_module,      only: GFS_Coupling_type, GFS_diag_type, GFS_statein_type
-use atmosphere_stub_mod,    only: atmosphere_scalar_field_halo
+use standalone_stochy_module, only: GFS_Coupling_type, GFS_diag_type, GFS_statein_type
 #else
 use GFS_typedefs,      only: GFS_Coupling_type, GFS_diag_type, GFS_statein_type
-use atmosphere_mod,    only: atmosphere_scalar_field_halo
 #endif
 use mersenne_twister,  only: random_setseed,random_gauss,random_stat,random_number
 use mpp_domains_mod,   only: domain2D
