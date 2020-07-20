@@ -1,3 +1,9 @@
+module cellular_automata_sgs_mod
+
+implicit none
+
+contains
+
 subroutine cellular_automata_sgs(kstep,Statein,Coupling,Diag,domain_for_coupler, &
             nblks,isc,iec,jsc,jec,npx,npy,nlev, &
             nca,ncells,nlives,nfracseed,nseed,nthresh,ca_global,ca_sgs,iseed_ca, &
@@ -36,14 +42,15 @@ implicit none
 !is missing/limited.
 
 integer,intent(in) :: kstep,ncells,nca,nlives,nseed,iseed_ca,nspinup,mpiroot,mpicomm
-real,intent(in) :: nfracseed,nthresh
+real(kind=kind_phys), intent(in)    :: nfracseed,nthresh
 logical,intent(in) :: ca_global, ca_sgs, ca_smooth
 integer, intent(in) :: nblks,isc,iec,jsc,jec,npx,npy,nlev,blocksize
 type(GFS_coupling_type),intent(inout) :: Coupling(nblks)
 type(GFS_diag_type),intent(inout) :: Diag(nblks)
 type(GFS_statein_type),intent(in) :: Statein(nblks)
-type(block_control_type)          :: Atm_block
 type(domain2D), intent(inout)     :: domain_for_coupler
+
+type(block_control_type)          :: Atm_block
 type(random_stat) :: rstate
 integer :: nlon, nlat, isize,jsize,nf,nn
 integer :: inci, incj, nxc, nyc, nxch, nych
@@ -587,3 +594,5 @@ endif
  deallocate(noise1D)
 
 end subroutine cellular_automata_sgs
+
+end module cellular_automata_sgs_mod
