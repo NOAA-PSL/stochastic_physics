@@ -6,11 +6,11 @@ subroutine cellular_automata_global(kstep,Statein,Coupling,Diag,domain_for_coupl
 use machine
 use update_ca,         only: update_cells_sgs, update_cells_global
 #ifdef STOCHY_UNIT_TEST
-use standalone_stochy_module,      only: GFS_Coupling_type, GFS_diag_type, GFS_statein_type
-use atmosphere_stub_mod,    only: atmosphere_scalar_field_halo
+use standalone_stochy_module, only: GFS_Coupling_type, GFS_diag_type, GFS_statein_type
+use halo_exchange,     only: atmosphere_scalar_field_halo
 #else
 use GFS_typedefs,      only: GFS_Coupling_type, GFS_diag_type, GFS_statein_type
-use atmosphere_mod,    only: atmosphere_scalar_field_halo
+use halo_exchange,     only: atmosphere_scalar_field_halo
 #endif
 use mersenne_twister,  only: random_setseed,random_gauss,random_stat,random_number
 use mpp_domains_mod,   only: domain2D
@@ -225,7 +225,7 @@ enddo
 
 field_out=0.
 
-call atmosphere_scalar_field_halo(field_out,halo,isize,jsize,k_in,field_in)
+call atmosphere_scalar_field_halo(field_out,halo,isize,jsize,k_in,field_in,isc,iec,jsc,jec,npx,npy,domain_for_coupler)
 
 do j=1,nlat
  do i=1,nlon
