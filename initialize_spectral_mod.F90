@@ -65,8 +65,6 @@
 !      print*,'before allocate lonsperlat,',&
 !                   allocated(gis_stochy%lonsperlat),'latg=',latg
 !
-!      gis_stochy%nodes=mpp_npes()
-!      print*,'mpp_npes=',mpp_npes()
       nodes  = gis_stochy%nodes
       npe_single_member = gis_stochy%npe_single_member
 
@@ -108,7 +106,6 @@
 
       inquire (file="lonsperlat.dat", exist=file_exists)
       if ( .not. file_exists ) then
-        !call mpp_error(FATAL,'Requested lonsperlat.dat  data file does not exist')
          gis_stochy%lonsperlat(:)=lonf
       else
         open (iunit,file='lonsperlat.dat',status='old',form='formatted',      &
