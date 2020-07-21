@@ -18,7 +18,7 @@
       use stochy_resol_def , only : jcap,latgd
       use spectral_layout_mod, only : len_trie_ls,len_trio_ls,
      &                                ls_dim,ls_max_node,me,nodes
-      use machine
+      use kinddef
       use spectral_layout_mod, only : num_parthds_stochy => ompthreads
       use mpi_wrapper, only : mp_alltoall
 

@@ -10,7 +10,7 @@ subroutine cellular_automata_sgs(kstep,ugrs,qgrs,pgr,vvl,prsl,condition_cpl, &
             nca,ncells,nlives,nfracseed,nseed,nthresh,ca_global,ca_sgs,iseed_ca, &
             ca_smooth,nspinup,blocksize,mpiroot, mpicomm)
 
-use machine
+use kinddef,           only: kind_phys
 use update_ca,         only: update_cells_sgs, update_cells_global
 use mersenne_twister,  only: random_setseed,random_gauss,random_stat,random_number
 use mpp_domains_mod,   only: domain2D

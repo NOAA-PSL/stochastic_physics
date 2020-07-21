@@ -9,7 +9,7 @@ subroutine cellular_automata_global(kstep,ca1_cpl,ca2_cpl,ca3_cpl,ca1_diag,ca2_d
             nca,ncells,nlives,nfracseed,nseed,nthresh,ca_global,ca_sgs,iseed_ca, &
             ca_smooth,nspinup,blocksize,nsmooth,ca_amplitude,mpiroot,mpicomm)
 
-use machine
+use kinddef,           only: kind_phys
 use update_ca,         only: update_cells_sgs, update_cells_global
 use halo_exchange,     only: atmosphere_scalar_field_halo
 use mersenne_twister,  only: random_setseed,random_gauss,random_stat,random_number

@@ -2,9 +2,7 @@
 !! the stochastic physics random pattern generators
 module stochastic_physics
 
-! DH* TEMPORARY
-use machine, only : kind_dbl_prec
-! *DH
+use kinddef, only : kind_dbl_prec
 
 implicit none
 
@@ -31,7 +29,6 @@ use stochy_data_mod, only : nshum,rpattern_shum,init_stochdata,rpattern_sppt,nsp
 use stochy_resol_def , only : latg,lonf,skeblevs
 use stochy_gg_def,only : colrad_a
 use stochy_namelist_def
-use physcons, only: con_pi
 use spectral_layout_mod,only:me,master,nodes,ompthreads
 use mpi_wrapper, only : mpi_wrapper_initialize,mype,npes,is_master
 
@@ -53,7 +50,7 @@ real(kind=kind_dbl_prec), intent(out)   :: pertlai_out(:),pertalb_out(:),pertveg
 real(kind=kind_dbl_prec), intent(in)    :: ak(:), bk(:) 
 
 ! Local variables
-
+real(kind=kind_dbl_prec), parameter     :: con_pi =4.0d0*atan(1.0d0)
 integer :: nblks
 integer :: iret
 real*8 :: PRSI(levs),PRSL(levs),dx
@@ -313,9 +310,7 @@ end module stochastic_physics
 
 module stochastic_physics_sfc
 
-! DH* TEMPORARY
-use machine, only : kind_dbl_prec
-! *DH
+use kinddef, only : kind_dbl_prec
 
 implicit none
 

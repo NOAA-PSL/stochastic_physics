@@ -1,7 +1,7 @@
 !>@brief The module 'get_stochy_pattern_mod' contains the subroutines to retrieve the random pattern in the cubed-sphere grid
 module get_stochy_pattern_mod
 !! the stochastic physics random pattern generators
- use machine, only : kind_dbl_prec, kind_evod
+ use kinddef, only : kind_dbl_prec, kind_evod
  use stochy_resol_def, only : latg, latg2, levs, lonf, skeblevs
  use spectral_layout_mod, only : ipt_lats_node_a, lat1s_a, lats_dim_a,      &
                                  lats_node_a, lon_dim_a, len_trie_ls,       &

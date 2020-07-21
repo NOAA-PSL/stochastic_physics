@@ -17,7 +17,7 @@
 !
 !!uses:
 !
-      use machine
+      use kinddef
       use spectral_layout_mod,      only : ipt_lats_node_a, lats_node_a_max,lon_dim_a,len_trie_ls,len_trio_ls &
                                       ,nodes,ls_max_node,lats_dim_a,ls_dim,lat1s_a
       use stochy_layout_lag, only : lat1s_h

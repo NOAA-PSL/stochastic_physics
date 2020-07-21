@@ -43,6 +43,7 @@ SRCS_f   =  \
 		./dezouv_stochy.f
 
 SRCS_F90 = \
+		./kinddef.F90                               \
 		./mpi_wrapper.F90                           \
 		./halo_exchange.fv3.F90                     \
 		./spectral_layout.F90                       \
