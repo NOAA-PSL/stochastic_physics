@@ -206,8 +206,9 @@ endif ! kstep==0
 
   CA(:,:)=0.
 
-  call update_cells_global(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,CA,iini_g,ilives_g, &
-                   nlives, ncells, nfracseed, nseed,nthresh, nspinup,nf)
+  call update_cells_global(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,isc,iec,jsc,jec, &
+                           npx,npy,domain_for_coupler,CA,iini_g,ilives_g,         &
+                           nlives,ncells,nfracseed,nseed,nthresh,nspinup,nf)
 
 
 if (ca_smooth) then
