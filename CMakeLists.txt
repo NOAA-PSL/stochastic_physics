@@ -55,11 +55,6 @@ add_library(
     ./update_ca.F90
 )
 
-#if(CCPP)
-#  target_include_directories(stochastic_physics PRIVATE ${CMAKE_BINARY_DIR}/FV3/ccpp/framework/src)
-#  target_include_directories(stochastic_physics PRIVATE ${CMAKE_BINARY_DIR}/FV3/ccpp/physics)
-#endif()
-target_link_libraries(stochastic_physics ${NCEP_LIBS})
+target_link_libraries(stochastic_physics sp::sp_d)
 target_link_libraries(stochastic_physics fms)
-#target_link_libraries(stochastic_physics gfsphysics)
-#target_link_libraries(stochastic_physics fv3core)
+
