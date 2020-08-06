@@ -1,23 +1,22 @@
-subroutine cellular_automata_sgs(kstep,Statein,Coupling,Diag,nblks,nlev, &
-            nca,ncells,nlives,nfracseed,nseed,nthresh,ca_global,ca_sgs,iseed_ca, &
-            ca_smooth,nspinup,blocksize)
+module cellular_automata_sgs_mod
 
-use machine
+implicit none
+
+contains
+
+subroutine cellular_automata_sgs(kstep,ugrs,qgrs,pgr,vvl,prsl,condition_cpl, &
+            ca_deep_cpl,ca_turb_cpl,ca_shal_cpl,ca_deep_diag,ca_turb_diag,ca_shal_diag,domain_for_coupler, &
+            nblks,isc,iec,jsc,jec,npx,npy,nlev, &
+            nca,ncells,nlives,nfracseed,nseed,nthresh,ca_global,ca_sgs,iseed_ca, &
+            ca_smooth,nspinup,blocksize,mpiroot, mpicomm)
+
+use kinddef,           only: kind_phys
 use update_ca,         only: update_cells_sgs, update_cells_global
-#ifdef STOCHY_UNIT_TEST
-use standalone_stochy_module,      only: GFS_Coupling_type, GFS_diag_type, GFS_statein_type
-use atmosphere_stub_mod,    only: atmosphere_resolution, atmosphere_domain, &
-                                   atmosphere_scalar_field_halo, atmosphere_control_data
-#else
-use GFS_typedefs,      only: GFS_Coupling_type, GFS_diag_type, GFS_statein_type
-use atmosphere_mod,    only: atmosphere_resolution, atmosphere_domain, &
-                             atmosphere_scalar_field_halo, atmosphere_control_data
-#endif
 use mersenne_twister,  only: random_setseed,random_gauss,random_stat,random_number
 use mpp_domains_mod,   only: domain2D
 use block_control_mod, only: block_control_type, define_blocks_packed
-use fv_mp_mod,         only : mp_reduce_sum,mp_bcst,mp_reduce_max,mp_reduce_min,is_master
-use mpp_mod, only : mpp_pe
+use mpi_wrapper,       only: mype,mp_reduce_sum,mp_bcst,mp_reduce_max,mp_reduce_min, &
+                             mpi_wrapper_initialize
 
 
 implicit none
@@ -25,31 +24,42 @@ implicit none
 !L.Bengtsson, 2017-06
 
 !This program evolves a cellular automaton uniform over the globe given
-!the flag ca_global, if instead ca_sgs is .true. it evolves a cellular automata conditioned on 
-!perturbed grid-box mean field. The perturbations to the mean field are given by a 
+!the flag ca_global, if instead ca_sgs is .true. it evolves a cellular automata conditioned on
+!perturbed grid-box mean field. The perturbations to the mean field are given by a
 !stochastic gaussian skewed (SGS) distribution.
 
 !If ca_global is .true. it weighs the number of ca (nca) together to produce 1 output pattern
-!If instead ca_sgs is given, it produces nca ca:                                                                                                                                                                            
-! 1 CA_DEEP = deep convection                                                                                                                                                                              
-! 2 CA_SHAL = shallow convection                                                                                                                                                                             
-! 3 CA_TURB = turbulence                                                                                                                                                                                        
+!If instead ca_sgs is given, it produces nca ca:
+! 1 CA_DEEP = deep convection
+! 2 CA_SHAL = shallow convection
+! 3 CA_TURB = turbulence
 
-!PLEASE NOTE: This is considered to be version 0 of the cellular automata code for FV3GFS, some functionally 
-!is missing/limited. 
+!PLEASE NOTE: This is considered to be version 0 of the cellular automata code for FV3GFS, some functionally
+!is missing/limited.
 
-integer,intent(in) :: kstep,ncells,nca,nlives,nseed,iseed_ca,nspinup
-real,intent(in) :: nfracseed,nthresh
+integer,intent(in) :: kstep,ncells,nca,nlives,nseed,iseed_ca,nspinup,mpiroot,mpicomm
+real(kind=kind_phys), intent(in)    :: nfracseed,nthresh
 logical,intent(in) :: ca_global, ca_sgs, ca_smooth
-integer, intent(in) :: nblks,nlev,blocksize
-type(GFS_coupling_type),intent(inout) :: Coupling(nblks)
-type(GFS_diag_type),intent(inout) :: Diag(nblks)
-type(GFS_statein_type),intent(in) :: Statein(nblks)
+integer, intent(in) :: nblks,isc,iec,jsc,jec,npx,npy,nlev,blocksize
+real(kind=kind_phys), intent(in)    :: ugrs(:,:,:)
+real(kind=kind_phys), intent(in)    :: qgrs(:,:,:)
+real(kind=kind_phys), intent(in)    :: pgr(:,:)
+real(kind=kind_phys), intent(in)    :: vvl(:,:,:)
+real(kind=kind_phys), intent(in)    :: prsl(:,:,:)
+real(kind=kind_phys), intent(inout) :: condition_cpl(:,:)
+real(kind=kind_phys), intent(inout) :: ca_deep_cpl(:,:)
+real(kind=kind_phys), intent(inout) :: ca_turb_cpl(:,:)
+real(kind=kind_phys), intent(inout) :: ca_shal_cpl(:,:)
+real(kind=kind_phys), intent(out)   :: ca_deep_diag(:,:)
+real(kind=kind_phys), intent(out)   :: ca_turb_diag(:,:)
+real(kind=kind_phys), intent(out)   :: ca_shal_diag(:,:)
+type(domain2D), intent(inout)       :: domain_for_coupler
+
 type(block_control_type)          :: Atm_block
 type(random_stat) :: rstate
 integer :: nlon, nlat, isize,jsize,nf,nn
 integer :: inci, incj, nxc, nyc, nxch, nych
-integer :: halo, k_in, i, j, k, iec, jec, isc, jsc
+integer :: halo, k_in, i, j, k
 integer :: seed, ierr7,blk, ix, iix, count4,ih,jh
 integer :: blocksz,levs,k350,k850
 integer(8) :: count, count_rate, count_max, count_trunc
@@ -68,15 +78,20 @@ logical              :: nca_plumes
 
 !nca         :: switch for number of cellular automata to be used.
 !ca_global   :: switch for global cellular automata
-!ca_sgs      :: switch for cellular automata conditioned on SGS perturbed vertvel. 
+!ca_sgs      :: switch for cellular automata conditioned on SGS perturbed vertvel.
 !nfracseed   :: switch for number of random cells initially seeded
 !nlives      :: switch for maximum number of lives a cell can have
 !nspinup     :: switch for number of itterations to spin up the ca
-!ncells      :: switch for higher resolution grid e.g ncells=4 
-!               gives 4x4 times the FV3 model grid resolution.                
+!ncells      :: switch for higher resolution grid e.g ncells=4
+!               gives 4x4 times the FV3 model grid resolution.
 !ca_smooth   :: switch to smooth the cellular automata
 !nthresh     :: threshold of perturbed vertical velocity used in case of sgs
 !nca_plumes   :: compute number of CA-cells ("plumes") within a NWP gridbox.
+
+! Initialize MPI and OpenMP
+if (kstep==0) then
+   call mpi_wrapper_initialize(mpiroot,mpicomm)
+end if
 
 halo=1
 k_in=1
@@ -104,28 +119,28 @@ nca_plumes = .true.
  stop
  endif
 
- call atmosphere_resolution (nlon, nlat, global=.false.)
+ nlon=iec-isc+1
+ nlat=jec-jsc+1
  isize=nlon+2*halo
  jsize=nlat+2*halo
 
  inci=ncells
  incj=ncells
- 
+
  nxc=nlon*ncells
  nyc=nlat*ncells
- 
+
  nxch=nxc+2*halo
  nych=nyc+2*halo
 
  !Allocate fields:
- levs=nlev
 
  allocate(cloud(nlon,nlat))
- allocate(omega(nlon,nlat,levs))
- allocate(pressure(nlon,nlat,levs))
+ allocate(omega(nlon,nlat,nlev))
+ allocate(pressure(nlon,nlat,nlev))
  allocate(humidity(nlon,nlat))
  allocate(uwind(nlon,nlat))
- allocate(dp(nlon,nlat,levs))
+ allocate(dp(nlon,nlat,nlev))
  allocate(rho(nlon,nlat))
  allocate(surfp(nlon,nlat))
  allocate(vertvelmean(nlon,nlat))
@@ -146,16 +161,16 @@ nca_plumes = .true.
  allocate(CA(nlon,nlat))
  allocate(ca_plumes(nlon,nlat))
  allocate(CA_TURB(nlon,nlat))
- allocate(CA_DEEP(nlon,nlat)) 
+ allocate(CA_DEEP(nlon,nlat))
  allocate(CA_SHAL(nlon,nlat))
  allocate(noise(nxc,nyc,nca))
  allocate(noise1D(nxc*nyc))
-  
+
  !Initialize:
  Detfield(:,:,:)=0.
  vertvelmean(:,:) =0.
  vertvelsum(:,:)=0.
- cloud(:,:)=0. 
+ cloud(:,:)=0.
  humidity(:,:)=0.
  uwind(:,:) = 0.
  condition(:,:)=0.
@@ -171,32 +186,27 @@ nca_plumes = .true.
  Detmax(:)=0.
  Detmin(:)=0.
 
-!Put the blocks of model fields into a 2d array
+ !Put the blocks of model fields into a 2d array - can't use nlev and blocksize directly,
+ !because the arguments to define_blocks_packed are intent(inout) and not intent(in).
  levs=nlev
  blocksz=blocksize
 
- call atmosphere_control_data(isc, iec, jsc, jec, levs)
  call define_blocks_packed('cellular_automata', Atm_block, isc, iec, jsc, jec, levs, &
                               blocksz, block_message)
-
-  isc = Atm_block%isc
-  iec = Atm_block%iec
-  jsc = Atm_block%jsc
-  jec = Atm_block%jec 
 
  do blk = 1,Atm_block%nblks
   do ix = 1, Atm_block%blksz(blk)
       i = Atm_block%index(blk)%ii(ix) - isc + 1
       j = Atm_block%index(blk)%jj(ix) - jsc + 1
-      uwind(i,j) = Statein(blk)%ugrs(ix,k350)
-      conditiongrid(i,j) = Coupling(blk)%condition(ix) 
-      shalp(i,j) = Coupling(blk)%ca_shal(ix)
-      gamt(i,j) = Coupling(blk)%ca_turb(ix)
-      surfp(i,j) = Statein(blk)%pgr(ix)
-      humidity(i,j)=Statein(blk)%qgrs(ix,k850,1) !about 850 hpa
+      uwind(i,j)         = ugrs(blk,ix,k350)
+      conditiongrid(i,j) = condition_cpl(blk,ix)
+      shalp(i,j)         = ca_shal_cpl(blk,ix)
+      gamt(i,j)          = ca_turb_cpl(blk,ix)
+      surfp(i,j)         = pgr(blk,ix)
+      humidity(i,j)      = qgrs(blk,ix,k850) !about 850 hpa
       do k = 1,k350 !Lower troposphere
-      omega(i,j,k) = Statein(blk)%vvl(ix,k) ! layer mean vertical velocity in pa/sec
-      pressure(i,j,k) = Statein(blk)%prsl(ix,k) ! layer mean pressure in Pa
+      omega(i,j,k)       = vvl(blk,ix,k) ! layer mean vertical velocity in pa/sec
+      pressure(i,j,k)    = prsl(blk,ix,k) ! layer mean pressure in Pa
       enddo
   enddo
  enddo
@@ -229,19 +239,18 @@ nca_plumes = .true.
  enddo
 
 !Generate random number, following stochastic physics code:
-
-if(kstep==2) then
+!if(kstep==2) then
   if (iseed_ca == 0) then
     ! generate a random seed from system clock and ens member number
     call system_clock(count, count_rate, count_max)
     ! iseed is elapsed time since unix epoch began (secs)
     ! truncate to 4 byte integer
     count_trunc = iscale*(count/iscale)
-    count4 = count - count_trunc 
+    count4 = count - count_trunc
   else
     ! don't rely on compiler to truncate integer(8) to integer(4) on
     ! overflow, do wrap around explicitly.
-    count4 = mod(mpp_pe() + iseed_ca + 2147483648, 4294967296) - 2147483648 
+    count4 = mod(mype + iseed_ca + 2147483648, 4294967296) - 2147483648
   endif
 
   call random_setseed(count4)
@@ -257,7 +266,7 @@ if(kstep==2) then
 
 
 !Initiate the cellular automaton with random numbers larger than nfracseed
- 
+
     do j = 1,nyc
       do i = 1,nxc
         if (noise(i,j,nf) > nfracseed ) then
@@ -267,24 +276,24 @@ if(kstep==2) then
         endif
       enddo
     enddo
- 
+
   enddo !nf
-endif ! kstep=0
- 
+!endif ! kstep=0
+
 !In case we want to condition the cellular automaton on a large scale field
 !we here set the "condition" variable to a different model field depending
 !on nf. (this is not used if ca_global = .true.)
 
 
 do nf=1,nca !update each ca
- 
-  
-  if(nf==1)then 
+
+
+  if(nf==1)then
   inci=ncells
   incj=ncells
   do j=1,nyc
    do i=1,nxc
-     condition(i,j)=conditiongrid(inci/ncells,incj/ncells) 
+     condition(i,j)=conditiongrid(inci/ncells,incj/ncells)
      if(i.eq.inci)then
      inci=inci+ncells
      endif
@@ -299,7 +308,7 @@ do nf=1,nca !update each ca
   call mp_reduce_max(condmax)
 
    do j = 1,nyc
-    do i = 1,nxc  
+    do i = 1,nxc
       ilives(i,j,nf)=real(nlives)*(condition(i,j)/condmax)
     enddo
    enddo
@@ -357,7 +366,7 @@ do nf=1,nca !update each ca
 
  endif !nf
 
-  
+
 !Vertical velocity has its own variable in order to condition on combination
 !of "condition" and vertical velocity.
 
@@ -376,11 +385,12 @@ do nf=1,nca !update each ca
    endif
   enddo
 
-!Calculate neighbours and update the automata                                                                                                                                                            
-!If ca-global is used, then nca independent CAs are called and weighted together to create one field; CA                                                                                                                                                                                                                                  
-  
-  call update_cells_sgs(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,CA,ca_plumes,iini,ilives, &
-                   nlives, ncells, nfracseed, nseed,nthresh,nspinup,nf,nca_plumes)
+!Calculate neighbours and update the automata
+!If ca-global is used, then nca independent CAs are called and weighted together to create one field; CA
+
+  call update_cells_sgs(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,isc,iec,jsc,jec, &
+                   npx,npy,domain_for_coupler,CA,ca_plumes,iini,ilives,        &
+                   nlives,ncells,nfracseed,nseed,nthresh,nspinup,nf,nca_plumes)
 
    if(nf==1)then
     CA_DEEP(:,:)=CA(:,:)
@@ -414,7 +424,7 @@ do j=1,nlat
  enddo
 enddo
 
-!Compute the mean of the new range and subtract 
+!Compute the mean of the new range and subtract
 CAmean=0.
 psum=0.
 csum=0.
@@ -445,7 +455,7 @@ call mp_reduce_min(Detmin(1))
 
 !Shallow convection ============================================================
 
-!Use min-max method to normalize range                                                                                                                                                                                                            
+!Use min-max method to normalize range
 Detmax(2)=maxval(CA_SHAL,CA_SHAL.NE.0)
 call mp_reduce_max(Detmax(2))
 Detmin(2)=minval(CA_SHAL,CA_SHAL.NE.0)
@@ -459,7 +469,7 @@ do j=1,nlat
  enddo
 enddo
 
-!Compute the mean of the new range and subtract                                                                                                                                                                                                   
+!Compute the mean of the new range and subtract
 CAmean=0.
 psum=0.
 csum=0.
@@ -487,7 +497,7 @@ enddo
 
 !Turbulence =============================================================================
 
-!Use min-max method to normalize range                                                                                                                                                                                                            
+!Use min-max method to normalize range
 Detmax(3)=maxval(CA_TURB,CA_TURB.NE.0)
 call mp_reduce_max(Detmax(3))
 Detmin(3)=minval(CA_TURB,CA_TURB.NE.0)
@@ -501,7 +511,7 @@ do j=1,nlat
  enddo
 enddo
 
-!Compute the mean of the new range and subtract                                                                                                                                                                                                   
+!Compute the mean of the new range and subtract
 CAmean=0.
 psum=0.
 csum=0.
@@ -548,17 +558,17 @@ endif
 
 !Put back into blocks 1D array to be passed to physics
 !or diagnostics output
-  
+
   do blk = 1, Atm_block%nblks
   do ix = 1,Atm_block%blksz(blk)
      i = Atm_block%index(blk)%ii(ix) - isc + 1
      j = Atm_block%index(blk)%jj(ix) - jsc + 1
-     Diag(blk)%ca_deep(ix)=ca_plumes(i,j)
-     Diag(blk)%ca_turb(ix)=conditiongrid(i,j)
-     Diag(blk)%ca_shal(ix)=CA_SHAL(i,j)
-     Coupling(blk)%ca_deep(ix)=ca_plumes(i,j)
-     Coupling(blk)%ca_turb(ix)=CA_TURB(i,j)
-     Coupling(blk)%ca_shal(ix)=CA_SHAL(i,j)
+     ca_deep_diag(blk,ix)=ca_plumes(i,j)
+     ca_turb_diag(blk,ix)=conditiongrid(i,j)
+     ca_shal_diag(blk,ix)=CA_SHAL(i,j)
+     ca_deep_cpl(blk,ix)=ca_plumes(i,j)
+     ca_turb_cpl(blk,ix)=CA_TURB(i,j)
+     ca_shal_cpl(blk,ix)=CA_SHAL(i,j)
   enddo
   enddo
 
@@ -590,3 +600,5 @@ endif
  deallocate(noise1D)
 
 end subroutine cellular_automata_sgs
+
+end module cellular_automata_sgs_mod

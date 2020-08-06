@@ -1,12 +1,9 @@
 module update_ca
 
-#ifdef STOCHY_UNIT_TEST
-use atmosphere_stub_mod,    only: atmosphere_scalar_field_halo
-#else
-use atmosphere_mod,    only: atmosphere_scalar_field_halo
-#endif
-use mersenne_twister,  only: random_gauss,random_stat,random_number
-use fv_mp_mod, only : mp_reduce_sum,mp_bcst,mp_reduce_min,mp_reduce_max
+use halo_exchange,    only: atmosphere_scalar_field_halo
+use mersenne_twister, only: random_gauss,random_stat,random_number
+use mpi_wrapper,      only: mp_reduce_sum,mp_bcst,mp_reduce_min,mp_reduce_max
+use mpp_domains_mod,  only: domain2D
 
 implicit none
 
@@ -16,12 +13,13 @@ implicit none
 
 contains
 
-subroutine update_cells_sgs(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,CA,ca_plumes,iini,ilives, &
+subroutine update_cells_sgs(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,isc,iec,jsc,jec, &
+                        npx,npy,domain_for_coupler,CA,ca_plumes,iini,ilives,       &
                         nlives,ncells,nfracseed,nseed,nthresh,nspinup,nf,nca_plumes)
 
 implicit none
 
-integer, intent(in) :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca
+integer, intent(in) :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca,isc,iec,jsc,jec,npx,npy
 integer, intent(in) :: iini(nxc,nyc,nca)
 integer, intent(inout) :: ilives(nxc,nyc,nca)
 real, intent(out) :: CA(nlon,nlat)
@@ -29,6 +27,7 @@ integer, intent(out) :: ca_plumes(nlon,nlat)
 integer, intent(in) :: nlives, ncells, nseed, nspinup, nf
 real, intent(in) :: nfracseed, nthresh
 logical,intent(in) :: nca_plumes
+type(domain2D), intent(inout) :: domain_for_coupler
 real, dimension(nlon,nlat) :: frac
 integer, dimension(nlon,nlat) :: maxlives
 integer,allocatable,save :: board(:,:,:), lives(:,:,:)
@@ -60,7 +59,7 @@ k_in=1
  if (.not. allocated(field_in))then
  allocate(field_in(nxc*nyc,1))
  endif
- if(.not. allocated(board_halo))then                                                                      
+ if(.not. allocated(board_halo))then
  allocate(board_halo(nxch,nych,1))   
  endif
   
@@ -93,7 +92,7 @@ k_in=1
    enddo
   endif
 
- !Seed with new CA cells at each nseed step                                                                                                                        
+ !Seed with new CA cells at each nseed step
 
   newseed = 0
   if(mod(kstep,nseed) == 0 .and. kstep >= 2)then
@@ -102,7 +101,7 @@ k_in=1
      if(board(i,j,nf) == 0 .and. NOISE_B(i,j)>0.95 )then
        newseed(i,j) = 1
      endif
-     board(i,j,nf) = board(i,j,nf) + newseed(i,j)                                                                                                                                 
+     board(i,j,nf) = board(i,j,nf) + newseed(i,j)
     enddo
    enddo
 
@@ -142,7 +141,8 @@ k_in=1
    enddo
   enddo
 
-  call atmosphere_scalar_field_halo(board_halo,halo,nxch,nych,k_in,field_in)
+  call atmosphere_scalar_field_halo(board_halo,halo,nxch,nych,k_in,field_in, &
+                                    isc,iec,jsc,jec,npx,npy,domain_for_coupler)
 
 
   do j=1,nyc
@@ -287,16 +287,18 @@ end subroutine update_cells_sgs
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine update_cells_global(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,CA,iini_g,ilives_g, &
+subroutine update_cells_global(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,isc,iec,jsc,jec, &
+                        npx,npy,domain_for_coupler,CA,iini_g,ilives_g,                &
                         nlives,ncells,nfracseed,nseed,nthresh,nspinup,nf)
 
 implicit none
 
-integer, intent(in) :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca
+integer, intent(in) :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca,isc,iec,jsc,jec,npx,npy
 integer, intent(in) :: iini_g(nxc,nyc,nca), ilives_g(nxc,nyc)
 real, intent(out) :: CA(nlon,nlat)
 integer, intent(in) :: nlives, ncells, nseed, nspinup, nf
 real, intent(in) :: nfracseed, nthresh
+type(domain2D), intent(inout) :: domain_for_coupler
 real, dimension(nlon,nlat) :: frac
 integer,allocatable,save :: board_g(:,:,:), lives_g(:,:,:)
 integer,allocatable :: V(:),L(:)
@@ -390,18 +392,19 @@ do it=1,spinup
  board_halo=0
  field_in=0
 
-!The input to scalar_field_halo needs to be 1D.                                                          
+!The input to scalar_field_halo needs to be 1D.
 !take the updated board_g fields and extract the halo
 ! in order to have updated values in the halo region. 
 
 
-  do j=1,nyc                                                                        
-   do i=1,nxc                                                                                           
-   field_in(i+(j-1)*nxc,1)=board_g(i,j,nf)                                                                
-   enddo                                                                                                
-  enddo                                                                                                  
+  do j=1,nyc
+   do i=1,nxc
+   field_in(i+(j-1)*nxc,1)=board_g(i,j,nf)
+   enddo
+  enddo
 
-  call atmosphere_scalar_field_halo(board_halo,halo,nxch,nych,k_in,field_in)
+  call atmosphere_scalar_field_halo(board_halo,halo,nxch,nych,k_in,field_in, &
+                                    isc,iec,jsc,jec,npx,npy,domain_for_coupler)
 
 
   do j=1,nyc

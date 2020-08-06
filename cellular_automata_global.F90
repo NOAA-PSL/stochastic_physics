@@ -1,23 +1,22 @@
-subroutine cellular_automata_global(kstep,Statein,Coupling,Diag,nblks,nlev, &
-            nca,ncells,nlives,nfracseed,nseed,nthresh,ca_global,ca_sgs,iseed_ca, &
-            ca_smooth,nspinup,blocksize,nsmooth,ca_amplitude)
+module cellular_automata_global_mod
 
-use machine
+implicit none
+
+contains
+
+subroutine cellular_automata_global(kstep,ca1_cpl,ca2_cpl,ca3_cpl,ca1_diag,ca2_diag,ca3_diag, &
+            domain_for_coupler,nblks,isc,iec,jsc,jec,npx,npy,nlev, &
+            nca,ncells,nlives,nfracseed,nseed,nthresh,ca_global,ca_sgs,iseed_ca, &
+            ca_smooth,nspinup,blocksize,nsmooth,ca_amplitude,mpiroot,mpicomm)
+
+use kinddef,           only: kind_phys
 use update_ca,         only: update_cells_sgs, update_cells_global
-#ifdef STOCHY_UNIT_TEST
-use standalone_stochy_module,      only: GFS_Coupling_type, GFS_diag_type, GFS_statein_type
-use atmosphere_stub_mod,    only: atmosphere_resolution, atmosphere_domain, &
-                                   atmosphere_scalar_field_halo, atmosphere_control_data
-#else
-use GFS_typedefs,      only: GFS_Coupling_type, GFS_diag_type, GFS_statein_type
-use atmosphere_mod,    only: atmosphere_resolution, atmosphere_domain, &
-                             atmosphere_scalar_field_halo, atmosphere_control_data
-#endif
+use halo_exchange,     only: atmosphere_scalar_field_halo
 use mersenne_twister,  only: random_setseed,random_gauss,random_stat,random_number
 use mpp_domains_mod,   only: domain2D
 use block_control_mod, only: block_control_type, define_blocks_packed
-use fv_mp_mod,         only : mp_reduce_sum,mp_bcst,mp_reduce_max,mp_reduce_min,is_master
-use mpp_mod, only : mpp_pe
+use mpi_wrapper,       only: mype,mp_reduce_sum,mp_bcst,mp_reduce_max,mp_reduce_min, &
+                             mpi_wrapper_initialize
 
 
 implicit none
@@ -27,19 +26,20 @@ implicit none
 !This program evolves a cellular automaton uniform over the globe given
 !the flag ca_global
 
-integer,intent(in) :: kstep,ncells,nca,nlives,nseed,nspinup,nsmooth
-integer,intent(in) :: iseed_ca
-real,intent(in) :: nfracseed,nthresh,ca_amplitude
-logical,intent(in) :: ca_global, ca_sgs, ca_smooth
-integer, intent(in) :: nblks,nlev,blocksize
-type(GFS_coupling_type),intent(inout) :: Coupling(nblks)
-type(GFS_diag_type),intent(inout) :: Diag(nblks)
-type(GFS_statein_type),intent(in) :: Statein(nblks)
-type(block_control_type)          :: Atm_block
+integer,              intent(in)    :: kstep,ncells,nca,nlives,nseed,nspinup,nsmooth,mpiroot,mpicomm
+integer,              intent(in)    :: iseed_ca
+real(kind=kind_phys), intent(in)    :: nfracseed,nthresh,ca_amplitude
+logical,              intent(in)    :: ca_global, ca_sgs, ca_smooth
+integer,              intent(in)    :: nblks,isc,iec,jsc,jec,npx,npy,nlev,blocksize
+real(kind=kind_phys), intent(out)   :: ca1_cpl(:,:),ca2_cpl(:,:),ca3_cpl(:,:)
+real(kind=kind_phys), intent(out)   :: ca1_diag(:,:),ca2_diag(:,:),ca3_diag(:,:)
+type(domain2D),       intent(inout) :: domain_for_coupler
+    
+type(block_control_type) :: Atm_block
 type(random_stat) :: rstate
 integer :: nlon, nlat, isize,jsize,nf,nn
 integer :: inci, incj, nxc, nyc, nxch, nych
-integer :: halo, k_in, i, j, k, iec, jec, isc, jsc
+integer :: halo, k_in, i, j, k
 integer :: seed, ierr7,blk, ix, iix, count4,ih,jh
 integer :: blocksz,levs
 integer(8) :: count, count_rate, count_max, count_trunc
@@ -55,15 +55,19 @@ logical,save         :: block_message=.true.
 
 !nca         :: switch for number of cellular automata to be used.
 !ca_global   :: switch for global cellular automata
-!ca_sgs      :: switch for cellular automata conditioned on SGS perturbed vertvel. 
+!ca_sgs      :: switch for cellular automata conditioned on SGS perturbed vertvel.
 !nfracseed   :: switch for number of random cells initially seeded
 !nlives      :: switch for maximum number of lives a cell can have
 !nspinup     :: switch for number of itterations to spin up the ca
-!ncells      :: switch for higher resolution grid e.g ncells=4 
-!               gives 4x4 times the FV3 model grid resolution.                
+!ncells      :: switch for higher resolution grid e.g ncells=4
+!               gives 4x4 times the FV3 model grid resolution.
 !ca_smooth   :: switch to smooth the cellular automata
 !nthresh     :: threshold of perturbed vertical velocity used in case of sgs
 
+! Initialize MPI and OpenMP
+if (kstep==0) then
+   call mpi_wrapper_initialize(mpiroot,mpicomm)
+end if
 
 halo=1
 k_in=1
@@ -90,19 +94,17 @@ k_in=1
 ! stop
 ! endif
 
-
- call atmosphere_resolution (nlon, nlat, global=.false.)
+ nlon=iec-isc+1
+ nlat=jec-jsc+1
  isize=nlon+2*halo
  jsize=nlat+2*halo
- !nlon,nlat is the compute domain - without haloes       
- !mlon,mlat is the cubed-sphere tile size. 
 
  inci=ncells
  incj=ncells
- 
+
  nxc=nlon*ncells
  nyc=nlat*ncells
- 
+
  nxch=nxc+2*halo
  nych=nyc+2*halo
 
@@ -121,32 +123,27 @@ k_in=1
  allocate(CA3(nlon,nlat))
  allocate(noise(nxc,nyc,nca))
  allocate(noise1D(nxc*nyc))
-  
+
  !Initialize:
- 
- noise(:,:,:) = 0.0 
+
+ noise(:,:,:) = 0.0
  noise1D(:) = 0.0
  iini_g(:,:,:) = 0
  ilives_g(:,:) = 0
  CA1(:,:) = 0.0
- CA2(:,:) = 0.0 
+ CA2(:,:) = 0.0
  CA3(:,:) = 0.0
- 
-!Put the blocks of model fields into a 2d array
+
+ !Put the blocks of model fields into a 2d array - can't use nlev and blocksize directly,
+ !because the arguments to define_blocks_packed are intent(inout) and not intent(in).
  levs=nlev
  blocksz=blocksize
 
- call atmosphere_control_data(isc, iec, jsc, jec, levs)
  call define_blocks_packed('cellular_automata', Atm_block, isc, iec, jsc, jec, levs, &
                               blocksz, block_message)
 
-  isc = Atm_block%isc
-  iec = Atm_block%iec
-  jsc = Atm_block%jsc
-  jec = Atm_block%jec 
-
 !Generate random number, following stochastic physics code:
-if(kstep==0) then
+!if(kstep==0) then
   if (iseed_ca == 0) then
     ! generate a random seed from system clock and ens member number
     call system_clock(count, count_rate, count_max)
@@ -157,9 +154,9 @@ if(kstep==0) then
   else if (iseed_ca > 0) then
     ! don't rely on compiler to truncate integer(8) to integer(4) on
     ! overflow, do wrap around explicitly.
-    count4 = mod(mpp_pe() + iseed_ca + 2147483648, 4294967296) - 2147483648 
+    count4 = mod(mype + iseed_ca + 2147483648, 4294967296) - 2147483648
   endif
-endif !kstep == 0
+!endif !kstep == 0
 
   call random_setseed(count4,rstate)
   do nf=1,nca
@@ -187,7 +184,7 @@ if(kstep ==0)then
     enddo
   enddo !nf
 endif ! kstep==0
- 
+
 !In case we want to condition the cellular automaton on a large scale field
 !we here set the "condition" variable to a different model field depending
 !on nf. (this is not used if ca_global = .true.)
@@ -201,21 +198,22 @@ endif ! kstep==0
     enddo
    enddo
 
- 
-
-!Calculate neighbours and update the automata                                                                                                                                                            
-!If ca-global is used, then nca independent CAs are called and weighted together to create one field; CA                                                                                                                             
 
 
-  CA(:,:)=0. 
+!Calculate neighbours and update the automata
+!If ca-global is used, then nca independent CAs are called and weighted together to create one field; CA
 
-  call update_cells_global(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,CA,iini_g,ilives_g, &
-                   nlives, ncells, nfracseed, nseed,nthresh, nspinup,nf) 
 
-   
+  CA(:,:)=0.
+
+  call update_cells_global(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,isc,iec,jsc,jec, &
+                           npx,npy,domain_for_coupler,CA,iini_g,ilives_g,         &
+                           nlives,ncells,nfracseed,nseed,nthresh,nspinup,nf)
+
+
 if (ca_smooth) then
 
-do nn=1,nsmooth !number of itterations for the smoothing. 
+do nn=1,nsmooth !number of iterations for the smoothing.
 
 field_in=0.
 
@@ -228,13 +226,13 @@ enddo
 
 field_out=0.
 
-call atmosphere_scalar_field_halo(field_out,halo,isize,jsize,k_in,field_in)
+call atmosphere_scalar_field_halo(field_out,halo,isize,jsize,k_in,field_in,isc,iec,jsc,jec,npx,npy,domain_for_coupler)
 
 do j=1,nlat
  do i=1,nlon
     ih=i+halo
     jh=j+halo
-    field_smooth(i,j)=(2.0*field_out(ih,jh,1)+2.0*field_out(ih-1,jh,1)+ & 
+    field_smooth(i,j)=(2.0*field_out(ih,jh,1)+2.0*field_out(ih-1,jh,1)+ &
                        2.0*field_out(ih,jh-1,1)+2.0*field_out(ih+1,jh,1)+&
                        2.0*field_out(ih,jh+1,1)+2.0*field_out(ih-1,jh-1,1)+&
                        2.0*field_out(ih-1,jh+1,1)+2.0*field_out(ih+1,jh+1,1)+&
@@ -281,23 +279,23 @@ call mp_reduce_sum(csum)
 CAmean=psum/csum
 
 !std:
-CAstdv=0.                                                                                                                                                                                             
-sq_diff = 0.                                                                                                                                                                                          
-do j=1,nlat                                                                                                                                                                                           
- do i=1,nlon                                                                                                                                                                                          
-  sq_diff = sq_diff + (CA(i,j)-CAmean)**2.0                                                                                                                                                        
- enddo                                                                                                                                                                                                
-enddo                                                                                                                                                                                                 
+CAstdv=0.
+sq_diff = 0.
+do j=1,nlat
+ do i=1,nlon
+  sq_diff = sq_diff + (CA(i,j)-CAmean)**2.0
+ enddo
+enddo
 
-call mp_reduce_sum(sq_diff)                                                                                                                                                                           
+call mp_reduce_sum(sq_diff)
 
-CAstdv = sqrt(sq_diff/csum)                                                                                                                                                                 
+CAstdv = sqrt(sq_diff/csum)
 
 !Transform to mean of 1 and ca_amplitude standard deviation
 
 do j=1,nlat
  do i=1,nlon
-  CA(i,j)=1.0 + (CA(i,j)-CAmean)*(ca_amplitude/CAstdv)  
+  CA(i,j)=1.0 + (CA(i,j)-CAmean)*(ca_amplitude/CAstdv)
  enddo
 enddo
 
@@ -313,26 +311,26 @@ if(kstep < 1)then
 CA(:,:)=1.
 endif
 
-    if(nf==1)then                                                                                                                                                                                                                          
-    CA1(:,:)=CA(:,:)                                                                                                                                                                                                                       
-    elseif(nf==2)then                                                                                                                                                                                                                      
-    CA2(:,:)=CA(:,:)                                                                                                                                                                                                                       
-    else                                                                                                                                                                                                                                   
-    CA3(:,:)=CA(:,:)                                                                                                                                                                                                                       
-    endif  
+    if(nf==1)then
+    CA1(:,:)=CA(:,:)
+    elseif(nf==2)then
+    CA2(:,:)=CA(:,:)
+    else
+    CA3(:,:)=CA(:,:)
+    endif
 
 enddo !nf
-  
+
   do blk = 1, Atm_block%nblks
   do ix = 1,Atm_block%blksz(blk)
      i = Atm_block%index(blk)%ii(ix) - isc + 1
      j = Atm_block%index(blk)%jj(ix) - jsc + 1
-     Diag(blk)%ca1(ix)=CA1(i,j)
-     Diag(blk)%ca2(ix)=CA2(i,j)
-     Diag(blk)%ca3(ix)=CA3(i,j)
-     Coupling(blk)%ca1(ix)=CA1(i,j)
-     Coupling(blk)%ca2(ix)=CA2(i,j)
-     Coupling(blk)%ca3(ix)=CA3(i,j)
+     ca1_diag(blk,ix)=CA1(i,j)
+     ca2_diag(blk,ix)=CA2(i,j)
+     ca3_diag(blk,ix)=CA3(i,j)
+     ca1_cpl(blk,ix)=CA1(i,j)
+     ca2_cpl(blk,ix)=CA2(i,j)
+     ca3_cpl(blk,ix)=CA3(i,j)
   enddo
   enddo
 
@@ -350,3 +348,5 @@ enddo !nf
  deallocate(noise1D)
 
 end subroutine cellular_automata_global
+
+end module cellular_automata_global_mod

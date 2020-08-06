@@ -12,7 +12,7 @@
 cc
       use stochy_resol_def
       use spectral_layout_mod
-      use machine
+      use kinddef
       implicit none
 cc
       real(kind_dbl_prec)   epse(len_trie_ls)
