@@ -12,7 +12,7 @@
 !
 ! Jan 2013   Henry Juang  increase precision by kind_qdt_prec=16
 !                         to help wgt (Gaussian weighting)
-      use machine
+      use kinddef
       implicit none
       integer                  iter,k,k1,l2,lgghaf,iprint
 !
@@ -87,7 +87,7 @@
 !>@brief The subroutine 'poly' does something with latitudes
 !>@details This code is taken from the legacy spectral GFS
       subroutine poly(n,rad,p)
-      use machine
+      use kinddef
 !
       implicit none
 !

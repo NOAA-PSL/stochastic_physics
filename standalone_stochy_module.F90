@@ -1,6 +1,6 @@
 module  standalone_stochy_module
 
-use machine
+use kinddef
 implicit none
 public
 integer :: isc,jsc,iec,jec,isd,ied,jsd,jed

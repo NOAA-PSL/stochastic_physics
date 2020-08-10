@@ -1,7 +1,7 @@
 !>@brief The module 'get_stochy_pattern_mod' contains the subroutines to retrieve the random pattern in the cubed-sphere grid
 module get_stochy_pattern_mod
 !! the stochastic physics random pattern generators
- use machine, only : kind_dbl_prec, kind_evod
+ use kinddef, only : kind_dbl_prec, kind_evod
  use stochy_resol_def, only : latg, latg2, levs, lonf, skeblevs
  use spectral_layout_mod, only : ipt_lats_node_a, lat1s_a, lats_dim_a,      &
                                  lats_node_a, lon_dim_a, len_trie_ls,       &
@@ -15,12 +15,7 @@ module get_stochy_pattern_mod
  use stochy_patterngenerator_mod, only: random_pattern, ndimspec,           &
                                         patterngenerator_advance
  use stochy_internal_state_mod, only: stochy_internal_state
- use fv_mp_mod, only : mp_reduce_sum,is_master
-#ifdef STOCHY_UNIT_TEST
-use standalone_stochy_module,   only: GFS_control_type, GFS_grid_type
-# else
-use GFS_typedefs,       only: GFS_control_type, GFS_grid_type
-#endif
+ use mpi_wrapper, only : mp_reduce_sum,is_master
  use mersenne_twister, only: random_seed
  use dezouv_stochy_mod, only: dezouv_stochy
  use dozeuv_stochy_mod, only: dozeuv_stochy
@@ -38,17 +33,15 @@ use GFS_typedefs,       only: GFS_control_type, GFS_grid_type
 !>@brief The subroutine 'get_random_pattern_fv3' converts spherical harmonics to the gaussian grid then interpolates to the cubed-sphere grid
 !>@details This subroutine is for a 2-D (lat-lon) scalar field
 subroutine get_random_pattern_fv3(rpattern,npatterns,&
-           gis_stochy,Model,Grid,nblks,maxlen,pattern_2d)
+           gis_stochy,xlat,xlon,blksz,nblks,maxlen,pattern_2d)
 !\callgraph
 
 ! generate a random pattern for stochastic physics
  implicit none
  type(random_pattern), intent(inout)  :: rpattern(npatterns)
  type(stochy_internal_state)          :: gis_stochy
- type(GFS_control_type),   intent(in) :: Model
- type(GFS_grid_type),      intent(in) :: Grid(nblks)
- integer,intent(in)::   npatterns,nblks,maxlen
- real(kind=kind_dbl_prec), intent(out) :: pattern_2d(nblks,maxlen)
+ real(kind=kind_dbl_prec), intent(in) :: xlat(:,:),xlon(:,:)
+ integer,intent(in)                   :: npatterns,blksz(:),nblks,maxlen
 
  integer i,j,l,lat,ierr,n,nn,k,nt
  real(kind=kind_dbl_prec), dimension(lonf,gis_stochy%lats_node_a,1):: wrk2d
@@ -60,6 +53,7 @@ subroutine get_random_pattern_fv3(rpattern,npatterns,&
  real (kind=kind_dbl_prec)   glolal(lonf,gis_stochy%lats_node_a)
  integer kmsk0(lonf,gis_stochy%lats_node_a),len
  real(kind=kind_dbl_prec) :: globalvar,globalvar0
+ real(kind=kind_dbl_prec) :: pattern_2d(nblks,maxlen)
  real(kind=kind_dbl_prec) :: pattern_1d(maxlen)
  real(kind=kind_dbl_prec), allocatable, dimension(:,:) :: rslmsk
  integer :: blk
@@ -91,10 +85,10 @@ subroutine get_random_pattern_fv3(rpattern,npatterns,&
 ! interpolate to cube grid
    allocate(rslmsk(lonf,latg))
    do blk=1,nblks
-      len=size(Grid(blk)%xlat,1)
+      len=blksz(blk)
       pattern_1d = 0
-      associate( tlats=>Grid(blk)%xlat*rad2deg,&
-                 tlons=>Grid(blk)%xlon*rad2deg )
+      associate( tlats=>xlat(blk,:)*rad2deg,&
+                 tlons=>xlon(blk,:)*rad2deg )
          call stochy_la2ga(workg,lonf,latg,gg_lons,gg_lats,wlon,rnlat,&
                            pattern_1d(1:len),len,rslmsk,tlats,tlons)
       pattern_2d(blk,:)=pattern_1d(:)
@@ -109,16 +103,15 @@ end subroutine get_random_pattern_fv3
 !>@brief The subroutine 'get_random_pattern_fv3_sfc' converts spherical harmonics to the gaussian grid then interpolates to the cubed-sphere grid once
 !>@details This subroutine is for a 2-D (lat-lon) scalar field
 subroutine get_random_pattern_fv3_sfc(rpattern,npatterns,&
-           gis_stochy,Model,Grid,nblks,maxlen,do_advance_pattern,pattern_3d)
+           gis_stochy,xlat,xlon,blksz,nblks,maxlen,do_advance_patterns,pattern_3d)
 !\callgraph
 
 ! generate a random pattern for stochastic physics
  implicit none
  type(random_pattern), intent(inout) :: rpattern(npatterns)
  type(stochy_internal_state), target :: gis_stochy
- type(GFS_control_type),   intent(in) :: Model
- type(GFS_grid_type),      intent(in) :: Grid(nblks)
- integer,intent(in)::   npatterns,nblks,maxlen
+ real(kind=kind_dbl_prec), intent(in) :: xlat(:,:),xlon(:,:)
+ integer,intent(in)                   :: npatterns,blksz(:),nblks,maxlen
  logical, intent(in) :: do_advance_pattern
  real(kind=kind_dbl_prec), intent(out) :: pattern_3d(nblks,maxlen,n_var_lndp)
 
@@ -166,10 +159,10 @@ subroutine get_random_pattern_fv3_sfc(rpattern,npatterns,&
 
    allocate(rslmsk(lonf,latg))
    do blk=1,nblks
-      len=size(Grid(blk)%xlat,1)
+      len=blksz(blk)
       pattern_1d = 0
-      associate( tlats=>Grid(blk)%xlat*rad2deg,&
-                 tlons=>Grid(blk)%xlon*rad2deg )
+      associate( tlats=>xlat(blk,:)*rad2deg,&
+                 tlons=>xlon(blk,:)*rad2deg )
          call stochy_la2ga(workg,lonf,latg,gg_lons,gg_lats,wlon,rnlat,&
                            pattern_1d(1:len),len,rslmsk,tlats,tlons)
       pattern_3d(blk,:,k)=pattern_1d(:)
@@ -187,22 +180,23 @@ end subroutine get_random_pattern_fv3_sfc
 !>@brief The subroutine 'get_random_pattern_fv3_vect' converts spherical harmonics to a vector on gaussian grid then interpolates to the cubed-sphere grid 
 !>@details This subroutine is for a 2-D (lat-lon) vector field
 subroutine get_random_pattern_fv3_vect(rpattern,npatterns,&
-           gis_stochy,Model,Grid,nblks,maxlen,upattern_3d,vpattern_3d)
+           gis_stochy,levs,xlat,xlon,blksz,nblks,maxlen,upattern_3d,vpattern_3d)
 !\callgraph
 
 ! generate a random pattern for stochastic physics
  implicit none
- type(GFS_control_type),   intent(in) :: Model
- type(GFS_grid_type),      intent(in) :: Grid(nblks)
  type(stochy_internal_state), target :: gis_stochy
+ integer,              intent(in)    :: levs
  type(random_pattern), intent(inout) :: rpattern(npatterns)
  real(kind=kind_dbl_prec), intent(out)  :: upattern_3d(nblks,maxlen,levs)
  real(kind=kind_dbl_prec), intent(out) :: vpattern_3d(nblks,maxlen,levs)
 
  real(kind=kind_evod), dimension(len_trie_ls,2,1) ::  vrtspec_e,divspec_e
  real(kind=kind_evod), dimension(len_trio_ls,2,1) ::  vrtspec_o,divspec_o
- integer::   npatterns,nblks,blk,len,maxlen
+ real(kind=kind_dbl_prec), intent(in) :: xlat(:,:),xlon(:,:)
+ integer,intent(in)                   :: npatterns,blksz(:),nblks,maxlen
 
+ integer :: blk,len
  real(kind=kind_dbl_prec) :: pattern_1d(maxlen)
  real(kind=kind_dbl_prec), allocatable, dimension(:,:) :: rslmsk
  integer i,j,l,lat,ierr,n,nn,k,nt
@@ -252,10 +246,10 @@ subroutine get_random_pattern_fv3_vect(rpattern,npatterns,&
     call mp_reduce_sum(workgv,lonf,latg)
 ! interpolate to cube grid
     do blk=1,nblks
-       len=size(Grid(blk)%xlat,1)
+       len=blksz(blk)
        pattern_1d = 0
-          associate( tlats=>Grid(blk)%xlat*rad2deg,&
-                     tlons=>Grid(blk)%xlon*rad2deg )
+          associate( tlats=>xlat(blk,:)*rad2deg,&
+                     tlons=>xlon(blk,:)*rad2deg )
              call stochy_la2ga(workgu,lonf,latg,gg_lons,gg_lats,wlon,rnlat,&
                                pattern_1d(1:len),len,rslmsk,tlats,tlons)
        skebu_save(blk,:,k)=pattern_1d(:)
@@ -310,10 +304,10 @@ subroutine get_random_pattern_fv3_vect(rpattern,npatterns,&
  call mp_reduce_sum(workgv,lonf,latg)
 ! interpolate to cube grid
  do blk=1,nblks
-    len=size(Grid(blk)%xlat,1)
+    len=blksz(blk)
     pattern_1d = 0
-    associate( tlats=>Grid(blk)%xlat*rad2deg,&
-               tlons=>Grid(blk)%xlon*rad2deg )
+    associate( tlats=>xlat(blk,:)*rad2deg,&
+               tlons=>xlon(blk,:)*rad2deg )
        call stochy_la2ga(workgu,lonf,latg,gg_lons,gg_lats,wlon,rnlat,&
                          pattern_1d(1:len),len,rslmsk,tlats,tlons)
     skebu_save(blk,:,skeblevs)=pattern_1d(:)
@@ -326,7 +320,7 @@ subroutine get_random_pattern_fv3_vect(rpattern,npatterns,&
   deallocate(workgu)
   deallocate(workgv)
 ! interpolate in the vertical  ! consider moving to cubed sphere side,  more memory, but less interpolations
- do k=1,Model%levs
+ do k=1,levs
     do blk=1,nblks
        upattern_3d(blk,:,k) = skeb_vwts(k,1)*skebu_save(blk,:,skeb_vpts(k,1))+skeb_vwts(k,2)*skebu_save(blk,:,skeb_vpts(k,2))
        vpattern_3d(blk,:,k) = skeb_vwts(k,1)*skebv_save(blk,:,skeb_vpts(k,1))+skeb_vwts(k,2)*skebv_save(blk,:,skeb_vpts(k,2))

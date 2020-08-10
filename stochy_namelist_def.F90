@@ -6,7 +6,7 @@
 ! program log
 ! 11 Oct 2016:    Philip Pegion create standalone stochastic physics
 !
-      use machine
+      use kinddef
       implicit none
 
       public

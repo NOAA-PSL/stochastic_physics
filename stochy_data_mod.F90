@@ -9,7 +9,7 @@ module stochy_data_mod
  use stochy_namelist_def
  use constants_mod, only : radius
  use spectral_layout_mod, only : me, nodes
- use fv_mp_mod, only: mp_bcst, is_master
+ use mpi_wrapper, only: mp_bcst, is_master
  use stochy_patterngenerator_mod, only: random_pattern, patterngenerator_init,&
  getnoise, patterngenerator_advance,ndimspec,chgres_pattern,computevarspec_r
  use initialize_spectral_mod, only: initialize_spectral
