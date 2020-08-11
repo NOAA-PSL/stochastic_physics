@@ -10,7 +10,7 @@
       implicit none
 
       public
-      integer, parameter :: max_n_var_lndp = 6 ! is also set in GFS_typedefs
+      integer, parameter :: max_n_var_lndp = 6 ! must match value used in GFS_typedefs
       integer nssppt,nsshum,nsskeb,lon_s,lat_s,ntrunc
 
 ! pjp stochastic phyics

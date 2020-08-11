@@ -267,6 +267,13 @@ module compns_stochy_mod
                 lndp_prt_list( n_var_lndp) = lndp_prt_list(k) 
             endif
         enddo 
+        if (n_var_lndp > max_n_var_lndp) then 
+              print*, 'ERROR: land perturbation requested for too many parameters', & 
+                       'increase max_n_var_lndp'
+              iret = 10 
+              return
+        endif
+                
       
         if (lndp_type==1) then  
           if (me==0) print*, & 
@@ -290,7 +297,7 @@ module compns_stochy_mod
                    case('vgf','smc','stc') 
                        if (me==0) print*, 'land perturbation will be applied to ', lndp_var_list(k)
                    case default
-                      print*, 'ERROR: land perturbation requested for new parameter - will need to be coded in GFS_land_pert', lndp_var_list(k)
+                      print*, 'ERROR: land perturbation requested for new parameter - will need to be coded in lndp_apply_pert', lndp_var_list(k)
                       iret = 10 
                       return
                    end select 

@@ -103,7 +103,7 @@ end subroutine get_random_pattern_fv3
 !>@brief The subroutine 'get_random_pattern_fv3_sfc' converts spherical harmonics to the gaussian grid then interpolates to the cubed-sphere grid once
 !>@details This subroutine is for a 2-D (lat-lon) scalar field
 subroutine get_random_pattern_fv3_sfc(rpattern,npatterns,&
-           gis_stochy,xlat,xlon,blksz,nblks,maxlen,do_advance_patterns,pattern_3d)
+           gis_stochy,xlat,xlon,blksz,nblks,maxlen,pattern_3d)
 !\callgraph
 
 ! generate a random pattern for stochastic physics
@@ -112,7 +112,6 @@ subroutine get_random_pattern_fv3_sfc(rpattern,npatterns,&
  type(stochy_internal_state), target :: gis_stochy
  real(kind=kind_dbl_prec), intent(in) :: xlat(:,:),xlon(:,:)
  integer,intent(in)                   :: npatterns,blksz(:),nblks,maxlen
- logical, intent(in) :: do_advance_pattern
  real(kind=kind_dbl_prec), intent(out) :: pattern_3d(nblks,maxlen,n_var_lndp)
 
  integer i,j,l,lat,ierr,n,nn,k,nt
@@ -133,8 +132,8 @@ subroutine get_random_pattern_fv3_sfc(rpattern,npatterns,&
    kmsk0 = 0
    glolal = 0.
    do n=1,npatterns
-     if (do_advance_pattern)  call patterngenerator_advance(rpattern(n),k,.false.)
-     if (is_master()) print *, 'Random pattern for SFC-PERTS in get_random_pattern_fv3_sfc: k, min, max ',k,minval(rpattern_sfc(n)%spec_o(:,:,k)), maxval(rpattern_sfc(n)%spec_o(:,:,k))
+     call patterngenerator_advance(rpattern(n),k,.false.)
+     if (is_master()) print *, 'Random pattern for LNDP PERTS in get_random_pattern_fv3_sfc: k, min, max ',k,minval(rpattern_sfc(n)%spec_o(:,:,k)), maxval(rpattern_sfc(n)%spec_o(:,:,k))
      call scalarspect_to_gaugrid(                       &
          rpattern(n)%spec_e(:,:,k),rpattern(n)%spec_o(:,:,k),wrk2d,&
          gis_stochy%ls_node,gis_stochy%ls_nodes,gis_stochy%max_ls_nodes,&
@@ -153,7 +152,7 @@ subroutine get_random_pattern_fv3_sfc(rpattern,npatterns,&
    enddo
 
    call mp_reduce_sum(workg,lonf,latg)
-   if (is_master()) print *, 'workg after mp_reduce_sum for SFC-PERTS in get_random_pattern_fv3_sfc: k, min, max ',k,minval(workg), maxval(workg)
+   if (is_master()) print *, 'workg after mp_reduce_sum for LNDP PERTS in get_random_pattern_fv3_sfc: k, min, max ',k,minval(workg), maxval(workg)
 
 ! interpolate to cube grid
 
@@ -168,7 +167,7 @@ subroutine get_random_pattern_fv3_sfc(rpattern,npatterns,&
       pattern_3d(blk,:,k)=pattern_1d(:)
       end associate
    enddo
-   if (is_master()) print *, '3D pattern for SFC-PERTS in get_random_pattern_fv3_sfc: k, min, max ',k,minval(pattern_3d(:,:,k)), maxval(pattern_3d(:,:,k))
+   if (is_master()) print *, '3D pattern for LNDP PERTS in get_random_pattern_fv3_sfc: k, min, max ',k,minval(pattern_3d(:,:,k)), maxval(pattern_3d(:,:,k))
    deallocate(rslmsk)
    deallocate(workg)
 

@@ -47,7 +47,7 @@ real(kind=kind_dbl_prec), intent(in)    :: ak(:), bk(:)
 logical,                  intent(out)   :: use_zmtnblck_out
 integer,                  intent(out)   :: skeb_npass_out
 character(len=3), dimension(max_n_var_lndp),         intent(out) :: lndp_var_list_out
-real(kind=kind_dbl_prec), dimension(max_n_var_lndp), intent(out) :: lndp_var_list_out
+real(kind=kind_dbl_prec), dimension(max_n_var_lndp), intent(out) :: lndp_prt_list_out
 
 
 ! Local variables
@@ -220,7 +220,7 @@ end subroutine init_stochastic_physics
 !allocates and polulates the necessary arrays
 
 subroutine run_stochastic_physics(levs, kdt, phour, blksz, xlat, xlon, sppt_wts, shum_wts, skebu_wts,  & 
-                                  skebv_wts, lndp_wts,nthreads)
+                                  skebv_wts, sfc_wts,nthreads)
 
 !\callgraph
 !use stochy_internal_state_mod
@@ -246,7 +246,7 @@ real(kind=kind_dbl_prec), intent(inout) :: sppt_wts(:,:,:)
 real(kind=kind_dbl_prec), intent(inout) :: shum_wts(:,:,:)
 real(kind=kind_dbl_prec), intent(inout) :: skebu_wts(:,:,:)
 real(kind=kind_dbl_prec), intent(inout) :: skebv_wts(:,:,:)
-real(kind=kind_dbl_prec), intent(inout) :: lndp_wts(:,:,:)
+real(kind=kind_dbl_prec), intent(inout) :: sfc_wts(:,:,:)
 integer,                  intent(in)    :: nthreads
 
 real,allocatable :: tmp_wts(:,:),tmpu_wts(:,:,:),tmpv_wts(:,:,:), tmpl_wts(:,:,:)
@@ -265,71 +265,83 @@ ompthreads = nthreads
 nblks = size(blksz)
 maxlen = maxval(blksz(:))
 
-! check to see if it is time to write out random patterns
-if (fhstoch.GE. 0 .AND. MOD(phour,fhstoch) .EQ. 0) then
-   write(STRFH,FMT='(I6.6)') nint(phour)
-   sfile='stoch_out.F'//trim(STRFH)
-   call dump_patterns(sfile)
-endif
-allocate(tmp_wts(nblks,maxlen))
-allocate(tmpu_wts(nblks,maxlen,levs))
-allocate(tmpv_wts(nblks,maxlen,levs))
-if (do_sppt) then
-   if (mod(kdt,nssppt) == 1 .or. nssppt == 1) then
-      call get_random_pattern_fv3(rpattern_sppt,nsppt,gis_stochy,xlat,xlon,blksz,nblks,maxlen,tmp_wts)
-      DO blk=1,nblks
-         len=blksz(blk)
-         DO k=1,levs
-            sppt_wts(blk,1:len,k)=tmp_wts(blk,1:len)*vfact_sppt(k)
-         ENDDO
-         if (sppt_logit) sppt_wts(blk,:,:) = (2./(1.+exp(sppt_wts(blk,:,:))))-1.
-         sppt_wts(blk,:,:) = sppt_wts(blk,:,:)+1.0
-      ENDDO
-   endif
-endif
-if (do_shum) then
-   if (mod(kdt,nsshum) == 1 .or. nsshum == 1) then
-      call get_random_pattern_fv3(rpattern_shum,nshum,gis_stochy,xlat,xlon,blksz,nblks,maxlen,tmp_wts)
-      DO blk=1,nblks
-         len=blksz(blk)
-         DO k=1,levs
-            shum_wts(blk,1:len,k)=tmp_wts(blk,1:len)*vfact_shum(k)
-         ENDDO
-      ENDDO
-   endif
-endif
-if (do_skeb) then
-   if (mod(kdt,nsskeb) == 1 .or. nsskeb == 1) then
-      call get_random_pattern_fv3_vect(rpattern_skeb,nskeb,gis_stochy,levs,xlat,xlon,blksz,nblks,maxlen,tmpu_wts,tmpv_wts)
-      DO blk=1,nblks
-         len=blksz(blk)
-         DO k=1,levs
-            skebu_wts(blk,1:len,k)=tmpu_wts(blk,1:len,k)*vfact_skeb(k)
-            skebv_wts(blk,1:len,k)=tmpv_wts(blk,1:len,k)*vfact_skeb(k)
-         ENDDO
-      ENDDO
-   endif
-endif
-if (lndp_type .GT. 0) then
-    allocate(tmpl_wts(nblks,maxlen,n_var_lndp))
-    if (lndp_type==1) then  ! this scheme applies same pert every time step
-        do_advance_pattern=.false. 
-    else  ! this scheme evolves the patterns through time
-        do_advance_pattern=.true. 
+
+if ( (lndp_type==1) .and. (kdt==0) ) then ! old land pert scheme called once at start
+        write(0,*) 'calling get_random_pattern_fv3_sfc'  
+        allocate(tmpl_wts(nblks,maxlen,n_var_lndp))
+        call get_random_pattern_fv3_sfc(rpattern_sfc,nlndp,gis_stochy,xlat,xlon,blksz,nblks,maxlen,tmpl_wts)
+        DO blk=1,nblks
+           len=blksz(blk)
+           ! for perturbing vars or states, saved value is N(0,1)  and apply scaling later.
+           DO k=1,n_var_lndp
+               sfc_wts(blk,1:len,k) = tmpl_wts(blk,1:len,k)
+           ENDDO
+        ENDDO
+        deallocate(tmpl_wts)
+else 
+    ! check to see if it is time to write out random patterns
+    if (fhstoch.GE. 0 .AND. MOD(phour,fhstoch) .EQ. 0) then
+       write(STRFH,FMT='(I6.6)') nint(phour)
+       sfile='stoch_out.F'//trim(STRFH)
+       call dump_patterns(sfile)
     endif
-    call get_random_pattern_fv3_sfc(rpattern_sfc,nlndp,gis_stochy,xlat,xlon,blksz,nblks,maxlen,do_advance_pattern,tmpl_wts)
-    DO blk=1,nblks
-       len=blksz(blk)
-       ! for perturbing vars or states, saved value is N(0,1)  and apply scaling later.
-       DO k=1,n_var_lndp
-           lndp_wts(blk,1:len:,k) = tmpl_wts(blk,1:len,k)
-       ENDDO
-    ENDDO
-    deallocate(tmpl_wts)
-endif
-deallocate(tmp_wts)
-deallocate(tmpu_wts)
-deallocate(tmpv_wts)
+    allocate(tmp_wts(nblks,maxlen))
+    allocate(tmpu_wts(nblks,maxlen,levs))
+    allocate(tmpv_wts(nblks,maxlen,levs))
+    if (do_sppt) then
+       if (mod(kdt,nssppt) == 1 .or. nssppt == 1) then
+          call get_random_pattern_fv3(rpattern_sppt,nsppt,gis_stochy,xlat,xlon,blksz,nblks,maxlen,tmp_wts)
+          DO blk=1,nblks
+             len=blksz(blk)
+             DO k=1,levs
+                sppt_wts(blk,1:len,k)=tmp_wts(blk,1:len)*vfact_sppt(k)
+             ENDDO
+             if (sppt_logit) sppt_wts(blk,:,:) = (2./(1.+exp(sppt_wts(blk,:,:))))-1.
+             sppt_wts(blk,:,:) = sppt_wts(blk,:,:)+1.0
+          ENDDO
+       endif
+    endif
+    if (do_shum) then
+       if (mod(kdt,nsshum) == 1 .or. nsshum == 1) then
+          call get_random_pattern_fv3(rpattern_shum,nshum,gis_stochy,xlat,xlon,blksz,nblks,maxlen,tmp_wts)
+          DO blk=1,nblks
+             len=blksz(blk)
+             DO k=1,levs
+                shum_wts(blk,1:len,k)=tmp_wts(blk,1:len)*vfact_shum(k)
+             ENDDO
+          ENDDO
+       endif
+    endif
+    if (do_skeb) then
+       if (mod(kdt,nsskeb) == 1 .or. nsskeb == 1) then
+          call get_random_pattern_fv3_vect(rpattern_skeb,nskeb,gis_stochy,levs,xlat,xlon,blksz,nblks,maxlen,tmpu_wts,tmpv_wts)
+          DO blk=1,nblks
+             len=blksz(blk)
+             DO k=1,levs
+                skebu_wts(blk,1:len,k)=tmpu_wts(blk,1:len,k)*vfact_skeb(k)
+                skebv_wts(blk,1:len,k)=tmpv_wts(blk,1:len,k)*vfact_skeb(k)
+             ENDDO
+          ENDDO
+       endif
+    endif
+    if ( lndp_type .EQ. 2  ) then 
+        ! add time check?
+        allocate(tmpl_wts(nblks,maxlen,n_var_lndp))
+        call get_random_pattern_fv3_sfc(rpattern_sfc,nlndp,gis_stochy,xlat,xlon,blksz,nblks,maxlen,tmpl_wts)
+        DO blk=1,nblks
+           len=blksz(blk)
+           ! for perturbing vars or states, saved value is N(0,1)  and apply scaling later.
+           DO k=1,n_var_lndp
+               sfc_wts(blk,1:len,k) = tmpl_wts(blk,1:len,k)
+           ENDDO
+        ENDDO
+        deallocate(tmpl_wts)
+    endif
+    deallocate(tmp_wts)
+    deallocate(tmpu_wts)
+    deallocate(tmpv_wts)
+
+end if 
 
 end subroutine run_stochastic_physics
 

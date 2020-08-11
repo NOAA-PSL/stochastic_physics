@@ -302,7 +302,7 @@ if (nlndp > 0) then
        call patterngenerator_init(lndp_lscale(1:nlndp),delt,lndp_tau(1:nlndp),ones(1:nlndp),iseed_lndp,rpattern_sfc, &
               lonf,latg,jcap,gis_stochy%ls_node,nlndp,n_var_lndp,0,new_lscale)
        do n=1,nlndp
-          if (is_master()) print *, 'Initialize random pattern for SFC-PERTS'
+          if (is_master()) print *, 'Initialize random pattern for LNDP PERTS'
           do k=1,n_var_lndp
            nspinup = spinup_efolds*lndp_tau(n)/delt
           if (stochini) then
