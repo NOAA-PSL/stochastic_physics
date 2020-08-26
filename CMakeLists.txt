@@ -58,5 +58,4 @@ add_library(
 
 target_link_libraries(stochastic_physics sp::sp_d)
 target_link_libraries(stochastic_physics fms)
-target_link_libraries(stochastic_physics gfsphysics)
 

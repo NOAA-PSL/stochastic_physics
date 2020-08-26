@@ -18,10 +18,8 @@ module lndp_apply_perts_mod
 ! Note on location: requires access to namelist_soilveg
 
     subroutine lndp_apply_perts(blksz,lsm, lsoil,dtf, n_var_lndp, lndp_var_list, & 
-                lndp_prt_list, sfc_wts, xlon, xlat, stype, param_update_flag,  & 
+                lndp_prt_list, sfc_wts, xlon, xlat, stype, maxsmc,param_update_flag,  & 
                 smc, slc, stc, vfrac, ierr) 
-
-        use namelist_soilveg ! needed for maxsmc
 
         implicit none
 
@@ -37,6 +35,7 @@ module lndp_apply_perts_mod
         logical,                  intent(in) ::  param_update_flag    
                                         ! true =  parameters have been updated, apply perts
         real(kind=kind_dbl_prec),     intent(in) :: stype(:,:)
+        real(kind=kind_dbl_prec),     intent(in) :: maxsmc(:) 
 
         ! intent(inout) 
         real(kind=kind_dbl_prec),     intent(inout) :: smc(:,:,:)
