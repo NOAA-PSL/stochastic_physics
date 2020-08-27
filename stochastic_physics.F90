@@ -92,12 +92,12 @@ else if (do_skeb_in.neqv.do_skeb) then
                    & ' namelist settings do_skeb and skeb'
    iret = 20 
    return
-else if (lndp_type_in.neqv.lndp_type) then
+else if (lndp_type_in /= lndp_type) then
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
                    & ' namelist settings lndp_type in physics and nam_sfcperts'
    iret = 20 
    return
-else if (n_var_lndp_in .neqv. n_var_lndp) then
+else if (n_var_lndp_in /=  n_var_lndp) then
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
                    & ' namelist settings n_var_lndp in physics nml, and lndp_* in nam_sfcperts'
    iret = 20 
