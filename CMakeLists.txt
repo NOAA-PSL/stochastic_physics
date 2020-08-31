@@ -53,6 +53,7 @@ add_library(
     ./cellular_automata_global.F90
     ./cellular_automata_sgs.F90
     ./update_ca.F90
+    ./lndp_apply_perts.F90 
 )
 
 target_link_libraries(stochastic_physics sp::sp_d)

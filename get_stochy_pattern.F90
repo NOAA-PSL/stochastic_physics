@@ -6,11 +6,11 @@ module get_stochy_pattern_mod
  use spectral_layout_mod, only : ipt_lats_node_a, lat1s_a, lats_dim_a,      &
                                  lats_node_a, lon_dim_a, len_trie_ls,       &
                                  len_trio_ls, ls_dim, nodes, stochy_la2ga
- use stochy_namelist_def, only : nsfcpert, ntrunc, stochini
+ use stochy_namelist_def, only : n_var_lndp, ntrunc, stochini
  use stochy_data_mod, only : gg_lats, gg_lons, inttyp, nskeb, nshum, nsppt, &
                              rad2deg, rnlat, rpattern_sfc, rpattern_skeb,   &
                              rpattern_shum, rpattern_sppt, skebu_save,      &
-                             skebv_save, skeb_vwts, skeb_vpts, wlon
+                             skebv_save, skeb_vwts, skeb_vpts, wlon, nlndp
  use stochy_gg_def, only : coslat_a
  use stochy_patterngenerator_mod, only: random_pattern, ndimspec,           &
                                         patterngenerator_advance
@@ -25,7 +25,7 @@ module get_stochy_pattern_mod
  private
 
  public  get_random_pattern_fv3,get_random_pattern_fv3_vect
- public  get_random_pattern_sfc_fv3
+ public  get_random_pattern_fv3_sfc
  public  dump_patterns
  logical :: first_call=.true.
  contains
@@ -102,16 +102,17 @@ end subroutine get_random_pattern_fv3
 
 !>@brief The subroutine 'get_random_pattern_fv3_sfc' converts spherical harmonics to the gaussian grid then interpolates to the cubed-sphere grid once
 !>@details This subroutine is for a 2-D (lat-lon) scalar field
-subroutine get_random_pattern_sfc_fv3(rpattern,npatterns,&
+subroutine get_random_pattern_fv3_sfc(rpattern,npatterns,&
            gis_stochy,xlat,xlon,blksz,nblks,maxlen,pattern_3d)
 !\callgraph
 
 ! generate a random pattern for stochastic physics
  implicit none
- type(random_pattern), intent(inout)  :: rpattern(npatterns)
- type(stochy_internal_state), target  :: gis_stochy
+ type(random_pattern), intent(inout) :: rpattern(npatterns)
+ type(stochy_internal_state), target :: gis_stochy
  real(kind=kind_dbl_prec), intent(in) :: xlat(:,:),xlon(:,:)
  integer,intent(in)                   :: npatterns,blksz(:),nblks,maxlen
+ real(kind=kind_dbl_prec), intent(out) :: pattern_3d(nblks,maxlen,n_var_lndp)
 
  integer i,j,l,lat,ierr,n,nn,k,nt
  real(kind=kind_dbl_prec), dimension(lonf,gis_stochy%lats_node_a,1):: wrk2d
@@ -123,16 +124,16 @@ subroutine get_random_pattern_sfc_fv3(rpattern,npatterns,&
  real (kind=kind_dbl_prec)   glolal(lonf,gis_stochy%lats_node_a)
  integer kmsk0(lonf,gis_stochy%lats_node_a),len
  real(kind=kind_dbl_prec) :: globalvar,globalvar0
- real(kind=kind_dbl_prec) :: pattern_3d(nblks,maxlen,nsfcpert)
  real(kind=kind_dbl_prec) :: pattern_1d(maxlen)
  real(kind=kind_dbl_prec), allocatable, dimension(:,:) :: rslmsk
  integer :: blk
 
- do k=1,nsfcpert
+ do k=1,n_var_lndp
    kmsk0 = 0
    glolal = 0.
    do n=1,npatterns
-     if (is_master()) print *, 'Random pattern for SFC-PERTS in get_random_pattern_sfc_fv3: k, min, max ',k,minval(rpattern_sfc(n)%spec_o(:,:,k)), maxval(rpattern_sfc(n)%spec_o(:,:,k))
+     call patterngenerator_advance(rpattern(n),k,.false.)
+     if (is_master()) print *, 'Random pattern for LNDP PERTS in get_random_pattern_fv3_sfc: k, min, max ',k,minval(rpattern_sfc(n)%spec_o(:,:,k)), maxval(rpattern_sfc(n)%spec_o(:,:,k))
      call scalarspect_to_gaugrid(                       &
          rpattern(n)%spec_e(:,:,k),rpattern(n)%spec_o(:,:,k),wrk2d,&
          gis_stochy%ls_node,gis_stochy%ls_nodes,gis_stochy%max_ls_nodes,&
@@ -151,7 +152,7 @@ subroutine get_random_pattern_sfc_fv3(rpattern,npatterns,&
    enddo
 
    call mp_reduce_sum(workg,lonf,latg)
-   if (is_master()) print *, 'workg after mp_reduce_sum for SFC-PERTS in get_random_pattern_sfc_fv3: k, min, max ',k,minval(workg), maxval(workg)
+   if (is_master()) print *, 'workg after mp_reduce_sum for LNDP PERTS in get_random_pattern_fv3_sfc: k, min, max ',k,minval(workg), maxval(workg)
 
 ! interpolate to cube grid
 
@@ -166,13 +167,13 @@ subroutine get_random_pattern_sfc_fv3(rpattern,npatterns,&
       pattern_3d(blk,:,k)=pattern_1d(:)
       end associate
    enddo
-   if (is_master()) print *, '3D pattern for SFC-PERTS in get_random_pattern_sfc_fv3: k, min, max ',k,minval(pattern_3d(:,:,k)), maxval(pattern_3d(:,:,k))
+   if (is_master()) print *, '3D pattern for LNDP PERTS in get_random_pattern_fv3_sfc: k, min, max ',k,minval(pattern_3d(:,:,k)), maxval(pattern_3d(:,:,k))
    deallocate(rslmsk)
    deallocate(workg)
 
- enddo  ! loop over k, nsfcpert
+ enddo  ! loop over k, n_var_lndp
 
-end subroutine get_random_pattern_sfc_fv3
+end subroutine get_random_pattern_fv3_sfc
 
 
 !>@brief The subroutine 'get_random_pattern_fv3_vect' converts spherical harmonics to a vector on gaussian grid then interpolates to the cubed-sphere grid 
@@ -186,6 +187,8 @@ subroutine get_random_pattern_fv3_vect(rpattern,npatterns,&
  type(stochy_internal_state), target :: gis_stochy
  integer,              intent(in)    :: levs
  type(random_pattern), intent(inout) :: rpattern(npatterns)
+ real(kind=kind_dbl_prec), intent(out)  :: upattern_3d(nblks,maxlen,levs)
+ real(kind=kind_dbl_prec), intent(out) :: vpattern_3d(nblks,maxlen,levs)
 
  real(kind=kind_evod), dimension(len_trie_ls,2,1) ::  vrtspec_e,divspec_e
  real(kind=kind_evod), dimension(len_trio_ls,2,1) ::  vrtspec_o,divspec_o
@@ -193,8 +196,6 @@ subroutine get_random_pattern_fv3_vect(rpattern,npatterns,&
  integer,intent(in)                   :: npatterns,blksz(:),nblks,maxlen
 
  integer :: blk,len
- real(kind=kind_dbl_prec) :: upattern_3d(nblks,maxlen,levs)
- real(kind=kind_dbl_prec) :: vpattern_3d(nblks,maxlen,levs)
  real(kind=kind_dbl_prec) :: pattern_1d(maxlen)
  real(kind=kind_dbl_prec), allocatable, dimension(:,:) :: rslmsk
  integer i,j,l,lat,ierr,n,nn,k,nt
@@ -393,7 +394,7 @@ subroutine dump_patterns(sfile)
     integer :: stochlun,k,n
     stochlun=99
     if (is_master()) then
-       if (nsppt > 0 .OR. nshum > 0 .OR. nskeb > 0) then
+       if (nsppt > 0 .OR. nshum > 0 .OR. nskeb > 0 .OR. nlndp > 0 ) then
           OPEN(stochlun,file=sfile,form='unformatted')
           print*,'open ',sfile,' for output'
        endif
@@ -412,6 +413,13 @@ subroutine dump_patterns(sfile)
        do n=1,nskeb
        do k=1,skeblevs
           call write_pattern(rpattern_skeb(n),k,stochlun)
+       enddo
+       enddo
+    endif
+    if (nlndp > 0) then
+       do n=1,nlndp
+       do k=1,n_var_lndp
+          call write_pattern(rpattern_sfc(n),k,stochlun)
        enddo
        enddo
     endif

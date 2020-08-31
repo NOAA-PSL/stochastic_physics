@@ -39,7 +39,6 @@ integer,dimension(5) ::skeb_vfilt
 integer(8),dimension(5) ::iseed_sppt,iseed_shum,iseed_skeb
 logical stochini,sppt_logit,new_lscale
 logical use_zmtnblck
-logical sppt_land
 include 'mpif.h'
 include 'netcdf.inc'
 real :: ak(nlevs+1),bk(nlevs+1)
@@ -71,6 +70,7 @@ logical   :: write_this_tile
 integer  :: nargs,ntile_out,nlunit,pe,npes,stackmax=4000000
 character*80 :: fname
 character*1  :: ntile_out_str
+integer :: iret
 
 real(kind=4),allocatable,dimension(:,:) :: workg,tile_number
 real(kind=4),allocatable,dimension(:,:,:) :: workg3d
@@ -187,7 +187,8 @@ do i=1,ny
 enddo
 !setup GFS_coupling
 allocate(Coupling(nblks))
-call init_stochastic_physics(Model, Init_parm, ntasks, nthreads)
+call init_stochastic_physics(Model, Init_parm, ntasks, nthreads, iret)
+if (iret .ne. 0) print *, 'ERROR init_stochastic_physics call' ! Draper - need proper error trapping here
 call get_outfile(fname)
 write(strid,'(I1.1)') my_id+1
 if (ntile_out.EQ.0) write_this_tile=.true.

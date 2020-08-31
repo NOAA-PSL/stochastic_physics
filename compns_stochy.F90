@@ -61,8 +61,8 @@ module compns_stochy_mod
       skeb,skeb_tau,skeb_vdof,skeb_lscale,iseed_skeb,skeb_vfilt,skeb_diss_smooth, &
       skeb_sigtop1,skeb_sigtop2,skebnorm,sppt_sigtop1,sppt_sigtop2,&
       shum_sigefold,spptint,shumint,skebint,skeb_npass,use_zmtnblck,new_lscale
-      namelist /nam_sfcperts/nsfcpert,pertz0,pertshc,pertzt,pertlai, & ! mg, sfcperts
-      pertvegf,pertalb,iseed_sfc,sfc_tau,sfc_lscale,sppt_land
+      namelist /nam_sfcperts/lndp_type,lndp_var_list, lndp_prt_list, iseed_lndp, & 
+      lndp_tau,lndp_lscale 
 
       rerth  =6.3712e+6      ! radius of earth (m)
       tol=0.01  ! tolerance for calculations
@@ -75,27 +75,30 @@ module compns_stochy_mod
       sppt             = -999.  ! stochastic physics tendency amplitude
       shum             = -999.  ! stochastic boundary layer spf hum amp
       skeb             = -999.  ! stochastic KE backscatter amplitude
-      ! mg, sfcperts
-      pertz0           = -999.  ! momentum roughness length amplitude
-      pertshc          = -999.  ! soil hydraulic conductivity amp
-      pertzt           = -999.  ! mom/heat roughness length amplitude
-      pertlai          = -999.  ! leaf area index amplitude
-      pertvegf         = -999.  ! vegetation fraction amplitude
-      pertalb          = -999.  ! albedo perturbations amplitude
+      lndp_var_list  = 'XXX'
+      lndp_prt_list  = -999.
 ! logicals
       do_sppt = .false.
       use_zmtnblck = .false.
       new_lscale = .false.
       do_shum = .false.
       do_skeb = .false.
-      ! mg, sfcperts
-      do_sfcperts = .false.
-      sppt_land = .false.
-      nsfcpert = 0
-! for sfcperts random patterns
-      sfc_lscale  = -999.       ! length scales
-      sfc_tau     = -999.       ! time scales
-      iseed_sfc   = 0           ! random seeds (if 0 use system clock)
+! C. Draper July 2020.
+! input land pert variables: 
+! LNDP_TYPE = 0
+! no explicit land perturbations
+! LNDP_Type =  1 
+! this is the initial land sfc pert scheme, introduced and tested for impact on GEFS forecasts.
+! see https://journals.ametsoc.org/doi/full/10.1175/MWR-D-18-0057.1
+! perturbations are assigned once at the start of the forecast
+! LNDP_TYPE = 2
+! this is the newer land pert scheme, introduced and tested for impact on UFS/GDAS cycling stsyem
+! perturbations are assigned at each time step (for state variables), or each time parameters are updated 
+! and the perturbations evolve over time. 
+      lndp_type = 0 !
+      lndp_lscale  = -999.       ! length scales
+      lndp_tau     = -999.       ! time scales
+      iseed_lndp   = 0           ! random seeds (if 0 use system clock)
 ! for SKEB random patterns.
       skeb_vfilt       = 0
       skebint          = 0
@@ -209,11 +212,6 @@ module compns_stochy_mod
         iret=9
         return
       ENDIF
-! mg, sfcperts
-      IF (pertz0(1) > 0 .OR. pertshc(1) > 0 .OR. pertzt(1) > 0 .OR. &
-          pertlai(1) > 0 .OR. pertvegf(1) > 0 .OR. pertalb(1) > 0) THEN
-        do_sfcperts=.true.
-      ENDIF
 !calculate ntrunc if not supplied
      if (ntrunc .LT. 1) then  
         if (me==0) print*,'ntrunc not supplied, calculating'
@@ -224,6 +222,7 @@ module compns_stochy_mod
            if (shum(k).GT.0) l_min=min(shum_lscale(k),l_min)
            if (skeb(k).GT.0) l_min=min(skeb_lscale(k),l_min)
        enddo
+       if (lndp_type.GT.0) l_min=min(lndp_lscale(1),l_min)
        !ntrunc=1.5*circ/l_min
        ntrunc=circ/l_min
        if (me==0) print*,'ntrunc calculated from l_min',l_min,ntrunc
@@ -241,7 +240,76 @@ module compns_stochy_mod
         lon_s=lon_s*2
         if (me==0) print*,'gaussian grid not set, defining here',lon_s,lat_s
      endif
+
+! 
+! land perts  - parse nml input
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+     select case (lndp_type)
+     case (0) 
+        if (me==0) print*, & 
+           'no land perturbations selected'
+     case (1,2) 
+        ! count requested pert variables
+        n_var_lndp= 0
+        do k =1,size(lndp_var_list)
+            if  ( (lndp_var_list(k) .EQ. 'XXX') .or. (lndp_prt_list(k) .LE. 0.) ) then
+               cycle
+            else
+                n_var_lndp=n_var_lndp+1
+                lndp_var_list( n_var_lndp) = lndp_var_list(k)  ! for lndp_type==2: 
+                                                               ! for state variables, unit is pert per hour
+                                                               ! for parmaters, no time dimension in unit 
+                                                               ! since perturbations do not accumulate
+                                                               ! (i.e., global_cycle overwrites the paramaters 
+                                                               ! each time it's called, so any previous perturbations 
+                                                               ! are lost). 
+                lndp_prt_list( n_var_lndp) = lndp_prt_list(k) 
+            endif
+        enddo 
+        if (n_var_lndp > max_n_var_lndp) then 
+              print*, 'ERROR: land perturbation requested for too many parameters', & 
+                       'increase max_n_var_lndp'
+              iret = 10 
+              return
+        endif
+                
+      
+        if (lndp_type==1) then  
+          if (me==0) print*, & 
+            'lndp_type=1, land perturbations will be applied to selected paramaters, using older scheme designed for S2S fcst spread' 
+           !  sanity-check requested input
+           do k =1,n_var_lndp
+               select case (lndp_var_list(k))
+               case('rz0','rzt','shc','lai','vgf','alb') 
+                   if (me==0) print*, 'land perturbation will be applied to ', lndp_var_list(k)
+               case default
+                  print*, 'ERROR: land perturbation requested for unknown parameter', lndp_var_list(k)
+                  iret = 10 
+                  return
+               end select 
+           enddo
+        elseif(lndp_type==2) then
+            if (me==0) print*, & 
+            'land perturbations will be applied to selected paramaters, using newer scheme designed for DA ens spread'
+               do k =1,n_var_lndp
+                   select case (lndp_var_list(k))
+                   case('vgf','smc','stc') 
+                       if (me==0) print*, 'land perturbation will be applied to ', lndp_var_list(k)
+                   case default
+                      print*, 'ERROR: land perturbation requested for new parameter - will need to be coded in lndp_apply_pert', lndp_var_list(k)
+                      iret = 10 
+                      return
+                   end select 
+               enddo
+        endif
+
+     case default 
+        if (me==0) print*, & 
+         'lndp_type out of range, set to 0 (none), 1 (for fcst spread), 2 (for cycling DA spread)'
+         iret = 10 
+         return 
+     end select 
 !
 !  All checks are successful.
 !
@@ -250,7 +318,8 @@ module compns_stochy_mod
          print *, ' do_sppt : ', do_sppt
          print *, ' do_shum : ', do_shum
          print *, ' do_skeb : ', do_skeb
-         print *, ' do_sfcperts : ', do_sfcperts
+         print *, ' lndp_type : ', lndp_type
+         if (lndp_type .NE. 0) print *, ' n_var_lndp : ', n_var_lndp
       endif
       iret = 0
 !
