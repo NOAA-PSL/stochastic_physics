@@ -1,15 +1,20 @@
+!>@brief The module 'dodeuv_stochy_mod' contains the subroutine dezouv_stochy
+!
       module dozeuv_stochy_mod
 
       implicit none
 
       contains
 
+!>@brief The subroutine 'dezouv_stochy' caculates odd u and even v winds harmonics from the odd harmonics
+! of divergence and even harmonics of vorticty
+!>@details This code is taken from the legacy spectral GFS
       subroutine dozeuv_stochy(dod,zev,uod,vev,epsedn,epsodn,
      &                  snnp1ev,snnp1od,ls_node)
 cc
       use stochy_resol_def
       use spectral_layout_mod
-      use machine
+      use kinddef
       implicit none
 cc
       real(kind_dbl_prec)     dod(len_trio_ls,2)

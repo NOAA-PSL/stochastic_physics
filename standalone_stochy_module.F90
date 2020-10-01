@@ -1,6 +1,6 @@
 module  standalone_stochy_module
 
-use machine
+use kinddef
 implicit none
 public
 integer :: isc,jsc,iec,jec,isd,ied,jsd,jed
@@ -23,11 +23,12 @@ type GFS_control_type
    real(kind=kind_phys) :: phour           !< previous forecast hour
    real(kind=kind_phys) :: sppt_amp        !< amplitude of sppt (to go to cld scheme)
    integer              :: kdt             !< current forecast iteration
-   logical  :: do_sppt,do_shum,do_skeb,do_sfcperts,use_zmtnblck,do_rnda
-   integer  ::  skeb_npass,nsfcpert
+   logical  :: do_sppt,do_shum,do_skeb,use_zmtnblck,do_rnda
+   integer  ::  skeb_npass,n_var_lndp, lndp_type
    character(len=65) :: fn_nml                   !< namelist filename
    character(len=256),allocatable :: input_nml_file(:) !< character string containing full namelist
-   real(kind=kind_phys) ::  pertz0(5),pertzt(5),pertshc(5),pertlai(5),pertvegf(5),pertalb(5)
+    real(kind=kind_phys) ::  lndp_prt_list(6)  ! max_n_var_lndp, max_nlndp
+    character(len=3) ::  lndp_var_list(6)  ! max_n_var_lndp
  !---cellular automata control parameters
     integer              :: nca             !< number of independent cellular automata
     integer              :: nlives          !< cellular automata lifetime
@@ -85,7 +86,7 @@ type GFS_coupling_type
     real (kind=kind_phys), allocatable :: ca1   (:)  
     real (kind=kind_phys), allocatable :: ca2   (:)  
     real (kind=kind_phys), allocatable :: ca3   (:)  
-    integer              :: nsfcpert=6                             !< number of sfc perturbations
+    integer              :: n_var_lndp=0                  !< number of land sfc variables perturbations
 end type GFS_coupling_type
 end module standalone_stochy_module
 

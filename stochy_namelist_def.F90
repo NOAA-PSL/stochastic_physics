@@ -1,12 +1,16 @@
+!>@brief The module 'stochy_namelist_def' declares the variables to be read from the namelist
+! and are publicly available
+
       module stochy_namelist_def
 !
 ! program log
 ! 11 Oct 2016:    Philip Pegion create standalone stochastic physics
 !
-      use machine
+      use kinddef
       implicit none
 
       public
+      integer, parameter :: max_n_var_lndp = 6 ! must match value used in GFS_typedefs
       integer nssppt,nsshum,nsskeb,lon_s,lat_s,ntrunc
 
 ! pjp stochastic phyics
@@ -26,13 +30,11 @@
       logical use_zmtnblck
       logical do_shum,do_sppt,do_skeb
 
-! mg surface perturbations
-      real(kind=kind_dbl_prec), dimension(5) :: sfc_lscale,sfc_tau
-      real(kind=kind_dbl_prec), dimension(5) :: pertz0,pertshc,pertzt
-      real(kind=kind_dbl_prec), dimension(5) :: pertlai,pertvegf,pertalb
-      integer nsfcpert
-      integer(8),dimension(5) ::iseed_sfc
-      logical sppt_land
-      logical do_sfcperts
+      real(kind=kind_dbl_prec), dimension(5) :: lndp_lscale,lndp_tau
+      integer n_var_lndp
+      integer(8),dimension(5) ::iseed_lndp
+      integer lndp_type
+      character(len=3), dimension(max_n_var_lndp)         ::  lndp_var_list
+      real(kind=kind_dbl_prec), dimension(max_n_var_lndp) ::  lndp_prt_list
 
       end module stochy_namelist_def

@@ -1,3 +1,4 @@
+!>@brief The module 'four_to_grid_mod' contains the subroute four_to_grid
       module four_to_grid_mod
 
       use spectral_layout_mod, only: num_parthds_stochy => ompthreads
@@ -6,10 +7,12 @@
 
       contains
 
+!>@brief The subroutine 'epslon_stochy' calculate coeffients for use in spectral space
+!>@details This code is taken from the legacy spectral GFS
       subroutine four_to_grid(syn_gr_a_1,syn_gr_a_2,
      &                        lon_dim_coef,lon_dim_grid,lons_lat,lot)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      use machine
+      use kinddef
       implicit none
 !!
       real(kind=kind_dbl_prec)     syn_gr_a_1(lon_dim_coef,lot)
@@ -47,12 +50,14 @@
 
       if ( kind_dbl_prec == 8 ) then !------------------------------------
 #ifdef MKL
-!$omp parallel do shared(syn_gr_a_1,syn_gr_a_2,lons_lat)
+!$omp parallel do num_threads(num_threads)
+!$omp+shared(syn_gr_a_1,syn_gr_a_2,lons_lat)
 !$omp+shared(lon_dim_coef,lon_dim_grid)
 !$omp+shared(lot,num_threads,nvar_thread_max)
 !$omp+private(thread,nvar_1,nvar_2,lot_thread,plan)
 #else
-!$omp parallel do shared(syn_gr_a_1,syn_gr_a_2,lons_lat)
+!$omp parallel do num_threads(num_threads)
+!$omp+shared(syn_gr_a_1,syn_gr_a_2,lons_lat)
 !$omp+shared(lon_dim_coef,lon_dim_grid)
 !$omp+shared(lot,num_threads,nvar_thread_max)
 !$omp+shared(ibmsign,scale_ibm)
@@ -103,12 +108,14 @@
          enddo  ! fin thread loop ......................................
       else !------------------------------------------------------------
 #ifdef MKL
-!$omp parallel do shared(syn_gr_a_1,syn_gr_a_2,lons_lat)
+!$omp parallel do num_threads(num_threads)
+!$omp+shared(syn_gr_a_1,syn_gr_a_2,lons_lat)
 !$omp+shared(lon_dim_coef,lon_dim_grid)
 !$omp+shared(lot,num_threads,nvar_thread_max)
 !$omp+private(thread,nvar_1,nvar_2,lot_thread,plan)
 #else
-!$omp parallel do shared(syn_gr_a_1,syn_gr_a_2,lons_lat)
+!$omp parallel do num_threads(num_threads)
+!$omp+shared(syn_gr_a_1,syn_gr_a_2,lons_lat)
 !$omp+shared(lon_dim_coef,lon_dim_grid)
 !$omp+shared(lot,num_threads,nvar_thread_max)
 !$omp+shared(ibmsign,scale_ibm)
@@ -163,7 +170,7 @@
       subroutine grid_to_four(anl_gr_a_2,anl_gr_a_1,
      &                        lon_dim_grid,lon_dim_coef,lons_lat,lot)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      use machine
+      use kinddef
       implicit none
 !!
       real(kind=kind_dbl_prec)     anl_gr_a_2(lon_dim_grid,lot)
@@ -194,7 +201,8 @@
       nvar_thread_max=(lot+num_threads-1)/num_threads
 
       if ( kind_dbl_prec == 8 ) then !------------------------------------
-!$omp parallel do shared(anl_gr_a_1,anl_gr_a_2,lons_lat)
+!$omp parallel do num_threads(num_threads)
+!$omp+shared(anl_gr_a_1,anl_gr_a_2,lons_lat)
 !$omp+shared(lon_dim_coef,lon_dim_grid)
 !$omp+shared(lot,num_threads,nvar_thread_max)
 !$omp+shared(ibmsign,scale_ibm,rone)
@@ -228,7 +236,8 @@
             endif
          enddo  ! fin thread loop ......................................
       else !------------------------------------------------------------
-!$omp parallel do shared(anl_gr_a_1,anl_gr_a_2,lons_lat)
+!$omp parallel do num_threads(num_threads)
+!$omp+shared(anl_gr_a_1,anl_gr_a_2,lons_lat)
 !$omp+shared(lon_dim_coef,lon_dim_grid)
 !$omp+shared(lot,num_threads,nvar_thread_max)
 !$omp+shared(ibmsign,scale_ibm,rone)

@@ -1,9 +1,12 @@
+!>@brief The module 'pln2eo_a_stochy_mod' contains the subroutine pln2eo_a_stochy
       module pln2eo_a_stochy_mod
 
       implicit none
 
       contains
 
+!>@brief The subroutine 'pln2eo_a_stochy' calculates the assoicate legendre polynomials
+!>@details This code is taken from the legacy spectral GFS
       subroutine pln2eo_a_stochy(plnev_a,plnod_a,epse,epso,colrad_a,
      &                    ls_node,num_lat)
 !
@@ -12,7 +15,7 @@
 !
       use stochy_resol_def
       use spectral_layout_mod
-      use machine
+      use kinddef
       implicit none
 !
 ! define x number constant for real8 start

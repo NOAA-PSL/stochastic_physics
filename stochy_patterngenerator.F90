@@ -1,22 +1,30 @@
+!>@brief The module 'stochy_patterngenerator_mod' contains the derived type random_pattern
+!! which controls the characteristics of the random pattern
 module stochy_patterngenerator_mod
 
- ! generate random patterns with specified temporal and spatial auto-correlation
- ! in spherical harmonic space.
- use machine
+!> generate random patterns with specified temporal and spatial auto-correlation
+!! in spherical harmonic space.
+ use kinddef
  use spectral_layout_mod, only: len_trie_ls, len_trio_ls, ls_dim, ls_max_node
 ! use mersenne_twister_stochy, only: random_setseed,random_gauss,random_stat
  use mersenne_twister, only: random_setseed,random_gauss,random_stat
- use fv_mp_mod,only: is_master, mp_bcst
+ ! DH* replacing this with mpi_wrapper changes results - look for value of iseed?
+ use mpi_wrapper,only: is_master, mp_bcst
+ ! *DH
  implicit none
  private
 
  public :: computevarspec, setvarspect,&
   patterngenerator_init, patterngenerator_destroy, getnoise, &
-  patterngenerator_advance, random_pattern, ndimspec,&
+  patterngenerator_advance, ndimspec,&
   chgres_pattern,computevarspec_r
 
- type random_pattern
-    real(kind_dbl_prec), public :: lengthscale
+! -----------------------------------------------
+!>@brief Derived type 'random_pattern' contains the attrubites of a spefic random pattern
+!>@details A seperate instance of this type is needed for each pattern
+ type,public :: random_pattern                ! start type define
+! -----------------------------------------------
+    real(kind_dbl_prec), public :: lengthscale  ! length scale in m
     real(kind_dbl_prec), public :: tau
     real(kind_dbl_prec), public :: dt
     real(kind_dbl_prec), public :: phi
@@ -28,15 +36,21 @@ module stochy_patterngenerator_mod
     integer, public :: seed
     real(kind_dbl_prec), allocatable, dimension(:,:,:), public :: spec_e,spec_o
     type(random_stat), public :: rstate
- end type random_pattern
+! -----------------------------------------------------
+ end type random_pattern             ! end type define
+! -----------------------------------------------------
 
  integer :: nlons,nlats,ntrunc,ndimspec
 
  contains
-
+!>@brief The subroutine 'patterngenerator_init' sets up the spherical harmonics
+!
+!>@details It populates array defining the zonal and total wavenumbers, amplitude,
+!! temporaral and spatial correlations.
  subroutine patterngenerator_init(lscale, delt, tscale, stdev, iseed, rpattern,&
                                   nlon, nlat, jcap, ls_node, npatterns,&
                                   nlevs, varspect_opt,new_lscale)
+!\callgraph
    real(kind_dbl_prec), intent(in),dimension(npatterns) :: lscale,tscale,stdev
    real, intent(in) :: delt
    integer, intent(in) :: nlon,nlat,jcap,npatterns,varspect_opt
@@ -171,8 +185,10 @@ module stochy_patterngenerator_mod
  end subroutine patterngenerator_init
 
 
-
+!>@brief The subroutine 'patterngenerator_destroy' dellaocate arrays
+!>@details This is acutally never called
  subroutine patterngenerator_destroy(rpattern,npatterns)
+!\callgraph
    type(random_pattern), intent(inout) :: rpattern(npatterns)
    integer, intent(in) :: npatterns
    integer n
@@ -183,7 +199,11 @@ module stochy_patterngenerator_mod
    enddo
  end subroutine patterngenerator_destroy
 
+!>@brief The subroutine 'computevarspec' compute the globally integrated 
+!! variance from complex spectral coefficients
+!>@details this is necessary to ensure the proper global variance
  subroutine computevarspec(rpattern,dataspec,var)
+!\callgraph
     ! compute globally integrated variance from spectral coefficients
     complex(kind_evod), intent(in) :: dataspec(ndimspec)
     real(kind_evod), intent(out) ::  var
@@ -199,7 +219,11 @@ module stochy_patterngenerator_mod
     enddo
  end subroutine computevarspec
 
+!>@brief The subroutine 'computevarspec_r' compute the globally integrated 
+!! variance from real spectral coefficients
+!>@details this is necessary to ensure the proper global variance
  subroutine computevarspec_r(rpattern,dataspec,var)
+!\callgraph
     ! compute globally integrated variance from spectral coefficients
     real(kind_dbl_prec), intent(in) :: dataspec(2*ndimspec)
     real(kind_dbl_prec), intent(out) ::  var
@@ -215,7 +239,11 @@ module stochy_patterngenerator_mod
     enddo
  end subroutine computevarspec_r
 
+!>@brief The subroutine 'getnoise' scales spectral cofficients with
+!! white noise to the appropriate amplitude for speherical harmonincs
+!! variance from real spectral c
  subroutine getnoise(rpattern,noise_e,noise_o)
+!\callgraph
    real(kind_dbl_prec), intent(out) :: noise_e(len_trie_ls,2)
    real(kind_dbl_prec), intent(out) :: noise_o(len_trio_ls,2)
    ! generate white noise with unit variance in spectral space
@@ -249,7 +277,9 @@ module stochy_patterngenerator_mod
    enddo
  end subroutine getnoise
 
+!>@brief The subroutine 'patterngenerator_advance' advance 1st-order autoregressive process
  subroutine patterngenerator_advance(rpattern,k,skeb_first_call)
+!\callgraph
 
     ! advance 1st-order autoregressive process with
     ! specified autocorrelation (phi) and variance spectrum (spectrum)
@@ -282,7 +312,10 @@ module stochy_patterngenerator_mod
     enddo
  end subroutine patterngenerator_advance
 
+!>@brief The subroutine 'setvarspect' calculates the variance spectrum
+! from a specified decorrelation lengthscale
  subroutine setvarspect(rpattern,varspect_opt,new_lscale)
+!\callgraph
  ! define variance spectrum (isotropic covariance)
  ! normalized to unit global variance
   type(random_pattern), intent(inout) :: rpattern
@@ -332,8 +365,10 @@ module stochy_patterngenerator_mod
   rpattern%varspectrum1d = rpattern%varspectrum1d/var
 
  end subroutine setvarspect
-
+!>@brief The subroutine 'chgres_pattern' truncates the spherical harmonics if
+!! restarting from a higher-resolution pattern
  subroutine chgres_pattern(pattern2din,pattern2dout,ntruncin,ntruncout)
+!\callgraph
    real(kind_dbl_prec), intent(in) :: pattern2din((ntruncin+1)*(ntruncin+2))
    real(kind_dbl_prec), intent(out) :: pattern2dout((ntruncout+1)*(ntruncout+2))
    integer, intent(in) :: ntruncin,ntruncout

@@ -2,10 +2,7 @@ program  standalone_stochy_new
 
 use standalone_stochy_module
 
-use fv_mp_mod,           only: mp_start, domain_decomp
 use atmosphere_stub_mod, only: Atm,atmosphere_init_stub
-use fv_arrays_mod,       only: fv_atmos_type
-use fv_control_mod,      only: setup_pointers
 !use mpp_domains
 use mpp_mod,             only: mpp_set_current_pelist,mpp_get_current_pelist,mpp_init,mpp_pe,mpp_npes ,mpp_declare_pelist
 use mpp_domains_mod,     only: mpp_broadcast_domain,MPP_DOMAIN_TIME,mpp_domains_init ,mpp_domains_set_stack_size

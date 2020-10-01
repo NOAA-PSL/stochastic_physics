@@ -1,9 +1,11 @@
+!>@brief The module 'gozrineo_a_stochy_mod' contains the subroutine 'gozrineo_a_stochy'
       module gozrineo_a_stochy_mod
 
       implicit none
 
       contains
-
+!>@brief The subroutine 'gozrineo_a_stochy' calculates the deriviates of assoicate legendre polynomials
+!>@details This code is taken from the legacy spectral GFS
       subroutine gozrineo_a_stochy(plnev_a,plnod_a,
      &                      pddev_a,pddod_a,
      &                      plnew_a,plnow_a,
@@ -11,7 +13,7 @@
 cc
       use stochy_resol_def
       use spectral_layout_mod
-      use machine
+      use kinddef
       implicit none
 cc
       real(kind=kind_dbl_prec) plnev_a(len_trie_ls,latg2)
