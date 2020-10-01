@@ -86,7 +86,6 @@ contains
 !
       len_thread_m  = (len+ompthreads-1) / ompthreads
 !
-      #ifdef _OPENMP
       !$omp parallel do num_threads(ompthreads) default(none)               &
       !$omp private(i1_t,i2_t,len_thread,it,i,ii,i1,i2)                     &
       !$omp private(j,j1,j2,jq,ix,jy,nx,kxs,kxt,kmami)                      &
@@ -97,7 +96,6 @@ contains
       !$omp shared(outlon,outlat,wrk,iindx1,rinlon,jindx1,rinlat,ddx,ddy)   &
       !$omp shared(rlon,rlat,regin,gauout)                                  &
       !$omp shared(ompthreads,len_thread_m,len,iindx2,jindx2,rslmsk)
-      #endif
       do it=1,ompthreads ! start of threaded loop
         i1_t       = (it-1)*len_thread_m+1
         i2_t       = min(i1_t+len_thread_m-1,len)
@@ -284,9 +282,7 @@ contains
           endif
         enddo
       enddo ! end of threaded loop
-#ifdef _OPENMP
 !$omp end parallel do
-#endif
 !
       return
 !

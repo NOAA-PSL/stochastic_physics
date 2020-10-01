@@ -50,22 +50,18 @@
 
       if ( kind_dbl_prec == 8 ) then !------------------------------------
 #ifdef MKL
-#ifdef _OPENMP
 !$omp parallel do num_threads(num_threads)
 !$omp+shared(syn_gr_a_1,syn_gr_a_2,lons_lat)
 !$omp+shared(lon_dim_coef,lon_dim_grid)
 !$omp+shared(lot,num_threads,nvar_thread_max)
 !$omp+private(thread,nvar_1,nvar_2,lot_thread,plan)
-#endif
 #else
-#ifdef _OPENMP
 !$omp parallel do num_threads(num_threads)
 !$omp+shared(syn_gr_a_1,syn_gr_a_2,lons_lat)
 !$omp+shared(lon_dim_coef,lon_dim_grid)
 !$omp+shared(lot,num_threads,nvar_thread_max)
 !$omp+shared(ibmsign,scale_ibm)
 !$omp+private(thread,nvar_1,nvar_2,lot_thread,init,aux1crs)
-#endif
 #endif
          do thread=1,num_threads   ! start of thread loop ..............
            nvar_1=(thread-1)*nvar_thread_max + 1
@@ -112,22 +108,18 @@
          enddo  ! fin thread loop ......................................
       else !------------------------------------------------------------
 #ifdef MKL
-#ifdef _OPENMP
 !$omp parallel do num_threads(num_threads)
 !$omp+shared(syn_gr_a_1,syn_gr_a_2,lons_lat)
 !$omp+shared(lon_dim_coef,lon_dim_grid)
 !$omp+shared(lot,num_threads,nvar_thread_max)
 !$omp+private(thread,nvar_1,nvar_2,lot_thread,plan)
-#endif
 #else
-#ifdef _OPENMP
 !$omp parallel do num_threads(num_threads)
 !$omp+shared(syn_gr_a_1,syn_gr_a_2,lons_lat)
 !$omp+shared(lon_dim_coef,lon_dim_grid)
 !$omp+shared(lot,num_threads,nvar_thread_max)
 !$omp+shared(ibmsign,scale_ibm)
 !$omp+private(thread,nvar_1,nvar_2,lot_thread,init,aux1crs)
-#endif
 #endif
          do thread=1,num_threads   ! start of thread loop ..............
             nvar_1 = (thread-1)*nvar_thread_max + 1
@@ -209,14 +201,12 @@
       nvar_thread_max=(lot+num_threads-1)/num_threads
 
       if ( kind_dbl_prec == 8 ) then !------------------------------------
-#ifdef _OPENMP
 !$omp parallel do num_threads(num_threads)
 !$omp+shared(anl_gr_a_1,anl_gr_a_2,lons_lat)
 !$omp+shared(lon_dim_coef,lon_dim_grid)
 !$omp+shared(lot,num_threads,nvar_thread_max)
 !$omp+shared(ibmsign,scale_ibm,rone)
 !$omp+private(thread,nvar_1,nvar_2,lot_thread,init,aux1crs)
-#endif
 
          do thread=1,num_threads   ! start of thread loop ..............
             nvar_1 = (thread-1)*nvar_thread_max + 1
@@ -246,14 +236,12 @@
             endif
          enddo  ! fin thread loop ......................................
       else !------------------------------------------------------------
-#ifdef _OPENMP
 !$omp parallel do num_threads(num_threads)
 !$omp+shared(anl_gr_a_1,anl_gr_a_2,lons_lat)
 !$omp+shared(lon_dim_coef,lon_dim_grid)
 !$omp+shared(lot,num_threads,nvar_thread_max)
 !$omp+shared(ibmsign,scale_ibm,rone)
 !$omp+private(thread,nvar_1,nvar_2,lot_thread,init,aux1crs)
-#endif
 
          do thread=1,num_threads   ! start of thread loop ..............
             nvar_1 = (thread-1)*nvar_thread_max + 1

@@ -90,9 +90,6 @@ contains
 !! including the grid structures, memory, initial state (self-initialization or restart),
 !! and diagnostics.
  subroutine atmosphere_init_stub (Grid_box, area)
-#ifdef _OPENMP
-   use omp_lib
-#endif
    type(grid_box_type), intent(inout) :: Grid_box
    real*8, pointer, dimension(:,:), intent(inout) :: area
 !--- local variables ---
@@ -321,12 +318,10 @@ contains
       do n=1,ntimes
          nt = ntimes - n
 
-#ifdef _OPENMP
 !$OMP parallel do default(none) shared(km,q,is,ie,js,je,npx,npy, &
 !$OMP                                  nt,isd,jsd,gridstruct,bd, &
 !$OMP                                  cd) &
 !$OMP                          private(fx, fy)
-#endif
          do k=1,km
 
             if ( gridstruct%sw_corner ) then
@@ -425,11 +420,9 @@ contains
       do n=1,ntimes
          nt = ntimes !- n
 
-#ifdef _OPENMP
 !$OMP parallel do default(none) shared(km,is,ie,js,je,npx,npy, &
 !$OMP                                  q,nt,isd,jsd,gridstruct,bd) &
 !$OMP                          private(q2)
-#endif
          do k=1,km
 
             if ( gridstruct%sw_corner ) then
@@ -523,11 +516,9 @@ contains
       do n=1,ntimes
          nt = ntimes !- n
 
-#ifdef _OPENMP
 !$OMP parallel do default(none) shared(km,is,ie,js,je,npx,npy, &
 !$OMP                                  q,nt,isd,jsd,gridstruct,bd) &
 !$OMP                          private(q2)
-#endif
          do k=1,km
 
             if ( gridstruct%sw_corner ) then
@@ -730,11 +721,9 @@ end subroutine make_c_winds
      if (ic*jc .ne. size(data_p,1)) call mpp_error(FATAL, modname//' - incorrect sizes for incoming &
                                                   &variables data and data_p')
      data = 0.
-#ifdef _OPENMP
 !$OMP parallel do default (none) &
 !$OMP              shared (data, data_p, halo, ic, jc, ksize) &
 !$OMP             private (i, j, k)
-#endif
      do k = 1, ksize
        do j = 1, jc
          do i = 1, ic

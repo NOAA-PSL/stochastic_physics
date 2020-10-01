@@ -107,10 +107,8 @@
         lat1 = lat1s(l)
         if ( kind_dbl_prec == 8 ) then !------------------------------------
 
-#ifdef _OPENMP
 !$omp parallel do num_threads(num_threads)
 !$omp+private(thread,nvar_1,nvar_2,n2)
-#endif
           do thread=1,num_threads   ! start of thread loop ..............
             nvar_1 = (thread-1)*nvar_thread_max + 1
             nvar_2 = min(nvar_1+nvar_thread_max-1,nvars)
@@ -171,10 +169,8 @@
             endif
           enddo   ! end of thread loop ..................................
         else !------------------------------------------------------------
-#ifdef _OPENMP
 !$omp parallel do num_threads(num_threads)
 !$omp+private(thread,nvar_1,nvar_2)
-#endif
           do thread=1,num_threads   ! start of thread loop ..............
             nvar_1 = (thread-1)*nvar_thread_max + 1
             nvar_2 = min(nvar_1+nvar_thread_max-1,nvars)
@@ -190,10 +186,8 @@ ccxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
         do node = 1, nodes - 1
           ilat_list(node+1) = ilat_list(node) + lats_nodes(node)
         end do
-#ifdef _OPENMP
 !$omp parallel do num_threads(num_threads)
 !$omp+private(node,jj,ilat,lat,ipt_ls,nvar,kn,n2)
-#endif
         do node=1,nodes
           do jj=1,lats_nodes(node)
             ilat  = ilat_list(node) + jj
@@ -243,9 +237,7 @@ ccxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 !
 !
       n2 = nvars + nvars
-#ifdef _OPENMP
 !$omp parallel do num_threads(num_threads) private(node)
-#endif
       do node=1,nodes
          sendcounts(node) = kpts(node) * n2
          recvcounts(node) = kptr(node) * n2
@@ -257,10 +249,8 @@ ccxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
      &                 work1dr,recvcounts,sdispls)
       nullify(work1dr)
       nullify(work1ds)
-#ifdef _OPENMP
 !$omp parallel do num_threads(num_threads)
 !$omp+private(j,lat,lmax,nvar,lval,n2,lonl,nv)
-#endif
       do j=1,lats_node
          lat  = global_lats(ipt_lats_node-1+j)
          lonl = lons_lat(lat)
@@ -284,10 +274,8 @@ ccxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
       kptr = 0
 !     write(0,*)' kptr=',kptr(1)
 !!
-#ifdef _OPENMP
 !$omp parallel do num_threads(num_threads)
 !$omp+private(node,l,lval,j,lat,nvar,kn,n2)
-#endif
       do node=1,nodes
         do l=1,max_ls_nodes(node)
           lval = ls_nodes(l,node)+1
