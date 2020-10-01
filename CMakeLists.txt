@@ -1,16 +1,16 @@
 if(32BIT)
 remove_definitions(-DOVERLOAD_R4)
 remove_definitions(-DOVERLOAD_R8)
-message ("Force 64 bits in stochastic_physics")
-if(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
-    if(REPRO)
-        string (REPLACE "-i4 -real-size 32" "-i4 -real-size 64" CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS}")
-    else()
-        string (REPLACE "-i4 -real-size 32" "-i4 -real-size 64 -no-prec-div -no-prec-sqrt" CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS}")
-    endif()
-elseif(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
-    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fdefault-real-8")
-endif()
+  message ("Force 64 bits in stochastic_physics")
+  if(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
+      if(REPRO)
+          string (REPLACE "-i4 -real-size 32" "-i4 -real-size 64" CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS}")
+      else()
+          string (REPLACE "-i4 -real-size 32" "-i4 -real-size 64 -no-prec-div -no-prec-sqrt" CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS}")
+      endif()
+  elseif(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
+      set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fdefault-real-8")
+  endif()
 endif()
 
 add_library(
@@ -53,9 +53,12 @@ add_library(
     ./cellular_automata_global.F90
     ./cellular_automata_sgs.F90
     ./update_ca.F90
-    ./lndp_apply_perts.F90 
+    ./lndp_apply_perts.F90
 )
+add_dependencies(stochastic_physics fms)
 
-target_link_libraries(stochastic_physics sp::sp_d)
-target_link_libraries(stochastic_physics fms)
-
+target_link_libraries(stochastic_physics PUBLIC sp::sp_d)
+target_link_libraries(stochastic_physics PUBLIC fms)
+if(OpenMP_Fortran_FOUND)
+  target_link_libraries(stochastic_physics PUBLIC OpenMP::OpenMP_Fortran)
+endif()
