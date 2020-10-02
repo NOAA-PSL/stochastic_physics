@@ -1,6 +1,4 @@
 if(32BIT)
-remove_definitions(-DOVERLOAD_R4)
-remove_definitions(-DOVERLOAD_R8)
   message ("Force 64 bits in stochastic_physics")
   if(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
       if(REPRO)
@@ -56,6 +54,9 @@ add_library(
     ./lndp_apply_perts.F90
 )
 add_dependencies(stochastic_physics fms)
+
+list(APPEND _stoch_phys_defs_private INTERNAL_FILE_NML)
+target_compile_definitions(stochastic_physics PRIVATE "${_stoch_phys_defs_private}")
 
 target_link_libraries(stochastic_physics PUBLIC sp::sp_d)
 target_link_libraries(stochastic_physics PUBLIC fms)
