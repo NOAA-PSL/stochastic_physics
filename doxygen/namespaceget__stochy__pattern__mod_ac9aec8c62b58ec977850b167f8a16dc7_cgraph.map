@@ -1,0 +1,5 @@
+<map id="get_stochy_pattern_mod::get_random_pattern_fv3" name="get_stochy_pattern_mod::get_random_pattern_fv3">
+<area shape="rect" id="node2" href="$namespacestochy__patterngenerator__mod.html#abfd6e9a57a70f1312e3da1dd86335f02" title="The subroutine &#39;patterngenerator_advance&#39; advance 1st&#45;order autoregressive process. " alt="" coords="277,5,459,61"/>
+<area shape="rect" id="node4" href="$namespacespectral__layout__mod.html#a0efe59400e9d1410339e2e89af530461" title="The subroutine &#39;stochy_la2ga&#39; intepolates from the global gaussian grid to the cubed sphere points..." alt="" coords="291,85,445,126"/>
+<area shape="rect" id="node3" href="$namespacestochy__patterngenerator__mod.html#a4f54508f7fc3fc6d2b774eb2d63d7386" title="The subroutine &#39;getnoise&#39; scales spectral cofficients with white noise to the appropriate amplitude f..." alt="" coords="507,13,688,54"/>
+</map>

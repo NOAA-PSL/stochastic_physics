@@ -1,0 +1,6 @@
+<map id="cellular_automata_sgs_mod::cellular_automata_sgs" name="cellular_automata_sgs_mod::cellular_automata_sgs">
+<area shape="rect" id="node2" href="$namespaceupdate__ca.html#a10182e031dfc2f0ae9d5e7444c1fa9b5" title="update_ca::update_cells_sgs" alt="" coords="264,5,471,32"/>
+<area shape="rect" id="node4" href="$namespaceupdate__ca.html#a85d164e47c2b5e7e30001ef64dcf0082" title="update_ca::update_cells\l_global" alt="" coords="279,57,456,98"/>
+<area shape="rect" id="node5" href="$namespacempi__wrapper.html#a3365e2d16dd6c440a9415486b60d8029" title="mpi_wrapper::mpi_wrapper\l_initialize" alt="" coords="270,122,465,163"/>
+<area shape="rect" id="node3" href="$namespacehalo__exchange.html#abe31b5843389d83e2f057468af01057d" title="The subroutine &#39;atmosphere_scalar_field_halo&#39; is an API to return halo information of the current MPI..." alt="" coords="519,27,723,69"/>
+</map>

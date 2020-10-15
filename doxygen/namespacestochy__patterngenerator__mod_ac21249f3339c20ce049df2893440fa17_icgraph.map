@@ -1,0 +1,7 @@
+<map id="stochy_patterngenerator_mod::computevarspec" name="stochy_patterngenerator_mod::computevarspec">
+<area shape="rect" id="node2" href="$namespacestochy__patterngenerator__mod.html#a5421e9d3329958b5dcd4bd7020503a43" title="The subroutine &#39;setvarspect&#39; calculates the variance spectrum. " alt="" coords="235,5,416,47"/>
+<area shape="rect" id="node3" href="$namespacestochy__patterngenerator__mod.html#a5fb1c82becfb2c65a1bb22172e9b12ad" title="The subroutine &#39;patterngenerator_init&#39; sets up the spherical harmonics. " alt="" coords="464,5,667,47"/>
+<area shape="rect" id="node4" href="$namespacestochy__data__mod.html#adc8ae7c9c0b11307b6c4fdf96a7386f6" title="The subroutine &#39;init_stochdata&#39; determins which stochastic physics pattern genertors are needed..." alt="" coords="715,5,877,47"/>
+<area shape="rect" id="node5" href="$namespacestochastic__physics.html#a8bae44bb8f7986ec9adc4819c7c83b3f" title="The subroutine &#39;init_stochastic_physics&#39; initializes the stochastic pattern genertors. " alt="" coords="925,5,1100,47"/>
+<area shape="rect" id="node6" href="$standalone__stochy_8F90.html#aedf2669cd9a25822a2ef644f459cdbc0" title="standalone_stochy" alt="" coords="1148,13,1291,39"/>
+</map>

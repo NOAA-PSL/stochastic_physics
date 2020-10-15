@@ -1,0 +1,10 @@
+<map id="stochastic_physics::run_stochastic_physics" name="stochastic_physics::run_stochastic_physics">
+<area shape="rect" id="node2" href="$namespaceget__stochy__pattern__mod.html#ac9aec8c62b58ec977850b167f8a16dc7" title="The subroutine &#39;get_random_pattern_fv3&#39; converts spherical harmonics to the gaussian grid then interp..." alt="" coords="231,49,455,90"/>
+<area shape="rect" id="node6" href="$namespaceget__stochy__pattern__mod.html#a9abde87c2b4a953ce435d79c7f7e7368" title="The subroutine &#39;get_random_pattern_fv3_vect&#39; converts spherical harmonics to a vector on gaussian gri..." alt="" coords="243,113,442,169"/>
+<area shape="rect" id="node7" href="$namespaceget__stochy__pattern__mod.html#ae94fdb2eac1a5c32653b296cdd266b4f" title="The subroutine &#39;dump_patterns&#39; writes out the speherical harmonics to a file, controlled by FHSTOCH..." alt="" coords="261,193,425,234"/>
+<area shape="rect" id="node8" href="$namespaceget__stochy__pattern__mod.html#a708f53a697a2b14c31a4ea67b2840795" title="The subroutine &#39;get_random_pattern_fv3_sfc&#39; converts spherical harmonics to the gaussian grid then in..." alt="" coords="243,257,442,313"/>
+<area shape="rect" id="node9" href="$namespacempi__wrapper.html#aadfb11abe6d5ad7047ed610827785cd6" title="mpi_wrapper::is_master" alt="" coords="255,337,430,364"/>
+<area shape="rect" id="node3" href="$namespacestochy__patterngenerator__mod.html#abfd6e9a57a70f1312e3da1dd86335f02" title="The subroutine &#39;patterngenerator_advance&#39; advance 1st&#45;order autoregressive process. " alt="" coords="503,5,684,61"/>
+<area shape="rect" id="node5" href="$namespacespectral__layout__mod.html#a0efe59400e9d1410339e2e89af530461" title="The subroutine &#39;stochy_la2ga&#39; intepolates from the global gaussian grid to the cubed sphere points..." alt="" coords="516,85,671,126"/>
+<area shape="rect" id="node4" href="$namespacestochy__patterngenerator__mod.html#a4f54508f7fc3fc6d2b774eb2d63d7386" title="The subroutine &#39;getnoise&#39; scales spectral cofficients with white noise to the appropriate amplitude f..." alt="" coords="732,13,913,54"/>
+</map>

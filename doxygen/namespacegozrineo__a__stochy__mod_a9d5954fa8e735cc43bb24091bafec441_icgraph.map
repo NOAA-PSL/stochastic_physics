@@ -1,0 +1,7 @@
+<map id="gozrineo_a_stochy_mod::gozrineo_a_stochy" name="gozrineo_a_stochy_mod::gozrineo_a_stochy">
+<area shape="rect" id="node2" href="$namespacegetcon__spectral__mod.html#a03189ff7326dd29769e56904302d8b67" title="The subroutine &#39;getcon_spectral&#39; gets various constants for the spectral and related gaussian grid an..." alt="" coords="231,5,391,47"/>
+<area shape="rect" id="node3" href="$namespaceinitialize__spectral__mod.html#a5ac0d1208925f75cfb0a5b1b318bb8e9" title="The subroutine &#39;initialize_spectral&#39; initializes the. " alt="" coords="439,5,613,47"/>
+<area shape="rect" id="node4" href="$namespacestochy__data__mod.html#adc8ae7c9c0b11307b6c4fdf96a7386f6" title="The subroutine &#39;init_stochdata&#39; determins which stochastic physics pattern genertors are needed..." alt="" coords="661,5,824,47"/>
+<area shape="rect" id="node5" href="$namespacestochastic__physics.html#a8bae44bb8f7986ec9adc4819c7c83b3f" title="The subroutine &#39;init_stochastic_physics&#39; initializes the stochastic pattern genertors. " alt="" coords="872,5,1047,47"/>
+<area shape="rect" id="node6" href="$standalone__stochy_8F90.html#aedf2669cd9a25822a2ef644f459cdbc0" title="standalone_stochy" alt="" coords="1095,13,1237,39"/>
+</map>

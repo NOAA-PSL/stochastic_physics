@@ -1,0 +1,7 @@
+<map id="mpi_wrapper::is_master" name="mpi_wrapper::is_master">
+<area shape="rect" id="node2" href="$namespacestochastic__physics.html#a8bae44bb8f7986ec9adc4819c7c83b3f" title="The subroutine &#39;init_stochastic_physics&#39; initializes the stochastic pattern genertors. " alt="" coords="704,89,879,130"/>
+<area shape="rect" id="node4" href="$namespacestochastic__physics.html#a908cf314052768d97c84df45263d84cc" title="The subroutine &#39;run_stochastic_physics&#39; updates the random patterns if necessary. ..." alt="" coords="479,147,656,189"/>
+<area shape="rect" id="node5" href="$namespacestochy__data__mod.html#adc8ae7c9c0b11307b6c4fdf96a7386f6" title="The subroutine &#39;init_stochdata&#39; determins which stochastic physics pattern genertors are needed..." alt="" coords="486,30,649,71"/>
+<area shape="rect" id="node6" href="$namespacestochy__patterngenerator__mod.html#a5fb1c82becfb2c65a1bb22172e9b12ad" title="The subroutine &#39;patterngenerator_init&#39; sets up the spherical harmonics. " alt="" coords="228,30,431,71"/>
+<area shape="rect" id="node3" href="$standalone__stochy_8F90.html#aedf2669cd9a25822a2ef644f459cdbc0" title="standalone_stochy" alt="" coords="927,125,1069,152"/>
+</map>

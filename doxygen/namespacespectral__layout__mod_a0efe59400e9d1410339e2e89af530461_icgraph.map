@@ -1,0 +1,5 @@
+<map id="spectral_layout_mod::stochy_la2ga" name="spectral_layout_mod::stochy_la2ga">
+<area shape="rect" id="node2" href="$namespaceget__stochy__pattern__mod.html#ac9aec8c62b58ec977850b167f8a16dc7" title="The subroutine &#39;get_random_pattern_fv3&#39; converts spherical harmonics to the gaussian grid then interp..." alt="" coords="208,5,432,47"/>
+<area shape="rect" id="node3" href="$namespacestochastic__physics.html#a908cf314052768d97c84df45263d84cc" title="The subroutine &#39;run_stochastic_physics&#39; updates the random patterns if necessary. ..." alt="" coords="480,5,657,47"/>
+<area shape="rect" id="node4" href="$standalone__stochy_8F90.html#aedf2669cd9a25822a2ef644f459cdbc0" title="standalone_stochy" alt="" coords="705,13,848,39"/>
+</map>

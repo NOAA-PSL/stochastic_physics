@@ -1,0 +1,392 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html4" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Stochastic Physics Namelist &mdash; UFS stochastic physics public documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Developer’s guide" href="developers_guide.html" />
+    <link rel="prev" title="Users Guide" href="users_guide.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home" alt="Documentation Home"> UFS stochastic physics
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="users_guide.html">Users Guide</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Stochastic Physics Namelist</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#general-options">General options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#sppt-options">SPPT options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#shum-options">SHUM options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#skeb-options">SKEB options</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="developers_guide.html">Developer’s guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="references.html">References</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">UFS stochastic physics</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Stochastic Physics Namelist</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/namelist_options.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="stochastic-physics-namelist">
+<h1>Stochastic Physics Namelist<a class="headerlink" href="#stochastic-physics-namelist" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="general-options">
+<h2>General options<a class="headerlink" href="#general-options" title="Permalink to this headline">¶</a></h2>
+<table border="1" class="colwidths-given docutils">
+<colgroup>
+<col width="38%" />
+<col width="63%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Option</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>NTRUNC</td>
+<td>Optional, Spectral resolution (e.g. T126) of random patterns, default is for model to determine proper truncation</td>
+</tr>
+<tr class="row-odd"><td>LAT_S</td>
+<td>Optional, number of latitude points for the gaussian grid  (must be even), default is for model to determine gaussian grid</td>
+</tr>
+<tr class="row-even"><td>LON_S</td>
+<td>Optional, number of longitude points for the gaussian grid (recommend 2xLAT_S, default is for model to determine gaussian grid</td>
+</tr>
+<tr class="row-odd"><td>FHSTOCH</td>
+<td>Optional, forecast hour to write out random pattern in order to restart the pattern for a different forecast (used in DA), file is stoch_out.F&lt;HHH&gt;</td>
+</tr>
+<tr class="row-even"><td>STOCHINI</td>
+<td>Optional, set to true if wanting to read in a previous random pattern (input file needs to be named stoch_ini).</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="sppt-options">
+<h2>SPPT options<a class="headerlink" href="#sppt-options" title="Permalink to this headline">¶</a></h2>
+<table border="1" class="colwidths-given docutils">
+<colgroup>
+<col width="38%" />
+<col width="63%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Option</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>DO_SPPT</td>
+<td>logical to tell parent atmospheric model to use SPPT</td>
+</tr>
+<tr class="row-odd"><td>SPPT</td>
+<td>Amplitudes of random patterns (0.8,0.4,0.2,0.08,0.04) *</td>
+</tr>
+<tr class="row-even"><td>SPPT_TAU</td>
+<td>Decorrelation timescales in seconds (21600,1.728E5,6.912E5,7.776E6,3.1536E7) *</td>
+</tr>
+<tr class="row-odd"><td>SPPT_LSCALE</td>
+<td>Decorrelation spatial scales in meters  (250.E3,1000.E3,2000.E3,2000.E3,2000.E3) *</td>
+</tr>
+<tr class="row-even"><td>SPPT_LOGIT</td>
+<td>Should be true to limit the SPPT perturbations between 0 and 2.  Otherwise model will crash.</td>
+</tr>
+<tr class="row-odd"><td>ISEED_SPPT</td>
+<td>Seeds for setting the random number sequence (ignored if stochini is true)</td>
+</tr>
+<tr class="row-even"><td>SPPT_SIGTOP1</td>
+<td>lower sigma level to taper perturbations to zero (default is 0.1)</td>
+</tr>
+<tr class="row-odd"><td>SPPT_SIGTOP2</td>
+<td>upper sigma level to taper perturbations to zero (0.025)</td>
+</tr>
+<tr class="row-even"><td>SPPT_SFCLIMIT</td>
+<td>.T.=tapers the SPPT perturbations to zero at model’s lowest level (helps reduce model crashes)</td>
+</tr>
+<tr class="row-odd"><td>SPPTINT</td>
+<td>Optional, interval in seconds to update random pattern.  Perturbations still get applied every time-step</td>
+</tr>
+<tr class="row-even"><td>USE_ZMTNBLCK</td>
+<td>.T.=do not apply perturbations below the dividing streamline that is diagnosed by the gravity wave drag, mountain blocking scheme</td>
+</tr>
+</tbody>
+</table>
+<p><code class="docutils literal notranslate"><span class="pre">*</span></code>  <strong>SPPT</strong> uses 5 different patterns of varying time/length scales that are added together before being passed to physics</p>
+</div>
+<div class="section" id="shum-options">
+<h2>SHUM options<a class="headerlink" href="#shum-options" title="Permalink to this headline">¶</a></h2>
+<table border="1" class="colwidths-given docutils">
+<colgroup>
+<col width="29%" />
+<col width="71%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Option</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>DO_SHUM</td>
+<td>logical to tell parent atmospheric model to use SHUM</td>
+</tr>
+<tr class="row-odd"><td>SHUM</td>
+<td>Amplitudes of random patterns (0.004)</td>
+</tr>
+<tr class="row-even"><td>SHUM_TAU</td>
+<td>Decorrelation timescales in seconds (21600)</td>
+</tr>
+<tr class="row-odd"><td>SHUM_LSCALE</td>
+<td>ecorrelation spatial scales in meters (250000)</td>
+</tr>
+<tr class="row-even"><td>SHUM_SIGEFOLD</td>
+<td>e-folding lengthscale (in units of sigma) of specific humidity perturbations, default is 0.2)</td>
+</tr>
+<tr class="row-odd"><td>SHUMINT</td>
+<td>Optional, interval in seconds to update random pattern.  Perturbations still get applied every time-step</td>
+</tr>
+<tr class="row-even"><td>ISEED_SHUM</td>
+<td>Seeds for setting the random number sequence (ignored if stochini is true).</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="skeb-options">
+<h2>SKEB options<a class="headerlink" href="#skeb-options" title="Permalink to this headline">¶</a></h2>
+<table border="1" class="colwidths-given docutils">
+<colgroup>
+<col width="38%" />
+<col width="63%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Option</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>DO_SKEB</td>
+<td>logical to tell parent atmospheric model to use SKEB</td>
+</tr>
+<tr class="row-odd"><td>SKEB</td>
+<td>Amplitudes of random patterns (0.5)</td>
+</tr>
+<tr class="row-even"><td>SKEB_TAU</td>
+<td>Decorrelation timescales in seconds (21600)</td>
+</tr>
+<tr class="row-odd"><td>SKEB_LSCALE</td>
+<td>Decorrelation spatial scales in meters  (250)</td>
+</tr>
+<tr class="row-even"><td>ISEED_SKEB</td>
+<td>Seeds for setting the random number sequence (ignored if stochini is true).</td>
+</tr>
+<tr class="row-odd"><td>SKEBNORM</td>
+<td>0-random pattern is stream function, 1-pattern is K.E. norm, 2-pattern is vorticity (default is 0)</td>
+</tr>
+<tr class="row-even"><td>SKEB_VARSPECT_OPT</td>
+<td>0-gaussian (default), 1-power law (not tested)</td>
+</tr>
+<tr class="row-odd"><td>SKEB_NPASS</td>
+<td>number of passes of the del2 smoothing for the dissipation estimate (default is 11, minimum is 3)</td>
+</tr>
+<tr class="row-even"><td>SKEB_VDOF</td>
+<td>the number of degrees of freedom in the vertical for the SKEB random pattern (default is 5)</td>
+</tr>
+<tr class="row-odd"><td>SKEB_SIGTOP1</td>
+<td>lower sigma level to taper perturbations to zero (default is 0.1)</td>
+</tr>
+<tr class="row-even"><td>SKEB_SIGTOP2</td>
+<td>upper sigma level to taper perturbations to zero (0.025)</td>
+</tr>
+<tr class="row-odd"><td>SKEBINT</td>
+<td>Optional, interval in seconds to update random pattern.  Perturbations still get applied every time-step</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="developers_guide.html" class="btn btn-neutral float-right" title="Developer’s guide" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="users_guide.html" class="btn btn-neutral float-left" title="Users Guide" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2020,  The Regents of the University of Colorado
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

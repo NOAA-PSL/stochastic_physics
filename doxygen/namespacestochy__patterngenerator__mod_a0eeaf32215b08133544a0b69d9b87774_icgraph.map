@@ -1,0 +1,5 @@
+<map id="stochy_patterngenerator_mod::computevarspec_r" name="stochy_patterngenerator_mod::computevarspec_r">
+<area shape="rect" id="node2" href="$namespacestochy__data__mod.html#adc8ae7c9c0b11307b6c4fdf96a7386f6" title="The subroutine &#39;init_stochdata&#39; determins which stochastic physics pattern genertors are needed..." alt="" coords="239,5,401,47"/>
+<area shape="rect" id="node3" href="$namespacestochastic__physics.html#a8bae44bb8f7986ec9adc4819c7c83b3f" title="The subroutine &#39;init_stochastic_physics&#39; initializes the stochastic pattern genertors. " alt="" coords="449,5,624,47"/>
+<area shape="rect" id="node4" href="$standalone__stochy_8F90.html#aedf2669cd9a25822a2ef644f459cdbc0" title="standalone_stochy" alt="" coords="672,13,815,39"/>
+</map>
