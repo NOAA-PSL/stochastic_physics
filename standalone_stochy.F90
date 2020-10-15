@@ -1,12 +1,9 @@
 program  standalone_stochy
 
 use standalone_stochy_module
-use stochastic_physics, only : init_stochastic_physics,run_stochastic_physics
+use stochastic_physics,  only : init_stochastic_physics,run_stochastic_physics
 
-use fv_mp_mod,       only: mp_start, domain_decomp
 use atmosphere_stub_mod, only: Atm,atmosphere_init_stub
-use fv_arrays_mod,       only: fv_atmos_type
-use fv_control_stub_mod,      only: setup_pointers
 !use mpp_domains
 use mpp_mod,             only: mpp_set_current_pelist,mpp_get_current_pelist,mpp_init,mpp_pe,mpp_npes ,mpp_declare_pelist
 use mpp_domains_mod,     only: mpp_broadcast_domain,MPP_DOMAIN_TIME,mpp_domains_init ,mpp_domains_set_stack_size
@@ -42,7 +39,6 @@ integer,dimension(5) ::skeb_vfilt
 integer(8),dimension(5) ::iseed_sppt,iseed_shum,iseed_skeb
 logical stochini,sppt_logit,new_lscale
 logical use_zmtnblck
-logical sppt_land
 include 'mpif.h'
 include 'netcdf.inc'
 real :: ak(nlevs+1),bk(nlevs+1)
@@ -74,6 +70,7 @@ logical   :: write_this_tile
 integer  :: nargs,ntile_out,nlunit,pe,npes,stackmax=4000000
 character*80 :: fname
 character*1  :: ntile_out_str
+integer :: iret
 
 real(kind=4),allocatable,dimension(:,:) :: workg,tile_number
 real(kind=4),allocatable,dimension(:,:,:) :: workg3d
@@ -190,7 +187,8 @@ do i=1,ny
 enddo
 !setup GFS_coupling
 allocate(Coupling(nblks))
-call init_stochastic_physics(Model, Init_parm, ntasks, nthreads)
+call init_stochastic_physics(Model, Init_parm, ntasks, nthreads, iret)
+if (iret .ne. 0) print *, 'ERROR init_stochastic_physics call' ! Draper - need proper error trapping here
 call get_outfile(fname)
 write(strid,'(I1.1)') my_id+1
 if (ntile_out.EQ.0) write_this_tile=.true.

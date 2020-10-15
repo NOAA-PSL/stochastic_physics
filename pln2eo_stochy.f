@@ -15,7 +15,7 @@
 !
       use stochy_resol_def
       use spectral_layout_mod
-      use machine
+      use kinddef
       implicit none
 !
 ! define x number constant for real8 start

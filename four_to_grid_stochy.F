@@ -12,7 +12,7 @@
       subroutine four_to_grid(syn_gr_a_1,syn_gr_a_2,
      &                        lon_dim_coef,lon_dim_grid,lons_lat,lot)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      use machine
+      use kinddef
       implicit none
 !!
       real(kind=kind_dbl_prec)     syn_gr_a_1(lon_dim_coef,lot)
@@ -170,7 +170,7 @@
       subroutine grid_to_four(anl_gr_a_2,anl_gr_a_1,
      &                        lon_dim_grid,lon_dim_coef,lons_lat,lot)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      use machine
+      use kinddef
       implicit none
 !!
       real(kind=kind_dbl_prec)     anl_gr_a_2(lon_dim_grid,lot)

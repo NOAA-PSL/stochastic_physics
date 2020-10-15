@@ -33,6 +33,7 @@
       type,public::stochy_internal_state		! start type define
 ! -----------------------------------------------
 
+      ! DH* todo remove - is in spectral_layout?
       integer                   :: me, nodes
       integer                   :: lnt2_s, llgg_s
       integer                   :: lnt2

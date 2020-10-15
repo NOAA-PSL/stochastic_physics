@@ -17,13 +17,11 @@ endif
 
 LIBRARY  = libstochastic_physics.a
 
-FFLAGS   += -I../FV3/gfsphysics/ -I../FV3/atmos_cubed_sphere -I$(FMS_DIR) -I../FV3/namphysics
+FFLAGS   += -I../FV3/gfsphysics/ -I../FV3/atmos_cubed_sphere -I$(FMS_DIR)
 
 SRCS_F   =
 
 SRCS_f90 =  \
-                ./cellular_automata.f90                     \
-                ./update_ca.f90                             \
                 ./plumes.f90
 
 SRCS_f   =  \
@@ -45,6 +43,9 @@ SRCS_f   =  \
 		./dezouv_stochy.f
 
 SRCS_F90 = \
+		./kinddef.F90                               \
+		./mpi_wrapper.F90                           \
+		./halo_exchange.fv3.F90                     \
 		./spectral_layout.F90                       \
 		./getcon_spectral.F90                       \
 		./stochy_namelist_def.F90                   \
@@ -54,7 +55,11 @@ SRCS_F90 = \
 		./stochy_patterngenerator.F90               \
 		./stochy_data_mod.F90                       \
 		./get_stochy_pattern.F90                    \
-		./initialize_spectral_mod.F90
+		./initialize_spectral_mod.F90               \
+		./cellular_automata_global.F90              \
+		./cellular_automata_sgs.F90                 \
+		./update_ca.F90                             \
+                ./lndp_apply_perts.F90
 
 SRCS_c   =
 
@@ -81,8 +86,6 @@ clean:
 
 MKDEPENDS = ../FV3/mkDepends.pl
 include ../FV3/conf/make.rules
-
-include ./depend
 
 # do not include 'depend' file if the target contains string 'clean'
 ifneq (clean,$(findstring clean,$(MAKECMDGOALS)))

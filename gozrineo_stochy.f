@@ -13,7 +13,7 @@
 cc
       use stochy_resol_def
       use spectral_layout_mod
-      use machine
+      use kinddef
       implicit none
 cc
       real(kind=kind_dbl_prec) plnev_a(len_trie_ls,latg2)

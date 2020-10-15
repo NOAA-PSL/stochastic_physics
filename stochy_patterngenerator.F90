@@ -4,11 +4,13 @@ module stochy_patterngenerator_mod
 
 !> generate random patterns with specified temporal and spatial auto-correlation
 !! in spherical harmonic space.
- use machine
+ use kinddef
  use spectral_layout_mod, only: len_trie_ls, len_trio_ls, ls_dim, ls_max_node
 ! use mersenne_twister_stochy, only: random_setseed,random_gauss,random_stat
  use mersenne_twister, only: random_setseed,random_gauss,random_stat
- use fv_mp_mod,only: is_master, mp_bcst
+ ! DH* replacing this with mpi_wrapper changes results - look for value of iseed?
+ use mpi_wrapper,only: is_master, mp_bcst
+ ! *DH
  implicit none
  private
 

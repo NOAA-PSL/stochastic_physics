@@ -17,7 +17,7 @@
 !
 !!uses:
 !
-      use machine
+      use kinddef
       use spectral_layout_mod,      only : ipt_lats_node_a, lats_node_a_max,lon_dim_a,len_trie_ls,len_trio_ls &
                                       ,nodes,ls_max_node,lats_dim_a,ls_dim,lat1s_a
       use stochy_layout_lag, only : lat1s_h
@@ -25,12 +25,11 @@
       use spectral_layout_mod,only:lon_dims_a, num_parthds_stochy => ompthreads
       use stochy_resol_def
       use stochy_namelist_def
-      use fv_mp_mod, only : is_master
       use stochy_gg_def, only : wgt_a,sinlat_a,coslat_a,colrad_a,wgtcs_a,rcs2_a,lats_nodes_h,global_lats_h
       use getcon_spectral_mod, only: getcon_spectral
       use get_ls_node_stochy_mod, only: get_ls_node_stochy
       use getcon_lag_stochy_mod, only: getcon_lag_stochy
-      !use mpp_mod
+      !use mpi_wrapper, only : is_master
 #ifndef IBM
       USE omp_lib
 #endif
@@ -66,8 +65,6 @@
 !      print*,'before allocate lonsperlat,',&
 !                   allocated(gis_stochy%lonsperlat),'latg=',latg
 !
-!      gis_stochy%nodes=mpp_npes()
-!      print*,'mpp_npes=',mpp_npes()
       nodes  = gis_stochy%nodes
       npe_single_member = gis_stochy%npe_single_member
 
@@ -109,7 +106,6 @@
 
       inquire (file="lonsperlat.dat", exist=file_exists)
       if ( .not. file_exists ) then
-        !call mpp_error(FATAL,'Requested lonsperlat.dat  data file does not exist')
          gis_stochy%lonsperlat(:)=lonf
       else
         open (iunit,file='lonsperlat.dat',status='old',form='formatted',      &
