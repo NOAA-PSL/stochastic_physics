@@ -10,6 +10,7 @@ private
 
 public :: init_stochastic_physics
 public :: run_stochastic_physics
+public :: finalize_stochastic_physics
 
 contains
 
@@ -344,5 +345,71 @@ else
 end if 
 
 end subroutine run_stochastic_physics
+
+subroutine finalize_stochastic_physics()
+use stochy_data_mod, only : nshum,rpattern_shum,rpattern_sppt,nsppt,rpattern_skeb,nskeb,&
+                            vfact_sppt,vfact_shum,vfact_skeb, skeb_vwts,skeb_vpts, &
+                            rpattern_sfc, nlndp,gg_lats,gg_lons,sl,skebu_save,skebv_save,gis_stochy
+use stochy_gg_def, only : wgt_a,sinlat_a,coslat_a,colrad_a,wgtcs_a,rcs2_a,lats_nodes_h,global_lats_h
+use spectral_layout_mod, only : lat1s_a ,lon_dims_a
+use stochy_layout_lag, only : lat1s_h
+implicit none
+
+   deallocate (gg_lats,gg_lons,sl)
+   if (nsppt > 0) then 
+      deallocate(rpattern_sppt)
+      deallocate(vfact_sppt)
+   endif
+   if (nshum > 0) then
+      deallocate(rpattern_shum)
+      deallocate(vfact_shum)
+   endif
+   if (nskeb > 0) then
+      deallocate(rpattern_skeb)
+      deallocate (skeb_vwts,skeb_vpts)
+      deallocate (skebu_save,skebv_save)
+      deallocate(vfact_skeb)
+   endif
+   if (nlndp > 0) deallocate(rpattern_sfc)
+
+deallocate(lat1s_a)
+deallocate(lon_dims_a)
+deallocate(wgt_a)
+deallocate(wgtcs_a)
+deallocate(rcs2_a)
+deallocate(colrad_a)
+deallocate(sinlat_a)
+deallocate(coslat_a)
+deallocate(lat1s_h)
+deallocate(gis_stochy%lonsperlat)
+deallocate(gis_stochy%ls_node)
+deallocate(gis_stochy%ls_nodes)
+deallocate(gis_stochy%max_ls_nodes)
+deallocate(gis_stochy%lats_nodes_a_fix)
+deallocate(gis_stochy%lats_nodes_a)
+deallocate(gis_stochy%global_lats_a)
+deallocate(gis_stochy%lats_nodes_ext)
+deallocate(gis_stochy%TRIE_LS_SIZE)
+deallocate(gis_stochy%TRIO_LS_SIZE)
+deallocate(gis_stochy%TRIEO_LS_SIZE)
+deallocate(gis_stochy%LS_MAX_NODE_GLOBAL)
+deallocate(gis_stochy%LS_NODE_GLOBAL)
+deallocate(gis_stochy%epse)
+deallocate(gis_stochy%epso)
+deallocate(gis_stochy%epsedn)
+deallocate(gis_stochy%epsodn)
+deallocate(gis_stochy%kenorm_e)
+deallocate(gis_stochy%kenorm_o)
+deallocate(gis_stochy%snnp1ev)
+deallocate(gis_stochy%snnp1od)
+deallocate(gis_stochy%plnev_a)
+deallocate(gis_stochy%plnod_a)
+deallocate(gis_stochy%pddev_a)
+deallocate(gis_stochy%pddod_a)
+deallocate(gis_stochy%plnew_a)
+deallocate(gis_stochy%plnow_a)
+
+end subroutine finalize_stochastic_physics
+
 
 end module stochastic_physics
