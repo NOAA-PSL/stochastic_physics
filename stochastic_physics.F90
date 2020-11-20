@@ -355,22 +355,28 @@ use spectral_layout_mod, only : lat1s_a ,lon_dims_a
 use stochy_layout_lag, only : lat1s_h
 implicit none
 
-   deallocate (gg_lats,gg_lons,sl)
+   if (allocated(gg_lats)) deallocate (gg_lats)
+   if (allocated(gg_lons)) deallocate (gg_lons)
+   if (allocated(sl)) deallocate (sl)
    if (nsppt > 0) then 
-      deallocate(rpattern_sppt)
-      deallocate(vfact_sppt)
+      if (allocated(rpattern_sppt)) deallocate(rpattern_sppt)
+      if (allocated(vfact_sppt)) deallocate(vfact_sppt)
    endif
    if (nshum > 0) then
-      deallocate(rpattern_shum)
-      deallocate(vfact_shum)
+      if (allocated(rpattern_shum)) deallocate(rpattern_shum)
+      if (allocated(vfact_shum)) deallocate(vfact_shum)
    endif
    if (nskeb > 0) then
-      deallocate(rpattern_skeb)
-      deallocate (skeb_vwts,skeb_vpts)
-      deallocate (skebu_save,skebv_save)
-      deallocate(vfact_skeb)
+      if (allocated(rpattern_skeb)) deallocate(rpattern_skeb)
+      if (allocated(skeb_vwts)) deallocate (skeb_vwts)
+      if (allocated(skeb_vpts)) deallocate (skeb_vpts)
+      if (allocated(skebu_save)) deallocate (skebu_save)
+      if (allocated(skebv_save)) deallocate (skebv_save)
+      if (allocated(vfact_skeb)) deallocate(vfact_skeb)
    endif
-   if (nlndp > 0) deallocate(rpattern_sfc)
+   if (nlndp > 0) then
+      if (allocated(rpattern_sfc)) deallocate(rpattern_sfc)
+   endif
 
 deallocate(lat1s_a)
 deallocate(lon_dims_a)
