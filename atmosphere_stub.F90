@@ -87,12 +87,9 @@ contains
 
 
 !>@brief The subroutine 'atmosphere_init' is an API to initialize the FV3 dynamical core,
-!! including the grid structures, memory, initial state (self-initialization or restart), 
-!! and diagnostics.  
+!! including the grid structures, memory, initial state (self-initialization or restart),
+!! and diagnostics.
  subroutine atmosphere_init_stub (Grid_box, area)
-#ifdef OPENMP
-   use omp_lib
-#endif
    type(grid_box_type), intent(inout) :: Grid_box
    real*8, pointer, dimension(:,:), intent(inout) :: area
 !--- local variables ---
@@ -172,11 +169,11 @@ contains
 
                     call timing_off('ATMOS_INIT')
 
-      
+
  end subroutine atmosphere_init_stub
 
 ! subroutine atmosphere_smooth_noise (wnoise,npass,ns_type,renorm_type)
-!   
+!
 !   !--- interface variables ---
 !   real,intent(inout)     :: wnoise(isd:ied,jsd:jed,1)
 !   integer, intent(in) :: npass,ns_type,renorm_type
@@ -184,7 +181,7 @@ contains
 !   integer:: i,j,nloops,nlast
 !   real ::inflation(isc:iec,jsc:jec),inflation2
 !   ! scale factor for restoring inflation
-!   ! logic:  
+!   ! logic:
 !   ! if box mean: scalar get basic scaling, vector gets 1/grid dependent scaling  0-0 ; 0 - 1
 !   ! if box mean2: no scaling
 !   ! if del2   : scalar gets grid dependent scaling,vector get basic scaling  1  0; 1 1
@@ -202,14 +199,14 @@ contains
 !                 inflation(i,j)=inflation2*Atm(mytile)%gridstruct%dxAV/(0.5*(Atm(mytile)%gridstruct%dx(i,j)+Atm(mytile)%gridstruct%dy(i,j)))
 !              enddo
 !           enddo
-!        else  
+!        else
 !           if ( renorm_type.EQ.1) then  ! box smooth does not need scaling for scalar
 !               do j=jsc,jec
 !                  do i=isc,iec
 !                   inflation(i,j)=inflation2
 !                  enddo
 !               enddo
-!           else 
+!           else
 !              ! box mean needs inversize grid-size scaling for vector
 !              do j=jsc,jec
 !                 do i=isc,iec
@@ -221,7 +218,7 @@ contains
 !     endif
 !     nloops=npass/3
 !     nlast=mod(npass,3)
-!     do j=1,nloops 
+!     do j=1,nloops
 !        if (ns_type.EQ.1) then
 !           !call del2_cubed(wnoise , 0.25*Atm(mytile)%gridstruct%da_min, Atm(mytile)%gridstruct, &
 !           call del2_cubed(wnoise , 0.20*Atm(mytile)%gridstruct%da_min, Atm(mytile)%gridstruct, &
@@ -272,8 +269,8 @@ contains
 !    call make_c_winds(ua, va, psi,Atm(mytile)%ng,Atm(mytile)%gridstruct,Atm(mytile)%bd,Atm(mytile)%npx,Atm(mytile)%npy)
 !! populate wind perturbations right here
 !    do k=1,km
-!       Atm(mytile)%urandom_c(isc:iec+edge,jsc:jec     ,k)=ua*vwts(k) 
-!       Atm(mytile)%vrandom_c(isc:iec     ,jsc:jec+edge,k)=va*vwts(k) 
+!       Atm(mytile)%urandom_c(isc:iec+edge,jsc:jec     ,k)=ua*vwts(k)
+!       Atm(mytile)%vrandom_c(isc:iec     ,jsc:jec+edge,k)=va*vwts(k)
 !    enddo
 !    !call mpp_update_domains(Atm(mytile)%urandom_c, Atm(mytile)%domain, complete=.true.)
 !    !call mpp_update_domains(Atm(mytile)%vrandom_c, Atm(mytile)%domain, complete=.true.)
@@ -320,7 +317,7 @@ contains
 
       do n=1,ntimes
          nt = ntimes - n
-      
+
 !$OMP parallel do default(none) shared(km,q,is,ie,js,je,npx,npy, &
 !$OMP                                  nt,isd,jsd,gridstruct,bd, &
 !$OMP                                  cd) &
@@ -575,7 +572,7 @@ real, intent(inout) ::      va(bd%isc:bd%iec  ,bd%jsc:bd%jec )
 type(fv_grid_type), intent(IN), target :: gridstruct
 ! Local:
 real, dimension(bd%isd:bd%ied,bd%jsd:bd%jed) :: wk
-real, dimension(bd%isc:bd%iec,bd%jsc:bd%jec) :: u,v 
+real, dimension(bd%isc:bd%iec,bd%jsc:bd%jec) :: u,v
 integer i,j
 
 integer :: is,  ie,  js,  je
@@ -614,7 +611,7 @@ real, intent(inout) ::      vc(bd%isc:bd%iec   ,bd%jsc:bd%jec+1)
 type(fv_grid_type), intent(IN), target :: gridstruct
 ! Local:
 real, dimension(bd%isd:bd%ied,bd%jsd:bd%jed) :: wk
-real, dimension(bd%isc:bd%iec,bd%jsc:bd%jec) :: u,v 
+real, dimension(bd%isc:bd%iec,bd%jsc:bd%jec) :: u,v
 integer i,j
 
 integer :: is,  ie,  js,  je
@@ -637,8 +634,8 @@ enddo
 
 end subroutine make_c_winds
 
-!>@brief The subroutine 'atmospehre_resolution' is an API to return the local 
-!! extents of the current MPI-rank or the global extents of the current 
+!>@brief The subroutine 'atmospehre_resolution' is an API to return the local
+!! extents of the current MPI-rank or the global extents of the current
 !! cubed-sphere tile.
  subroutine atmosphere_resolution (i_size, j_size, global)
    integer, intent(out)          :: i_size, j_size
@@ -657,7 +654,7 @@ end subroutine make_c_winds
    end if
  end subroutine atmosphere_resolution
 !>@brief The subroutine 'atmosphere_domain' is an API to return
-!! the "domain2d" variable associated with the coupling grid and the 
+!! the "domain2d" variable associated with the coupling grid and the
 !! decomposition for the current cubed-sphere tile.
 !>@detail Coupling is done using the mass/temperature grid with no halos.
  subroutine atmosphere_domain ( fv_domain, layout, regional, nested, pelist )
@@ -683,10 +680,10 @@ end subroutine make_c_winds
  end subroutine set_atmosphere_pelist
 
 
-!>@brief The subroutine 'atmosphere_scalar_field_halo' is an API to return halo information 
+!>@brief The subroutine 'atmosphere_scalar_field_halo' is an API to return halo information
 !! of the current MPI_rank for an input scalar field.
 !>@detail Up to three point haloes can be returned by this API which includes special handling for
-!! the cubed-sphere tile corners. Output will be in (i,j,k) while input can be in (i,j,k) or 
+!! the cubed-sphere tile corners. Output will be in (i,j,k) while input can be in (i,j,k) or
 !! horizontally-packed form (ix,k).
  subroutine atmosphere_scalar_field_halo (data, halo, isize, jsize, ksize, data_p)
    !--------------------------------------------------------------------
@@ -697,7 +694,7 @@ end subroutine make_c_winds
    ! ied    - horizontal resolution in i-dir with haloes
    ! jed    - horizontal resolution in j-dir with haloes
    ! ksize  - vertical resolution
-   ! data_p - optional input field in packed format (ix,k)  
+   ! data_p - optional input field in packed format (ix,k)
    !--------------------------------------------------------------------
    !--- interface variables ---
    real*8, dimension(1:isize,1:jsize,ksize), intent(inout) :: data !< output array to return the field with halo (i,j,k)
@@ -745,7 +742,7 @@ end subroutine make_c_winds
      call mpp_error(FATAL, modname//' - unsupported halo size')
    endif
 
-   !--- fill the halo points when at a corner of the cubed-sphere tile 
+   !--- fill the halo points when at a corner of the cubed-sphere tile
    !--- interior domain corners are handled correctly
    if ( (isc==1) .or. (jsc==1) .or. (iec==npx-1) .or. (jec==npy-1) ) then
      do k = 1, ksize
