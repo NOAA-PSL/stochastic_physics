@@ -337,6 +337,7 @@ if (nlndp > 0) then
    if (is_master() .and. stochini) CLOSE(stochlun)
    deallocate(noise_e,noise_o)
  end subroutine init_stochdata
+
 !>@brief This subroutine 'read_pattern' will read in the spectral coeffients from a previous run (stored in stoch_ini,
 !!turned on by setting STOCHINI=.true.)
 !>@details Data read in are flat binary, so the number of stochastic physics patterns running must match previous run
