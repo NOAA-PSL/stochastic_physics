@@ -7,17 +7,16 @@
 
 !>@brief The subroutine 'get_ls_node_stochy' calculates the decomposition of the spherical harmonics based on the processor layout
       subroutine get_ls_node_stochy(me_fake,ls_node,ls_max_node_fake,
-!>@details This code is taken from the legacy spectral GFS
      c    iprint)
+!>@details This code is taken from the legacy spectral GFS
 !
-      use stochy_resol_def
       use spectral_layout_mod
       implicit none
 !
       integer   me_fake, ls_max_node_fake, iprint
       integer   ls_node(ls_dim)
 
-      integer   ijk, jptls, l, node, nodesio
+      integer   ijk, jptls, l, node, nodesio, jcap1
 !
 !jw      if (liope) then
 !jw         if (icolor.eq.2) then
@@ -32,6 +31,7 @@
 !jw      endif
 !!
       ls_node = -1
+      jcap1=jcap+1
 !
       jptls =  0
       l = 0

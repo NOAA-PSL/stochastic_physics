@@ -9,9 +9,8 @@
       subroutine gozrineo_a_stochy(plnev_a,plnod_a,
      &                      pddev_a,pddod_a,
      &                      plnew_a,plnow_a,
-     &                      epse,epso,rcs2_a,wgt_a,ls_node,num_lat)
+     &                      epse,epso,ls_node,num_lat)
 cc
-      use stochy_resol_def
       use spectral_layout_mod
       use kinddef
       implicit none
@@ -26,8 +25,6 @@ cc
       real(kind=kind_dbl_prec)    epse(len_trie_ls)
       real(kind=kind_dbl_prec)    epso(len_trio_ls)
 cc
-      real(kind=kind_dbl_prec) rcs2_a(latg2)
-      real(kind=kind_dbl_prec)  wgt_a(latg2)
 cc
       integer                  ls_node(ls_dim,3)
 cc

@@ -7,13 +7,12 @@
 
 !>@brief The subroutine 'pln2eo_a_stochy' calculates the assoicate legendre polynomials
 !>@details This code is taken from the legacy spectral GFS
-      subroutine pln2eo_a_stochy(plnev_a,plnod_a,epse,epso,colrad_a,
+      subroutine pln2eo_a_stochy(plnev_a,plnod_a,epse,epso,
      &                    ls_node,num_lat)
 !
 ! use x-number method to archieve accuracy due to recursive to avoid
 ! underflow and overflow if necessary by henry juang 2012 july
 !
-      use stochy_resol_def
       use spectral_layout_mod
       use kinddef
       implicit none
@@ -33,7 +32,6 @@ cc
       real(kind=kind_dbl_prec)    epse(len_trie_ls)
       real(kind=kind_dbl_prec)    epso(len_trio_ls)
 cc
-      real(kind=kind_dbl_prec) colrad_a(latg2)
 cc
       integer                  ls_node(ls_dim,3)
 cc
@@ -53,7 +51,7 @@ cc
       integer                  ialp10(0:jcap)
       real(kind=kind_dbl_prec) aa, bb, w
 
-      real(kind=kind_dbl_prec) a,alp1,alp2,alp3,b
+      real(kind=kind_dbl_prec) alp1,alp2,alp3
       real(kind=kind_dbl_prec) cos2,fl,prod,sinlat,coslat
 cc
       real(kind=kind_dbl_prec) alp10(0:jcap)

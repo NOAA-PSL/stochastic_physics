@@ -18,9 +18,9 @@ module lndp_apply_perts_mod
 ! Note on location: requires access to namelist_soilveg
 
     subroutine lndp_apply_perts(blksz,lsm, lsoil,dtf, n_var_lndp, lndp_var_list, & 
-                lndp_prt_list, sfc_wts, xlon, xlat, stype, maxsmc,param_update_flag,  & 
+                lndp_prt_list, sfc_wts, stype, maxsmc,param_update_flag,  & 
                 smc, slc, stc, vfrac, ierr) 
-
+        use stochy_data_mod, only : gis_stochy
         implicit none
 
         ! intent(in) 
@@ -30,8 +30,6 @@ module lndp_apply_perts_mod
         real(kind=kind_dbl_prec),     intent(in) :: lndp_prt_list(:)
         real(kind=kind_dbl_prec),     intent(in) :: dtf
         real(kind=kind_dbl_prec),     intent(in) :: sfc_wts(:,:,:)
-        real(kind=kind_dbl_prec),     intent(in) :: xlon(:,:) 
-        real(kind=kind_dbl_prec),     intent(in) :: xlat(:,:) 
         logical,                  intent(in) ::  param_update_flag    
                                         ! true =  parameters have been updated, apply perts
         real(kind=kind_dbl_prec),     intent(in) :: stype(:,:)
@@ -72,7 +70,7 @@ module lndp_apply_perts_mod
 
         nblks = size(blksz)
 
-        call  set_printing_nb_i(blksz,xlon,xlat,print_i,print_nb)
+        call  set_printing_nb_i(blksz,gis_stochy%parent_lons,gis_stochy%parent_lats,print_i,print_nb)
 
         do nb =1,nblks
            do i = 1, blksz(nb)

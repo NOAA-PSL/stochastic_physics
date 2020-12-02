@@ -20,27 +20,18 @@
 !!uses:
 !------
       use spectral_layout_mod
-      use stochy_gg_def
-      use stochy_resol_def
 
 
       implicit none
       private
 
 ! -----------------------------------------------
-!>@brief Derived type 'stochy_internal_state' contains all of the spherical harmonic and gaussian grid information
-!>@details This code is taken from the legacy spectral GFS
       type,public::stochy_internal_state		! start type define
 ! -----------------------------------------------
 
-      ! DH* todo remove - is in spectral_layout?
-      integer                   :: me, nodes
-      integer                   :: lnt2_s, llgg_s
-      integer                   :: lnt2
-      integer                   :: grib_inp
+      integer                   :: nodes
 
 !
-      integer nxpt,nypt,jintmx
       integer lonf,latg,lats_node_a_max
 
       integer npe_single_member
@@ -51,6 +42,7 @@
       character(32)        ,allocatable ::  filename_base(:)
       integer                           ::  ipt_lats_node_a
       integer                           ::  lats_node_a
+      integer                           ::  me
 !jwe
 
       integer                           ::  nblck,kdt
@@ -63,33 +55,31 @@
 
       integer              ,allocatable ::  lats_nodes_a   (:)
       integer              ,allocatable ::  global_lats_a  (:)
-      integer              ,allocatable ::  lats_nodes_ext (:)
-      integer              ,allocatable ::  global_lats_ext(:)
       integer              ,allocatable ::  global_lats_h  (:)
       integer                           :: xhalo,yhalo
 
       integer              ,allocatable ::  lats_nodes_a_fix (:)
 
-      real(kind=kind_dbl_prec) ,allocatable ::        epse  (:)
-      real(kind=kind_dbl_prec) ,allocatable ::        epso  (:)
-      real(kind=kind_dbl_prec) ,allocatable ::        epsedn(:)
-      real(kind=kind_dbl_prec) ,allocatable ::        epsodn(:)
-      real(kind=kind_dbl_prec) ,allocatable ::        kenorm_e(:)
-      real(kind=kind_dbl_prec) ,allocatable ::        kenorm_o(:)
+      real,allocatable ::        epse  (:)
+      real,allocatable ::        epso  (:)
+      real,allocatable ::        epsedn(:)
+      real,allocatable ::        epsodn(:)
+      real,allocatable ::        kenorm_e(:)
+      real,allocatable ::        kenorm_o(:)
 
-      real(kind=kind_dbl_prec) ,allocatable ::       snnp1ev(:)
-      real(kind=kind_dbl_prec) ,allocatable ::       snnp1od(:)
+      real,allocatable ::       snnp1ev(:)
+      real,allocatable ::       snnp1od(:)
 
-      real(kind=kind_dbl_prec) ,allocatable ::       plnev_a(:,:)
-      real(kind=kind_dbl_prec) ,allocatable ::       plnod_a(:,:)
-      real(kind=kind_dbl_prec) ,allocatable ::       pddev_a(:,:)
-      real(kind=kind_dbl_prec) ,allocatable ::       pddod_a(:,:)
-      real(kind=kind_dbl_prec) ,allocatable ::       plnew_a(:,:)
-      real(kind=kind_dbl_prec) ,allocatable ::       plnow_a(:,:)
+      real,allocatable ::       plnev_a(:,:)
+      real,allocatable ::       plnod_a(:,:)
+      real,allocatable ::       pddev_a(:,:)
+      real,allocatable ::       pddod_a(:,:)
+      real,allocatable ::       plnew_a(:,:)
+      real,allocatable ::       plnow_a(:,:)
 
 
-      real(kind=kind_dbl_prec) ,allocatable ::       trie_ls(:,:,:)
-      real(kind=kind_dbl_prec) ,allocatable ::       trio_ls(:,:,:)
+      real,allocatable ::       trie_ls(:,:,:)
+      real,allocatable ::       trio_ls(:,:,:)
 
       INTEGER                               :: TRIEO_TOTAL_SIZE
       INTEGER, ALLOCATABLE, DIMENSION(:)    :: TRIE_LS_SIZE
@@ -102,28 +92,21 @@
 !
 
 !!
-      integer              init,jcount,jpt,node,ibmsign,lon_dim,ilat
+      integer              init,jpt,node,ibmsign,lon_dim
 
-      real(kind=kind_dbl_prec) colat1, rone, rlons_lat, scale_ibm
+      integer              lotls
 
-      integer              lotls,lotgr,lots,lots_slg,lotd,lota,lotp
+!      integer              jdt,ksout,maxstp
+!      integer              mdt,idt
+!      integer              mods,n1,n2,ndgf,ndgi,nfiles,nflps
+      integer              nlunit
 
-      integer              ibrad,ifges,ihour,ini,j,jdt,ksout,maxstp
-      integer              mdt,idt,timetot,timer,time0
-      integer              mods,n1,n2,ndgf,ndgi,nfiles,nflps
-      integer              n1hyb, n2hyb,nlunit
-      integer              nges,ngpken,niter,nnmod,nradf,nradr
-      integer              nsfcf,nsfci,nsfcs,nsigi,nsigs,nstep
-      integer              nznlf,nznli,nznls,id,iret,nsout,ndfi
-
-      integer              ierr,iprint,k,l,locl,n
+      integer              iret,ierr,iprint,k,l,locl,n
       integer              lan,lat
-      integer              spectral_loop
+      integer              nx,ny,nz
+      integer, allocatable :: len(:)
+      real, allocatable :: parent_lons(:,:),parent_lats(:,:)
 
-
-      integer ikey,nrank_all,kcolor
-
-      real(kind=kind_dbl_prec) cons0p5,cons1200,cons3600,cons0
 
 !
 ! -----------------------------------------------------

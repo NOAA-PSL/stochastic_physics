@@ -22,7 +22,6 @@ add_library(
     ./plumes.f90
 
     ./stochy_gg_def.f
-    ./stochy_resol_def.f
     ./stochy_layout_lag.f
     ./four_to_grid_stochy.F
     ./glats_stochy.f

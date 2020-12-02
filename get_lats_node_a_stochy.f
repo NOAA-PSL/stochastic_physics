@@ -10,7 +10,6 @@
      &          lats_nodes_a_fake,gl_lats_index,
      &          global_time_sort_index,iprint)
 cc
-      use stochy_resol_def
       use spectral_layout_mod
       implicit none
 cc

@@ -4,8 +4,8 @@ module stochy_data_mod
 
 ! set up and initialize stochastic random patterns.
 
- use spectral_layout_mod, only: len_trie_ls,len_trio_ls,ls_dim,ls_max_node
- use stochy_resol_def, only : skeblevs,levs,jcap,lonf,latg
+ use spectral_layout_mod, only: len_trie_ls,len_trio_ls,ls_dim,ls_max_node,&
+                              skeblevs,levs,jcap,lonf,latg
  use stochy_namelist_def
  use constants_mod, only : radius
  use spectral_layout_mod, only : me, nodes
@@ -20,10 +20,12 @@ module stochy_data_mod
 
  implicit none
  private
- public :: init_stochdata
+ public :: init_stochdata,init_stochdata_ocn
 
  type(random_pattern), public, save, allocatable, dimension(:) :: &
-       rpattern_sppt,rpattern_shum,rpattern_skeb, rpattern_sfc
+       rpattern_sppt,rpattern_shum,rpattern_skeb, rpattern_sfc,rpattern_epbl1,rpattern_epbl2,rpattern_ocnsppt
+ integer, public :: nepbl=0
+ integer, public :: nocnsppt=0
  integer, public :: nsppt=0
  integer, public :: nshum=0
  integer, public :: nskeb=0
@@ -36,7 +38,7 @@ module stochy_data_mod
  real(kind=kind_dbl_prec),public :: wlon,rnlat,rad2deg
  real(kind=kind_dbl_prec),public, allocatable :: skebu_save(:,:,:),skebv_save(:,:,:)
  integer,public :: INTTYP
- type(stochy_internal_state),public :: gis_stochy
+ type(stochy_internal_state),public :: gis_stochy,gis_stochy_ocn
 
  contains
 !>@brief The subroutine 'init_stochdata' determins which stochastic physics
@@ -337,6 +339,138 @@ if (nlndp > 0) then
    if (is_master() .and. stochini) CLOSE(stochlun)
    deallocate(noise_e,noise_o)
  end subroutine init_stochdata
+
+ subroutine init_stochdata_ocn(nlevs,delt,iret)
+
+ use compns_stochy_mod, only : compns_stochy_ocn
+ use mpp_domains_mod,     only: mpp_broadcast_domain,MPP_DOMAIN_TIME,mpp_domains_init ,mpp_domains_set_stack_size
+! initialize random patterns.  A spinup period of spinup_efolds times the
+! temporal time scale is run for each pattern.
+   integer, intent(in) :: nlevs
+   real, intent(in) :: delt
+   integer, intent(out) :: iret
+   
+   integer :: nn,nm,stochlun,n
+   integer :: l,jbasev,jbasod
+   integer :: indev,indod,indlsod,indlsev
+   real(kind_dbl_prec),allocatable :: noise_e(:,:),noise_o(:,:)
+   include 'function_indlsod'
+   include 'function_indlsev'
+   stochlun=99
+   levs=nlevs
+
+   iret=0
+   call compns_stochy_ocn (delt,iret)
+   if(is_master()) print*,'in init stochdata_ocn'
+   if ( (.NOT. do_epbl) .AND. (.NOT. do_ocnsppt) ) return
+   call initialize_spectral(gis_stochy_ocn, iret)
+   if (iret/=0) return
+   allocate(noise_e(len_trie_ls,2),noise_o(len_trio_ls,2))
+! determine number of random patterns to be used for each scheme.
+   do n=1,size(epbl)
+     if (epbl(n) > 0) then
+        nepbl=nepbl+1
+     else
+        exit
+     endif
+   enddo
+
+   do n=1,size(ocnsppt)
+     if (ocnsppt(n) > 0) then
+        nocnsppt=nocnsppt+1
+     else
+        exit
+     endif
+   enddo
+
+   if (nepbl > 0) then 
+      allocate(rpattern_epbl1(nepbl))
+      allocate(rpattern_epbl2(nepbl))
+   endif
+
+   if (nocnsppt > 0) allocate(rpattern_ocnsppt(nocnsppt))
+
+   if (nepbl > 0) then
+       if (is_master()) print *, 'Initialize random pattern for epbl'
+       call patterngenerator_init(epbl_lscale(1:nepbl),epblint,epbl_tau(1:nepbl),epbl(1:nepbl),iseed_epbl,rpattern_epbl1, &
+           lonf,latg,jcap,gis_stochy_ocn%ls_node,nepbl,1,0,new_lscale)
+       call patterngenerator_init(epbl_lscale(1:nepbl),epblint,epbl_tau(1:nepbl),epbl(1:nepbl),iseed_epbl2,rpattern_epbl2, &
+           lonf,latg,jcap,gis_stochy_ocn%ls_node,nepbl,1,0,new_lscale)
+       do n=1,nepbl
+          call getnoise(rpattern_epbl1(n),noise_e,noise_o)
+          do nn=1,len_trie_ls
+             rpattern_epbl1(n)%spec_e(nn,1,1)=noise_e(nn,1)
+             rpattern_epbl1(n)%spec_e(nn,2,1)=noise_e(nn,2)
+             rpattern_epbl1(n)%spec_e(nn,1,1)=noise_e(nn,1)
+             rpattern_epbl1(n)%spec_e(nn,2,1)=noise_e(nn,2)
+             nm = rpattern_epbl1(n)%idx_e(nn)
+             if (nm .eq. 0) cycle
+             rpattern_epbl1(n)%spec_e(nn,1,1) = rpattern_epbl1(n)%stdev*rpattern_epbl1(n)%spec_e(nn,1,1)*rpattern_epbl1(n)%varspectrum(nm)
+             rpattern_epbl1(n)%spec_e(nn,2,1) = rpattern_epbl1(n)%stdev*rpattern_epbl1(n)%spec_e(nn,2,1)*rpattern_epbl1(n)%varspectrum(nm)
+          enddo
+          do nn=1,len_trio_ls
+             rpattern_epbl1(n)%spec_o(nn,1,1)=noise_o(nn,1)
+             rpattern_epbl1(n)%spec_o(nn,2,1)=noise_o(nn,2)
+             nm = rpattern_epbl1(n)%idx_o(nn)
+          if (nm .eq. 0) cycle
+             rpattern_epbl1(n)%spec_o(nn,1,1) = rpattern_epbl1(n)%stdev*rpattern_epbl1(n)%spec_o(nn,1,1)*rpattern_epbl1(n)%varspectrum(nm)
+             rpattern_epbl1(n)%spec_o(nn,2,1) = rpattern_epbl1(n)%stdev*rpattern_epbl1(n)%spec_o(nn,2,1)*rpattern_epbl1(n)%varspectrum(nm)
+          enddo
+          call patterngenerator_advance(rpattern_epbl1(n),1,.false.)
+       enddo
+       do n=1,nepbl
+          call getnoise(rpattern_epbl2(n),noise_e,noise_o)
+          do nn=1,len_trie_ls
+             rpattern_epbl2(n)%spec_e(nn,1,1)=noise_e(nn,1)
+             rpattern_epbl2(n)%spec_e(nn,2,1)=noise_e(nn,2)
+             rpattern_epbl2(n)%spec_e(nn,1,1)=noise_e(nn,1)
+             rpattern_epbl2(n)%spec_e(nn,2,1)=noise_e(nn,2)
+             nm = rpattern_epbl2(n)%idx_e(nn)
+             if (nm .eq. 0) cycle
+             rpattern_epbl2(n)%spec_e(nn,1,1) = rpattern_epbl2(n)%stdev*rpattern_epbl2(n)%spec_e(nn,1,1)*rpattern_epbl2(n)%varspectrum(nm)
+             rpattern_epbl2(n)%spec_e(nn,2,1) = rpattern_epbl2(n)%stdev*rpattern_epbl2(n)%spec_e(nn,2,1)*rpattern_epbl2(n)%varspectrum(nm)
+          enddo
+          do nn=1,len_trio_ls
+             rpattern_epbl2(n)%spec_o(nn,1,1)=noise_o(nn,1)
+             rpattern_epbl2(n)%spec_o(nn,2,1)=noise_o(nn,2)
+             nm = rpattern_epbl2(n)%idx_o(nn)
+          if (nm .eq. 0) cycle
+             rpattern_epbl2(n)%spec_o(nn,1,1) = rpattern_epbl2(n)%stdev*rpattern_epbl2(n)%spec_o(nn,1,1)*rpattern_epbl2(n)%varspectrum(nm)
+             rpattern_epbl2(n)%spec_o(nn,2,1) = rpattern_epbl2(n)%stdev*rpattern_epbl2(n)%spec_o(nn,2,1)*rpattern_epbl2(n)%varspectrum(nm)
+          enddo
+          call patterngenerator_advance(rpattern_epbl2(n),1,.false.)
+       enddo
+   endif
+
+   if (nocnsppt > 0) then
+       if (is_master()) print *, 'Initialize random pattern for ocnsppt'
+       call patterngenerator_init(ocnsppt_lscale(1:nocnsppt),ocnspptint,ocnsppt_tau(1:nocnsppt),ocnsppt(1:nocnsppt),iseed_ocnsppt,rpattern_ocnsppt, &
+           lonf,latg,jcap,gis_stochy_ocn%ls_node,nocnsppt,1,0,new_lscale)
+       do n=1,nocnsppt
+          call getnoise(rpattern_ocnsppt(n),noise_e,noise_o)
+          do nn=1,len_trie_ls
+             rpattern_ocnsppt(n)%spec_e(nn,1,1)=noise_e(nn,1)
+             rpattern_ocnsppt(n)%spec_e(nn,2,1)=noise_e(nn,2)
+             nm = rpattern_ocnsppt(n)%idx_e(nn)
+             if (nm .eq. 0) cycle
+             rpattern_ocnsppt(n)%spec_e(nn,1,1) = rpattern_ocnsppt(n)%stdev*rpattern_ocnsppt(n)%spec_e(nn,1,1)*rpattern_ocnsppt(n)%varspectrum(nm)
+             rpattern_ocnsppt(n)%spec_e(nn,2,1) = rpattern_ocnsppt(n)%stdev*rpattern_ocnsppt(n)%spec_e(nn,2,1)*rpattern_ocnsppt(n)%varspectrum(nm)
+          enddo
+          do nn=1,len_trio_ls
+             rpattern_ocnsppt(n)%spec_o(nn,1,1)=noise_o(nn,1)
+             rpattern_ocnsppt(n)%spec_o(nn,2,1)=noise_o(nn,2)
+             nm = rpattern_ocnsppt(n)%idx_o(nn)
+          if (nm .eq. 0) cycle
+             rpattern_ocnsppt(n)%spec_o(nn,1,1) = rpattern_ocnsppt(n)%stdev*rpattern_ocnsppt(n)%spec_o(nn,1,1)*rpattern_ocnsppt(n)%varspectrum(nm)
+            rpattern_ocnsppt(n)%spec_o(nn,2,1) = rpattern_ocnsppt(n)%stdev*rpattern_ocnsppt(n)%spec_o(nn,2,1)*rpattern_ocnsppt(n)%varspectrum(nm)
+          enddo
+          call patterngenerator_advance(rpattern_ocnsppt(n),1,.false.)
+       enddo
+   endif
+   deallocate(noise_e,noise_o)
+ end subroutine init_stochdata_ocn
+
+
 !>@brief This subroutine 'read_pattern' will read in the spectral coeffients from a previous run (stored in stoch_ini,
 !!turned on by setting STOCHINI=.true.)
 !>@details Data read in are flat binary, so the number of stochastic physics patterns running must match previous run
