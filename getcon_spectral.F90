@@ -121,8 +121,6 @@ module getcon_spectral_mod
       latsmax = lats_node_a_max
 
 !
-      ipt_lats_node_ext = 1
-!
       ipt_lats_node_a   = 1
       if ( me > 0 ) then
         do node=1,me

@@ -16,8 +16,6 @@ list(APPEND _stoch_phys_srcs
   mpi_wrapper.F90
   halo_exchange.fv3.F90
   plumes.f90
-  stochy_gg_def.f
-  stochy_layout_lag.f
   four_to_grid_stochy.F
   glats_stochy.f
   sumfln_stochy.f

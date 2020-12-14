@@ -26,8 +26,6 @@ module spectral_layout_mod
               len_trie_ls_max,   &
               len_trio_ls_max,   &
               lats_dim_ext,      &
-              lats_node_ext,     &
-              ipt_lats_node_ext, &
               jcap,latg,latg2,   &
               skeblevs,levs,lnt, &
               lonf,lonfx,        &

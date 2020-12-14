@@ -57,7 +57,7 @@ module compns_stochy_mod
 !
       namelist /nam_stochy/ntrunc,lon_s,lat_s,sppt,sppt_tau,sppt_lscale,sppt_logit, &
       iseed_shum,iseed_sppt,shum,shum_tau,&
-      shum_lscale,fhstoch,stochini,skeb_varspect_opt,sppt_sfclimit, &
+      shum_lscale,stochini,skeb_varspect_opt,sppt_sfclimit, &
       skeb,skeb_tau,skeb_vdof,skeb_lscale,iseed_skeb,skeb_vfilt,skeb_diss_smooth, &
       skeb_sigtop1,skeb_sigtop2,skebnorm,sppt_sigtop1,sppt_sigtop2,&
       shum_sigefold,spptint,shumint,skebint,skeb_npass,use_zmtnblck,new_lscale, &
@@ -132,21 +132,20 @@ module compns_stochy_mod
 ! length scale.
       skeb_varspect_opt = 0
       sppt_logit        = .false. ! logit transform for sppt to bounded interval [-1,+1]
-      fhstoch           = -999.0  ! forecast interval (in hours) to dump random patterns
       stochini          = .false. ! true= read in pattern, false=initialize from seed
 
 #ifdef INTERNAL_FILE_NML
       read(input_nml_file, nml=nam_stochy)
 #else
       rewind (nlunit)
-      open (unit=nlunit, file=fn_nml, READONLY, status='OLD', iostat=ios)
+      open (unit=nlunit, file=fn_nml, action='READ', status='OLD', iostat=ios)
       read(nlunit,nam_stochy)
 #endif
 #ifdef INTERNAL_FILE_NML
       read(input_nml_file, nml=nam_sfcperts)
 #else
       rewind (nlunit)
-      open (unit=nlunit, file=fn_nml, READONLY, status='OLD', iostat=ios)
+      open (unit=nlunit, file=fn_nml, action='READ', status='OLD', iostat=ios)
       read(nlunit,nam_sfcperts)
 #endif
 
@@ -374,7 +373,7 @@ module compns_stochy_mod
 !
       namelist /nam_stochy/ntrunc,lon_s,lat_s,sppt,sppt_tau,sppt_lscale,sppt_logit, &
       iseed_shum,iseed_sppt,shum,shum_tau, &
-      shum_lscale,fhstoch,stochini,skeb_varspect_opt,sppt_sfclimit, &
+      shum_lscale,stochini,skeb_varspect_opt,sppt_sfclimit, &
       skeb,skeb_tau,skeb_vdof,skeb_lscale,iseed_skeb,skeb_vfilt,skeb_diss_smooth, &
       skeb_sigtop1,skeb_sigtop2,skebnorm,sppt_sigtop1,sppt_sigtop2,&
       shum_sigefold,spptint,shumint,skebint,skeb_npass,use_zmtnblck,new_lscale, &
@@ -410,7 +409,7 @@ module compns_stochy_mod
       iseed_epbl2      = 0      ! random seeds (if 0 use system clock)
       iseed_ocnsppt    = 0      ! random seeds (if 0 use system clock)
       rewind (nlunit)
-      open (unit=nlunit, file='input.nml', READONLY, status='OLD', iostat=ios)
+      open (unit=nlunit, file='input.nml', action='READ', status='OLD', iostat=ios)
       read(nlunit,nam_stochy)
 
       if (mpp_pe()==mpp_root_pe()) then

@@ -78,7 +78,7 @@ nblks = size(blksz)
 allocate(gis_stochy%len(nblks))
 allocate(gis_stochy%parent_lons(gis_stochy%nx,gis_stochy%ny))
 allocate(gis_stochy%parent_lats(gis_stochy%nx,gis_stochy%ny))
-print*,'in init_stochastic_physics',gis_stochy%nx,gis_stochy%ny
+print*,'in init_stochastic_physics',minval(xlon),maxval(xlon),minval(xlat),maxval(xlat)
 do blk=1,nblks
    len=blksz(blk)
    gis_stochy%parent_lons(1:len,blk)=xlon(blk,1:len)*rad2deg
@@ -238,7 +238,6 @@ use stochy_data_mod, only : init_stochdata_ocn,gg_lats,gg_lons,&
 use spectral_layout_mod , only : latg,lonf,colrad_a,me,nodes
 !use MOM_grid, only : ocean_grid_type   
 use stochy_namelist_def
-use physcons, only: con_pi
 use mersenne_twister, only: random_gauss
 use mpi_wrapper, only : mpi_wrapper_initialize,mype,npes,is_master
 
@@ -249,6 +248,7 @@ real,intent(in) :: geoLonT(nx,ny),geoLatT(nx,ny)
 logical,intent(inout) :: do_epbl_out,do_sppt_out
 integer,intent(in)    :: mpiroot, mpicomm
 integer, intent(out) :: iret
+real(kind=kind_dbl_prec), parameter     :: con_pi =4.0d0*atan(1.0d0)
 
 real :: dx
 integer :: k,latghf,km
@@ -307,16 +307,16 @@ end subroutine init_stochastic_physics_ocn
 !>@details It updates the AR(1) in spectral space
 !allocates and polulates the necessary arrays
 
-subroutine run_stochastic_physics(levs, kdt, phour, blksz, sppt_wts, shum_wts, skebu_wts,  & 
+subroutine run_stochastic_physics(levs, kdt, fhour, blksz, sppt_wts, shum_wts, skebu_wts,  & 
                                   skebv_wts, sfc_wts,nthreads)
 
 !\callgraph
 !use stochy_internal_state_mod
 use stochy_data_mod, only : nshum,rpattern_shum,rpattern_sppt,nsppt,rpattern_skeb,nskeb,&
                             gis_stochy,vfact_sppt,vfact_shum,vfact_skeb, rpattern_sfc, nlndp
-use get_stochy_pattern_mod,only : get_random_pattern_scalar,get_random_pattern_vector,dump_patterns, & 
+use get_stochy_pattern_mod,only : get_random_pattern_scalar,get_random_pattern_vector, & 
                                   get_random_pattern_sfc
-use stochy_namelist_def, only : do_shum,do_sppt,do_skeb,fhstoch,nssppt,nsshum,nsskeb,sppt_logit,    & 
+use stochy_namelist_def, only : do_shum,do_sppt,do_skeb,nssppt,nsshum,nsskeb,sppt_logit,    & 
                                 lndp_type, n_var_lndp
 use mpi_wrapper, only: is_master
 use spectral_layout_mod,only:me
@@ -324,7 +324,7 @@ implicit none
 
 ! Interface variables
 integer,                  intent(in) :: levs, kdt
-real(kind=kind_dbl_prec), intent(in) :: phour
+real(kind=kind_dbl_prec), intent(in) :: fhour
 integer,                  intent(in) :: blksz(:)
 real(kind=kind_dbl_prec), intent(inout) :: sppt_wts(:,:,:)
 real(kind=kind_dbl_prec), intent(inout) :: shum_wts(:,:,:)
@@ -357,74 +357,70 @@ if ( (lndp_type==1) .and. (kdt==0) ) then ! old land pert scheme called once at 
            len=blksz(blk)
            ! for perturbing vars or states, saved value is N(0,1)  and apply scaling later.
            DO k=1,n_var_lndp
-               sfc_wts(blk,1:len,k) = tmpl_wts(blk,1:len,k)
+               !sfc_wts(blk,1:len,k) = tmpl_wts(blk,1:len,k)
+               sfc_wts(blk,1:len,k) = tmpl_wts(1:len,blk,k)
            ENDDO
         ENDDO
         deallocate(tmpl_wts)
-else 
-    ! check to see if it is time to write out random patterns
-    if (fhstoch.GE. 0 .AND. MOD(phour,fhstoch) .EQ. 0) then
-       write(STRFH,FMT='(I6.6)') nint(phour)
-       sfile='stoch_out.F'//trim(STRFH)
-       call dump_patterns(sfile)
-    endif
-    allocate(tmp_wts(nblks,maxlen))
-    allocate(tmpu_wts(nblks,maxlen,levs))
-    allocate(tmpv_wts(nblks,maxlen,levs))
-    if (do_sppt) then
-       if (mod(kdt,nssppt) == 1 .or. nssppt == 1) then
-          call get_random_pattern_scalar(rpattern_sppt,nsppt,gis_stochy,tmp_wts)
-          DO blk=1,nblks
-             len=blksz(blk)
-             DO k=1,levs
-                sppt_wts(blk,1:len,k)=tmp_wts(blk,1:len)*vfact_sppt(k)
-             ENDDO
-             if (sppt_logit) sppt_wts(blk,:,:) = (2./(1.+exp(sppt_wts(blk,:,:))))-1.
-             sppt_wts(blk,:,:) = sppt_wts(blk,:,:)+1.0
-          ENDDO
-       endif
-    endif
-    if (do_shum) then
-       if (mod(kdt,nsshum) == 1 .or. nsshum == 1) then
-          call get_random_pattern_scalar(rpattern_shum,nshum,gis_stochy,tmp_wts)
-          DO blk=1,nblks
-             len=blksz(blk)
-             DO k=1,levs
-                shum_wts(blk,1:len,k)=tmp_wts(blk,1:len)*vfact_shum(k)
-             ENDDO
-          ENDDO
-       endif
-    endif
-    if (do_skeb) then
-       if (mod(kdt,nsskeb) == 1 .or. nsskeb == 1) then
-          call get_random_pattern_vector(rpattern_skeb,nskeb,gis_stochy,tmpu_wts,tmpv_wts)
-          DO blk=1,nblks
-             len=blksz(blk)
-             DO k=1,levs
-                skebu_wts(blk,1:len,k)=tmpu_wts(blk,1:len,k)*vfact_skeb(k)
-                skebv_wts(blk,1:len,k)=tmpv_wts(blk,1:len,k)*vfact_skeb(k)
-             ENDDO
-          ENDDO
-       endif
-    endif
-    if ( lndp_type .EQ. 2  ) then 
-        ! add time check?
-        allocate(tmpl_wts(nblks,maxlen,n_var_lndp))
-        call get_random_pattern_sfc(rpattern_sfc,nlndp,gis_stochy,tmpl_wts)
-        DO blk=1,nblks
-           len=blksz(blk)
-           ! for perturbing vars or states, saved value is N(0,1)  and apply scaling later.
-           DO k=1,n_var_lndp
-               sfc_wts(blk,1:len,k) = tmpl_wts(blk,1:len,k)
-           ENDDO
-        ENDDO
-        deallocate(tmpl_wts)
-    endif
-    deallocate(tmp_wts)
-    deallocate(tmpu_wts)
-    deallocate(tmpv_wts)
+endif
+allocate(tmp_wts(gis_stochy%nx,gis_stochy%ny))
+allocate(tmpu_wts(gis_stochy%nx,gis_stochy%ny,levs))
+allocate(tmpv_wts(gis_stochy%nx,gis_stochy%ny,levs))
+if (do_sppt) then
+   if (mod(kdt,nssppt) == 1 .or. nssppt == 1) then
+      call get_random_pattern_scalar(rpattern_sppt,nsppt,gis_stochy,tmp_wts)
+      DO blk=1,nblks
+         len=blksz(blk)
+         DO k=1,levs
+            !sppt_wts(blk,1:len,k)=tmp_wts(blk,1:len)*vfact_sppt(k)
+            sppt_wts(blk,1:len,k)=tmp_wts(1:len,blk)*vfact_sppt(k)
+         ENDDO
+         if (sppt_logit) sppt_wts(blk,:,:) = (2./(1.+exp(sppt_wts(blk,:,:))))-1.
+         sppt_wts(blk,:,:) = sppt_wts(blk,:,:)+1.0
+      ENDDO
+   endif
+endif
+if (do_shum) then
+   if (mod(kdt,nsshum) == 1 .or. nsshum == 1) then
+      call get_random_pattern_scalar(rpattern_shum,nshum,gis_stochy,tmp_wts)
+      DO blk=1,nblks
+         len=blksz(blk)
+         DO k=1,levs
+            shum_wts(blk,1:len,k)=tmp_wts(1:len,blk)*vfact_shum(k)
+         ENDDO
+      ENDDO
+   endif
+endif
+if (do_skeb) then
+   if (mod(kdt,nsskeb) == 1 .or. nsskeb == 1) then
+      call get_random_pattern_vector(rpattern_skeb,nskeb,gis_stochy,tmpu_wts,tmpv_wts)
+      DO blk=1,nblks
+         len=blksz(blk)
+         DO k=1,levs
+            skebu_wts(blk,1:len,k)=tmpu_wts(1:len,blk,k)*vfact_skeb(k)
+            skebv_wts(blk,1:len,k)=tmpv_wts(1:len,blk,k)*vfact_skeb(k)
+         ENDDO
+      ENDDO
+   endif
+endif
+if ( lndp_type .EQ. 2  ) then 
+    ! add time check?
+    allocate(tmpl_wts(gis_stochy%nx,gis_stochy%ny,n_var_lndp))
+    call get_random_pattern_sfc(rpattern_sfc,nlndp,gis_stochy,tmpl_wts)
+    DO blk=1,nblks
+       len=blksz(blk)
+       ! for perturbing vars or states, saved value is N(0,1)  and apply scaling later.
+       DO k=1,n_var_lndp
+           sfc_wts(blk,1:len,k) = tmpl_wts(1:len,blk,k)
+       ENDDO
+    ENDDO
+    if (is_master()) print*,'sfc_wts=',sfc_wts(1,1,:)
+    deallocate(tmpl_wts)
+endif
+ deallocate(tmp_wts)
+ deallocate(tmpu_wts)
+ deallocate(tmpv_wts)
 
-end if 
 
 end subroutine run_stochastic_physics
 
@@ -471,9 +467,7 @@ subroutine finalize_stochastic_physics()
 use stochy_data_mod, only : nshum,rpattern_shum,rpattern_sppt,nsppt,rpattern_skeb,nskeb,&
                             vfact_sppt,vfact_shum,vfact_skeb, skeb_vwts,skeb_vpts, &
                             rpattern_sfc, nlndp,gg_lats,gg_lons,sl,skebu_save,skebv_save,gis_stochy
-use stochy_gg_def, only : wgt_a,sinlat_a,coslat_a,colrad_a,wgtcs_a,rcs2_a,lats_nodes_h,global_lats_h
-use spectral_layout_mod, only : lat1s_a ,lon_dims_a
-use stochy_layout_lag, only : lat1s_h
+use spectral_layout_mod, only : lat1s_h,lat1s_a ,lon_dims_a,wgt_a,sinlat_a,coslat_a,colrad_a,wgtcs_a,rcs2_a,lats_nodes_h,global_lats_h
 implicit none
 
    if (allocated(gg_lats)) deallocate (gg_lats)
@@ -515,7 +509,6 @@ deallocate(gis_stochy%max_ls_nodes)
 deallocate(gis_stochy%lats_nodes_a_fix)
 deallocate(gis_stochy%lats_nodes_a)
 deallocate(gis_stochy%global_lats_a)
-deallocate(gis_stochy%lats_nodes_ext)
 deallocate(gis_stochy%TRIE_LS_SIZE)
 deallocate(gis_stochy%TRIO_LS_SIZE)
 deallocate(gis_stochy%TRIEO_LS_SIZE)

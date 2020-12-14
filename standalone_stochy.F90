@@ -31,7 +31,7 @@ logical sppt_sfclimit
 real(kind=kind_dbl_prec) :: skeb_sigtop1,skeb_sigtop2,          &
                    sppt_sigtop1,sppt_sigtop2,shum_sigefold, &
                    skeb_vdof
-real(kind=kind_dbl_prec) fhstoch,skeb_diss_smooth,spptint,shumint,skebint,skebnorm
+real(kind=kind_dbl_prec) skeb_diss_smooth,spptint,shumint,skebint,skebnorm
 real(kind=kind_dbl_prec), dimension(5) :: skeb,skeb_lscale,skeb_tau
 real(kind=kind_dbl_prec), dimension(5) :: sppt,sppt_lscale,sppt_tau
 real(kind=kind_dbl_prec), dimension(5) :: shum,shum_lscale,shum_tau
@@ -82,7 +82,7 @@ type(grid_box_type)           :: grid_box
 
       namelist /nam_stochy/ntrunc,lon_s,lat_s,sppt,sppt_tau,sppt_lscale,sppt_logit, &
       iseed_shum,iseed_sppt,shum,shum_tau,&
-      shum_lscale,fhstoch,stochini,skeb_varspect_opt,sppt_sfclimit, &
+      shum_lscale,stochini,skeb_varspect_opt,sppt_sfclimit, &
       skeb,skeb_tau,skeb_vdof,skeb_lscale,iseed_skeb,skeb_vfilt,skeb_diss_smooth, &
       skeb_sigtop1,skeb_sigtop2,skebnorm,sppt_sigtop1,sppt_sigtop2,&
       shum_sigefold,spptint,shumint,skebint,skeb_npass,use_zmtnblck,new_lscale
