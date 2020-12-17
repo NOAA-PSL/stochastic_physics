@@ -294,7 +294,7 @@ module compns_stochy_mod
             'land perturbations will be applied to selected paramaters, using newer scheme designed for DA ens spread'
                do k =1,n_var_lndp
                    select case (lndp_var_list(k))
-                   case('vgf','smc','stc') 
+                   case('vgf','smc','stc','alb', 'sal') 
                        if (me==0) print*, 'land perturbation will be applied to ', lndp_var_list(k)
                    case default
                       print*, 'ERROR: land perturbation requested for new parameter - will need to be coded in lndp_apply_pert', lndp_var_list(k)
