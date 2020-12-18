@@ -19,7 +19,7 @@ module lndp_apply_perts_mod
 
     subroutine lndp_apply_perts(blksz,lsm, lsoil, lsm_ruc, lsoil_lsm, zs_lsm,         &
                 dtf, n_var_lndp, lndp_var_list,                                       & 
-                lndp_prt_list, sfc_wts, xlon, xlat, stype, maxsmcnoah, maxsmc,        &
+                lndp_prt_list, sfc_wts, xlon, xlat, stype, smcmax, smcmin,            &
                 param_update_flag,                                                    & 
                 smc, slc, stc, vfrac, alvsf, alnsf, alvwf, alnwf, facsf, facwf,       &
                 snoalb, ierr) 
@@ -40,8 +40,8 @@ module lndp_apply_perts_mod
         logical,                  intent(in) ::  param_update_flag    
                                         ! true =  parameters have been updated, apply perts
         real(kind=kind_dbl_prec),     intent(in) :: stype(:,:)
-        real(kind=kind_dbl_prec),     intent(in) :: maxsmcnoah(:) 
-        real(kind=kind_dbl_prec),     intent(in) :: maxsmc(:) 
+        real(kind=kind_dbl_prec),     intent(in) :: smcmax(:) 
+        real(kind=kind_dbl_prec),     intent(in) :: smcmin(:) 
         real(kind=kind_dbl_prec),     intent(in) :: zs_lsm(:)
 
         ! intent(inout) 
@@ -94,7 +94,7 @@ module lndp_apply_perts_mod
         !write (0,*) 'lsm, lsoil, lsm_ruc, lsoil_lsm =', lsm, lsoil, lsm_ruc, lsoil_lsm
         !write (0,*) 'zs_lsm =', zs_lsm
         !write (0,*) 'n_var_lndp, lndp_var_list =', n_var_lndp, lndp_var_list
-        !write (0,*) 'maxsmcnoah, maxsmc =', maxsmcnoah, maxsmc
+        !write (0,*) 'smcmin =',smcmin
 
         zslayer(:) = 0.
         smc_vertscale(:) = 0.
@@ -144,9 +144,8 @@ module lndp_apply_perts_mod
                 case('smc') 
                     p=5. 
                     soiltyp  = int( stype(nb,i)+0.5 )  ! also need for maxsmc
-                    min_bound = minsmc
-                    max_bound = maxsmcnoah(soiltyp)
-                    !write (*,*) 'max_bound=', max_bound
+                    min_bound = smcmin(soiltyp)
+                    max_bound = smcmax(soiltyp)
                 
                     do k=1,nsoil
                          !store frozen soil moisture
@@ -163,7 +162,6 @@ module lndp_apply_perts_mod
                          ! assign all of applied pert to the liquid soil moisture 
                          slc(nb,i,k)  =  smc(nb,i,k) -  tmp_sic
                     enddo
-                    !write (0,*) 'nb, i, smc(nb,i,:)', nb, i, smc(nb,i,:)
 
                 case('stc') 
 
@@ -186,7 +184,6 @@ module lndp_apply_perts_mod
                          pert = sfc_wts(nb,i,v)*lndp_prt_list(v)
                          call apply_pert ('vfrac',pert,print_flag, vfrac(nb,i), ierr,p,min_bound, max_bound)
                      !endif
-                     !write (0,*) 'nb, i, vfrac(nb,i)', nb, i, vfrac(nb,i)
                 case('alb')  ! albedo
                      !if (param_update_flag) then
                          p =5.
