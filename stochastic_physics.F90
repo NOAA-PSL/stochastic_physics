@@ -444,14 +444,14 @@ if (do_epbl) then
    t_rp(:,:,1)=2.0/(1+exp(-1*tmp_wts))
    call get_random_pattern_scalar(rpattern_epbl2,nepbl,gis_stochy_ocn,tmp_wts)
    t_rp(:,:,2)=2.0/(1+exp(-1*tmp_wts))
-!   print*,'in run_stochastic_physics_ocn 1',minval(t_rp),maxval(t_rp)
+   print*,'in run_stochastic_physics_ocn 1',minval(t_rp),maxval(t_rp)
 else
    t_rp=1.0
 endif
 if (do_ocnsppt) then
    call get_random_pattern_scalar(rpattern_ocnsppt,nocnsppt,gis_stochy_ocn,tmp_wts)
    sppt_wts=2.0/(1+exp(-1*tmp_wts))
-!   print*,'in run_stochastic_physics_ocn 2',minval(sppt_wts),maxval(sppt_wts)
+   print*,'in run_stochastic_physics_ocn 2',minval(sppt_wts),maxval(sppt_wts)
 else
    sppt_wts=1.0
 endif

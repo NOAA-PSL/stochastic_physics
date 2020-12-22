@@ -471,7 +471,7 @@ subroutine write_stoch_restart_ocn(sfile)
     integer :: ncid,varid1a,varid1b,varid2a,varid2b,varid3a,varid3b
     integer :: seed_dim_id,spec_dim_id,np_dim_id
     include 'netcdf.inc'
-
+    print*,'in write_restart_ocn',do_ocnsppt,do_epbl,is_master()
     if ( ( .NOT. do_ocnsppt) .AND. (.NOT. do_epbl) ) return
     stochlun=99
     if (is_master()) then
@@ -496,9 +496,9 @@ subroutine write_stoch_restart_ocn(sfile)
           ierr=NF90_PUT_ATT(ncid,varid2a,"long_name","random number seed for EPBL1")
           ierr=NF90_DEF_VAR(ncid,"epbl1_spec",NF90_DOUBLE,(/spec_dim_id, np_dim_id/), varid2b)
           ierr=NF90_PUT_ATT(ncid,varid2b,"long_name","spectral cofficients EPBL1")
-          ierr=NF90_DEF_VAR(ncid,"epbl1_seed",NF90_DOUBLE,(/seed_dim_id, np_dim_id/), varid3a)
+          ierr=NF90_DEF_VAR(ncid,"epbl2_seed",NF90_DOUBLE,(/seed_dim_id, np_dim_id/), varid3a)
           ierr=NF90_PUT_ATT(ncid,varid3a,"long_name","random number seed for EPBL2")
-          ierr=NF90_DEF_VAR(ncid,"epbl1_spec",NF90_DOUBLE,(/spec_dim_id, np_dim_id/), varid3b)
+          ierr=NF90_DEF_VAR(ncid,"epbl2_spec",NF90_DOUBLE,(/spec_dim_id, np_dim_id/), varid3b)
           ierr=NF90_PUT_ATT(ncid,varid3b,"long_name","spectral cofficients EPBL2")
        endif
        ierr=NF90_ENDDEF(ncid)
