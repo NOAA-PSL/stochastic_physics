@@ -17,6 +17,7 @@ list(APPEND _stoch_phys_srcs
   halo_exchange.fv3.F90
   plumes.f90
   four_to_grid_stochy.F
+  fftpack_stochy.f
   glats_stochy.f
   sumfln_stochy.f
   gozrineo_stochy.f
@@ -52,7 +53,6 @@ add_dependencies(stochastic_physics fms)
 
 target_compile_definitions(stochastic_physics PRIVATE INTERNAL_FILE_NML)
 
-target_link_libraries(stochastic_physics PUBLIC sp::sp_d)
 target_link_libraries(stochastic_physics PUBLIC fms)
 if(OpenMP_Fortran_FOUND)
   #target_link_libraries(stochastic_physics PUBLIC OpenMP::OpenMP_Fortran)

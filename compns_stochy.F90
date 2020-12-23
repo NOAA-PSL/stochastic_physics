@@ -151,7 +151,6 @@ module compns_stochy_mod
 
       if (me == 0) then
       print *,' in compns_stochy'
-      print*,'skeb=',skeb
       endif
 
 ! PJP stochastic physics additions

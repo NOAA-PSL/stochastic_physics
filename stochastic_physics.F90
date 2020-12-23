@@ -78,7 +78,6 @@ nblks = size(blksz)
 allocate(gis_stochy%len(nblks))
 allocate(gis_stochy%parent_lons(gis_stochy%nx,gis_stochy%ny))
 allocate(gis_stochy%parent_lats(gis_stochy%nx,gis_stochy%ny))
-print*,'in init_stochastic_physics',minval(xlon),maxval(xlon),minval(xlat),maxval(xlat)
 do blk=1,nblks
    len=blksz(blk)
    gis_stochy%parent_lons(1:len,blk)=xlon(blk,1:len)*rad2deg
@@ -151,7 +150,6 @@ if (do_sppt) then
    endif
 endif
 if (do_skeb) then
-   !print*,'allocating skeb stuff',skeblevs
    allocate(vfact_skeb(levs))
    allocate(skeb_vloc(skeblevs)) ! local
    allocate(skeb_vwts(levs,2)) ! save for later
@@ -208,25 +206,19 @@ endif
 ! get interpolation weights
 ! define gaussian grid lats and lons
 latghf=latg/2
-!print *,'define interp weights',latghf,lonf
-!print *,allocated(gg_lats),allocated(gg_lons)
 allocate(gg_lats(latg))
-!print *,'aloocated lats'
 allocate(gg_lons(lonf))
-!print *,'aloocated lons'
 do k=1,latghf
    gg_lats(k)=-1.0*colrad_a(latghf-k+1)*rad2deg
    gg_lats(latg-k+1)=-1*gg_lats(k)
 enddo
 dx=360.0/lonf
-!print*,'dx=',dx
 do k=1,lonf
   gg_lons(k)=dx*(k-1)
 enddo
 WLON=gg_lons(1)-(gg_lons(2)-gg_lons(1))
 RNLAT=gg_lats(1)*2-gg_lats(2)
 
-!print *,'done with init_stochastic_physics'
 
 end subroutine init_stochastic_physics
 
@@ -266,12 +258,9 @@ allocate(gis_stochy_ocn%parent_lats(nx,ny))
 gis_stochy_ocn%len(:)=nx
 gis_stochy_ocn%parent_lons=geoLonT
 gis_stochy_ocn%parent_lats=geoLatT
-print*,'ocn parent lats=',minval(gis_stochy_ocn%parent_lats)
-! replace
+
 INTTYP=0 ! bilinear interpolation
 km=nz
-!print*,'in init',nx,ny,nz
-print*,'init_stochastic_physics_ocn',maxval(geoLonT),size(geoLonT(:,1)),size(geoLonT(1,:))
 call init_stochdata_ocn(km,delt,iret)
 do_epbl_out=do_epbl
 do_sppt_out=do_ocnsppt
@@ -280,18 +269,13 @@ if ( (.NOT. do_epbl) .AND. (.NOT. do_sppt_out) ) return
 ! get interpolation weights
 ! define gaussian grid lats and lons
 latghf=latg/2
-!print *,'define interp weights',latghf,lonf
-!print *,allocated(gg_lats),allocated(gg_lons)
 allocate(gg_lats(latg))
-!print *,'aloocated lats',latg
 allocate(gg_lons(lonf))
-!print *,'aloocated lons',lonf
 do k=1,latghf
    gg_lats(k)=-1.0*colrad_a(latghf-k+1)*rad2deg
    gg_lats(latg-k+1)=-1*gg_lats(k)
 enddo
 dx=360.0/lonf
-!print*,'dx=',dx
 do k=1,lonf
   gg_lons(k)=dx*(k-1)
 enddo
@@ -444,14 +428,12 @@ if (do_epbl) then
    t_rp(:,:,1)=2.0/(1+exp(-1*tmp_wts))
    call get_random_pattern_scalar(rpattern_epbl2,nepbl,gis_stochy_ocn,tmp_wts)
    t_rp(:,:,2)=2.0/(1+exp(-1*tmp_wts))
-   print*,'in run_stochastic_physics_ocn 1',minval(t_rp),maxval(t_rp)
 else
    t_rp=1.0
 endif
 if (do_ocnsppt) then
    call get_random_pattern_scalar(rpattern_ocnsppt,nocnsppt,gis_stochy_ocn,tmp_wts)
    sppt_wts=2.0/(1+exp(-1*tmp_wts))
-   print*,'in run_stochastic_physics_ocn 2',minval(sppt_wts),maxval(sppt_wts)
 else
    sppt_wts=1.0
 endif

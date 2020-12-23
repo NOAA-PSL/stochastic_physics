@@ -24,7 +24,7 @@
 #ifdef MKL
       integer*8                plan
 #else
-      real(kind=kind_dbl_prec) aux1crs(42002)
+      real(kind=kind_dbl_prec) aux1crs(44002)
       real(kind=kind_dbl_prec)     scale_ibm
       integer                  ibmsign
       integer                  init
@@ -32,9 +32,6 @@
 #ifdef MKL
       include                  "fftw/fftw3.f"
       integer                  NULL
-#else
-      external                 dcrft
-      external                 scrft
 #endif
 !________________________________________________________
 
@@ -52,7 +49,7 @@
              ibmsign   = -1
              scale_ibm = 1.0d0
 
-             call dcrft(init,
+             call dcrft_stochy(init,
      &               syn_gr_a_1(1,1)   ,lon_dim_coef/2,
      &               syn_gr_a_2(1,1)   ,lon_dim_grid,
      &               lons_lat,lot,ibmsign,scale_ibm,
@@ -60,7 +57,7 @@
      &               aux1crs(22001),20000)
 
              init = 0
-             call dcrft(init,
+             call dcrft_stochy(init,
      &               syn_gr_a_1(1,1)   ,lon_dim_coef/2,
      &               syn_gr_a_2(1,1)   ,lon_dim_grid,
      &               lons_lat,lot,ibmsign,scale_ibm,
@@ -70,4 +67,6 @@
 
       return
       end
+
+
       end module four_to_grid_mod

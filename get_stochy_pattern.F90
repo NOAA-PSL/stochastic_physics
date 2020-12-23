@@ -377,7 +377,6 @@ subroutine write_stoch_restart_atm(sfile)
     if (is_master()) then
        if (nsppt > 0 .OR. nshum > 0 .OR. nskeb > 0) then
           ierr=nf90_create(trim(sfile),cmode=NF90_CLOBBER,ncid=ncid)
-          print*,'open ',sfile,' for output'
           ierr=NF90_PUT_ATT(ncid,NF_GLOBAL,"ntrunc",ntrunc)
           call random_seed(size=isize) ! get seed size
           ierr=NF90_DEF_DIM(ncid,"len_seed",isize,seed_dim_id)
@@ -471,12 +470,10 @@ subroutine write_stoch_restart_ocn(sfile)
     integer :: ncid,varid1a,varid1b,varid2a,varid2b,varid3a,varid3b
     integer :: seed_dim_id,spec_dim_id,np_dim_id
     include 'netcdf.inc'
-    print*,'in write_restart_ocn',do_ocnsppt,do_epbl,is_master()
     if ( ( .NOT. do_ocnsppt) .AND. (.NOT. do_epbl) ) return
     stochlun=99
     if (is_master()) then
        ierr=nf90_create(trim(sfile),cmode=NF90_CLOBBER,ncid=ncid)
-       print*,'open ',sfile,' for output'
        ierr=NF90_PUT_ATT(ncid,NF_GLOBAL,"ntrunc",ntrunc)
        call random_seed(size=isize) ! get seed size
        ierr=NF90_DEF_DIM(ncid,"len_seed",isize,seed_dim_id)
@@ -546,8 +543,6 @@ subroutine write_stoch_restart_ocn(sfile)
    allocate(pattern2d(arrlen))
    pattern2d=0.0
    ! fill in apprpriate pieces of array
-   !print*,'before collection...',me,maxval(rpattern%spec_e),maxval(rpattern%spec_o) &
-   ! ,minval(rpattern%spec_e),minval(rpattern%spec_o)
    do nn=1,len_trie_ls
       nm = rpattern%idx_e(nn)
       if (nm == 0) cycle
@@ -565,12 +560,10 @@ subroutine write_stoch_restart_ocn(sfile)
    if (is_master()) then
       print*,'writing out random pattern (min/max/size)',&
       minval(pattern2d),maxval(pattern2d),size(pattern2d)
-      !print*,'max/min pattern=',maxval(pattern2d),minval(pattern2d)
       call random_seed(size=isize) ! get seed size
       allocate(isave(isize)) ! get seed
       call random_seed(get=isave,stat=rpattern%rstate) ! write seed
       ierr=NF90_PUT_VAR(outlun,varid1,isave,(/1,np/))
-      print*,'put seed',ierr,np
       if (slice_of_3d) then
          ierr=NF90_PUT_VAR(outlun,varid2,pattern2d,(/1,lev,np/))
       else
