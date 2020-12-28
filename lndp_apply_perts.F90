@@ -15,7 +15,6 @@ module lndp_apply_perts_mod
 !====================================================================
 ! Driver for applying perturbations to sprecified land states or parameters
 ! Draper, July 2020. 
-! Note on location: requires access to namelist_soilveg or namelist_soilveg_ruc
 
     subroutine lndp_apply_perts(blksz,lsm, lsoil, lsm_ruc, lsoil_lsm, zs_lsm,         &
                 dtf, n_var_lndp, lndp_var_list,                                       & 
@@ -211,13 +210,13 @@ module lndp_apply_perts_mod
                      !endif
                 !case('emi')  ! emissivity
                 !     if (param_update_flag) then
-                !         p =5.
-                !         min_bound=0.
-                !         max_bound=1.
+                         !p =5.
+                         !min_bound=0.
+                         !max_bound=1.
 
-                         ! lndp_prt_list(v) = 0.1 (wrf)
-                !         pert = sfc_wts(nb,i,v)*lndp_prt_list(v)
-                !         call apply_pert ('semis',pert,print_flag, semis(nb,i), ierr,p,min_bound, max_bound)
+                        ! lndp_prt_list(v) = 0.1 (wrf)
+                         !pert = sfc_wts(nb,i,v)*lndp_prt_list(v)
+                         !call apply_pert ('semis',pert,print_flag, semis(nb,i), ierr,p,min_bound, max_bound)
                 !     endif
                 case default 
                     print*, &
