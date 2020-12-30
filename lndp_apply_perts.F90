@@ -21,26 +21,25 @@ module lndp_apply_perts_mod
                 lndp_prt_list, sfc_wts, xlon, xlat, stype, smcmax, smcmin,            &
                 param_update_flag,                                                    & 
                 smc, slc, stc, vfrac, alvsf, alnsf, alvwf, alnwf, facsf, facwf,       &
-                snoalb, ierr) 
-                !snoalb, semis, ierr) 
+                snoalb, semis, ierr) 
 
         implicit none
 
         ! intent(in) 
-        integer,                  intent(in) :: blksz(:)
-        integer,                  intent(in) :: n_var_lndp, lsoil, lsm
-        integer,                  intent(in) :: lsoil_lsm, lsm_ruc
-        character(len=3),         intent(in) :: lndp_var_list(:)
+        integer,                      intent(in) :: blksz(:)
+        integer,                      intent(in) :: n_var_lndp, lsoil, lsm
+        integer,                      intent(in) :: lsoil_lsm, lsm_ruc
+        character(len=3),             intent(in) :: lndp_var_list(:)
         real(kind=kind_dbl_prec),     intent(in) :: lndp_prt_list(:)
         real(kind=kind_dbl_prec),     intent(in) :: dtf
         real(kind=kind_dbl_prec),     intent(in) :: sfc_wts(:,:,:)
-        real(kind=kind_dbl_prec),     intent(in) :: xlon(:,:) 
-        real(kind=kind_dbl_prec),     intent(in) :: xlat(:,:) 
-        logical,                  intent(in) ::  param_update_flag    
+        real(kind=kind_dbl_prec),     intent(in) :: xlon(:,:)
+        real(kind=kind_dbl_prec),     intent(in) :: xlat(:,:)
+        logical,                      intent(in) ::  param_update_flag
                                         ! true =  parameters have been updated, apply perts
         real(kind=kind_dbl_prec),     intent(in) :: stype(:,:)
-        real(kind=kind_dbl_prec),     intent(in) :: smcmax(:) 
-        real(kind=kind_dbl_prec),     intent(in) :: smcmin(:) 
+        real(kind=kind_dbl_prec),     intent(in) :: smcmax(:)
+        real(kind=kind_dbl_prec),     intent(in) :: smcmin(:)
         real(kind=kind_dbl_prec),     intent(in) :: zs_lsm(:)
 
         ! intent(inout) 
@@ -55,7 +54,7 @@ module lndp_apply_perts_mod
         real(kind=kind_dbl_prec),     intent(inout) :: alnwf(:,:)
         real(kind=kind_dbl_prec),     intent(inout) :: facsf(:,:)
         real(kind=kind_dbl_prec),     intent(inout) :: facwf(:,:)
-        !real(kind=kind_dbl_prec),     intent(inout) :: semis(:,:)
+        real(kind=kind_dbl_prec),     intent(inout) :: semis(:,:)
 
         ! intent(out) 
         integer,                        intent(out) :: ierr
@@ -208,16 +207,16 @@ module lndp_apply_perts_mod
                          pert = sfc_wts(nb,i,v)*lndp_prt_list(v)
                          call apply_pert ('snoalb',pert,print_flag, snoalb(nb,i), ierr,p,min_bound, max_bound)
                      !endif
-                !case('emi')  ! emissivity
-                !     if (param_update_flag) then
-                         !p =5.
-                         !min_bound=0.
-                         !max_bound=1.
+                case('emi')  ! emissivity
+                     !if (param_update_flag) then
+                         p =5.
+                         min_bound=0.
+                         max_bound=1.
 
-                        ! lndp_prt_list(v) = 0.1 (wrf)
-                         !pert = sfc_wts(nb,i,v)*lndp_prt_list(v)
-                         !call apply_pert ('semis',pert,print_flag, semis(nb,i), ierr,p,min_bound, max_bound)
-                !     endif
+                         !lndp_prt_list(v) = 0.1 (wrf)
+                         pert = sfc_wts(nb,i,v)*lndp_prt_list(v)
+                         call apply_pert ('semis',pert,print_flag, semis(nb,i), ierr,p,min_bound, max_bound)
+                     !endif
                 case default 
                     print*, &
                      'ERROR: unrecognised lndp_prt_list option in lndp_apply_pert, exiting', trim(lndp_var_list(v)) 
