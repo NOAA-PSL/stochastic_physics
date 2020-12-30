@@ -73,7 +73,7 @@ module lndp_apply_perts_mod
         !-- RUC lsm
         real(kind=kind_dbl_prec), dimension(9), parameter :: smc_vertscale_ruc = (/1.0,0.9,0.8,0.6,0.4,0.2,0.1,0.05,0./)
         real(kind=kind_dbl_prec), dimension(9), parameter :: stc_vertscale_ruc = (/1.0,0.9,0.8,0.6,0.4,0.2,0.1,0.05,0./)
-        real(kind=kind_dbl_prec), dimension(9), parameter :: zs_ruc = (/0.00, 0.05, 0.20, 0.40, 0.60, 1.00, 1.60, 2.20, 3.00/)
+        real(kind=kind_dbl_prec), dimension(9), parameter :: zs_ruc = (/0.05, 0.15, 0.20, 0.20, 0.40, 0.60, 0.60, 0.80, 1.00/)
 
         ierr = 0
 
