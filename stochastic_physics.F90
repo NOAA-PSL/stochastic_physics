@@ -19,13 +19,13 @@ contains
 !>@details It reads the stochastic physics namelist (nam_stoch and nam_sfcperts)
 !allocates and polulates the necessary arrays
 
-subroutine init_stochastic_physics(levs, blksz, dtp, input_nml_file_in, fn_nml, nlunit, &
+subroutine init_stochastic_physics(levs, blksz, dtp, sppt_amp, input_nml_file_in, fn_nml, nlunit, &
     xlon,xlat, &
     do_sppt_in, do_shum_in, do_skeb_in, lndp_type_in, n_var_lndp_in, use_zmtnblck_out, skeb_npass_out,    &
     lndp_var_list_out, lndp_prt_list_out, ak, bk, nthreads, mpiroot, mpicomm, iret) 
 !\callgraph
 !use stochy_internal_state_moa
-use stochy_data_mod, only : init_stochdata,gg_lats,gg_lons,&
+use stochy_data_mod, only : init_stochdata,gg_lats,gg_lons,nsppt, &
                             rad2deg,INTTYP,wlon,rnlat,gis_stochy,vfact_skeb,vfact_sppt,vfact_shum,skeb_vpts,skeb_vwts,sl
 use stochy_namelist_def
 use spectral_layout_mod,only:me,master,nodes,colrad_a,latg,lonf,skeblevs
@@ -39,6 +39,7 @@ integer, intent(out)                    :: iret
 integer,                  intent(in)    :: levs, nlunit, nthreads, mpiroot, mpicomm
 integer,                  intent(in)    :: blksz(:)
 real(kind=kind_dbl_prec), intent(in)    :: dtp
+real(kind=kind_dbl_prec), intent(out)   :: sppt_amp
 character(len=*),         intent(in)    :: input_nml_file_in(:)
 character(len=*),         intent(in)    :: fn_nml
 real(kind=kind_dbl_prec), intent(in)    :: xlon(:,:)
@@ -148,6 +149,7 @@ if (do_sppt) then
          print *,'sppt vert profile',k,sl(k),vfact_sppt(k)
       enddo
    endif
+   sppt_amp=sqrt(SUM(sppt(1:nsppt)**2))
 endif
 if (do_skeb) then
    allocate(vfact_skeb(levs))

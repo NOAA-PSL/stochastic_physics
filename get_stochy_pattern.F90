@@ -633,8 +633,15 @@ subroutine write_stoch_restart_ocn(sfile)
       do lan=1,lats_node_a
          lat = global_lats_a(ipt_lats_node_a-1+lan)
          lons_lat = lonsperlar(lat)
+#ifdef MKL
+         CALL FOUR_TO_GRID(for_gr_a_1(1,1,lan),for_gr_a_2(1,1,lan),&
+                           lon_dim_a,lonf,lons_lat,nlevs)
+         CALL FOUR_TO_GRID(for_gr_a_1(1,2,lan),for_gr_a_2(1,2,lan),&
+                           lon_dim_a,lonf,lons_lat,nlevs)
+#else
          CALL FOUR_TO_GRID(for_gr_a_1(1,1,lan),for_gr_a_2(1,1,lan),&
                            lon_dim_a,lonf,lons_lat,2*nlevs)
+#endif
       enddo
 
       uug = 0.; vvg = 0.

@@ -10,6 +10,16 @@ if(32BIT)
     set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fdefault-real-8")
   endif()
 endif()
+# Set Intel MKL flags for preprocessor, compiler and linker (if defined)
+if(MKL_DIR_STOCH)
+  set (MKL_INC "-m64 -I$ENV{MKLROOT}/include")
+  set (MKL_LIB "-L$ENV{MKLROOT}/lib/intel64 -Wl,-rpath,$ENV{MKLROOT}/lib/intel64 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl")
+  set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${MKL_INC} ${MKL_LIB}")
+  ADD_DEFINITIONS(-DMKL)
+  message (STATUS "Enable Intel MKL support")
+else()
+  message (STATUS "Disable Intel MKL support")
+endif()
 
 list(APPEND _stoch_phys_srcs
   kinddef.F90
