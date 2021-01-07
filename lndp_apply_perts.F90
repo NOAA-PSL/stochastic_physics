@@ -17,7 +17,8 @@ module lndp_apply_perts_mod
 ! Draper, July 2020.
 
     subroutine lndp_apply_perts(blksz, lsm, lsm_noah, lsm_ruc, lsoil,           &
-                dtf, n_var_lndp, lndp_var_list, lndp_prt_list,                  &
+                dtf, kdt, lndp_each_step,                                       &
+                n_var_lndp, lndp_var_list, lndp_prt_list,                       &
                 sfc_wts, xlon, xlat, stype, smcmax, smcmin, param_update_flag,  &
                 smc, slc, stc, vfrac, alvsf, alnsf, alvwf, alnwf, facsf, facwf, &
                 snoalb, semis, ierr)
@@ -26,7 +27,8 @@ module lndp_apply_perts_mod
 
         ! intent(in)
         integer,                      intent(in) :: blksz(:)
-        integer,                      intent(in) :: n_var_lndp, lsoil
+        integer,                      intent(in) :: n_var_lndp, lsoil, kdt
+        logical,                      intent(in) :: lndp_each_step
         integer,                      intent(in) :: lsm, lsm_noah, lsm_ruc
         character(len=3),             intent(in) :: lndp_var_list(:)
         real(kind=kind_dbl_prec),     intent(in) :: lndp_prt_list(:)
@@ -62,7 +64,7 @@ module lndp_apply_perts_mod
         integer         :: this_im, v, soiltyp, k
         logical         :: print_flag
 
-        real(kind=kind_dbl_prec) :: p, min_bound, max_bound, tmp_sic,  pert
+        real(kind=kind_dbl_prec) :: p, min_bound, max_bound, tmp_sic,  pert, factor
         real(kind=kind_dbl_prec), dimension(lsoil) :: zslayer, smc_vertscale, stc_vertscale
 
         ! decrease in applied pert with depth
@@ -89,6 +91,14 @@ module lndp_apply_perts_mod
         !write (0,*) 'zs_lsm =', zs_lsm
         !write (0,*) 'n_var_lndp, lndp_var_list =', n_var_lndp, lndp_var_list
         !write (0,*) 'smcmin =',smcmin
+
+        ! lndp_prt_list input is per hour, factor converts to per timestep
+        ! Do conversion only when variables are perturbed at every time step
+        if(lndp_each_step) then
+          factor = dtf/3600.
+        else
+          factor = 1.
+        endif
 
         if (lsm == lsm_noah) then
           do k = 1, lsoil
@@ -135,6 +145,8 @@ module lndp_apply_perts_mod
                     min_bound = smcmin(soiltyp)
                     max_bound = smcmax(soiltyp)
 
+                  if ((lsm /= lsm_ruc) .or. (lsm == lsm_ruc .and. kdt == 2)) then
+                  ! with RUC LSM perturb smc only at time step = 2, as in HRRR
                     do k=1,lsoil
                          !store frozen soil moisture
                          tmp_sic= smc(nb,i,k)  - slc(nb,i,k)
@@ -150,6 +162,7 @@ module lndp_apply_perts_mod
                          ! assign all of applied pert to the liquid soil moisture
                          slc(nb,i,k)  =  smc(nb,i,k) -  tmp_sic
                     enddo
+                  endif
 
                 case('stc')
 
@@ -163,21 +176,23 @@ module lndp_apply_perts_mod
                 ! Parameter updates - only if param_update_flag = TRUE
                 !=================================================================
                 case('vgf')  ! vegetation fraction
-                     if (param_update_flag) then
+                     if (param_update_flag .or. lndp_each_step) then
                          p =5.
                          min_bound=0.
                          max_bound=1.
 
                          pert = sfc_wts(nb,i,v)*lndp_prt_list(v)
+                         pert = pert*factor 
                          call apply_pert ('vfrac',pert,print_flag, vfrac(nb,i), ierr,p,min_bound, max_bound)
                      endif
                 case('alb')  ! albedo
-                     if (param_update_flag) then
+                     if (param_update_flag .or. lndp_each_step) then
                          p =5.
                          min_bound=0.0
                          max_bound=0.4
 
                          pert = sfc_wts(nb,i,v)*lndp_prt_list(v)
+                         pert = pert*factor
                          !call apply_pert ('alvsf',pert,print_flag, alvsf(nb,i), ierr,p,min_bound, max_bound)
                          call apply_pert ('alnsf',pert,print_flag, alnsf(nb,i), ierr,p,min_bound, max_bound)
                          !call apply_pert ('alvwf',pert,print_flag, alvwf(nb,i), ierr,p,min_bound, max_bound)
@@ -186,21 +201,23 @@ module lndp_apply_perts_mod
                          !call apply_pert ('facwf',pert,print_flag, facwf(nb,i), ierr,p,min_bound, max_bound)
                      endif
                 case('sal')  ! snow albedo
-                     if (param_update_flag) then
+                     if (param_update_flag .or. lndp_each_step) then
                          p =5.
                          min_bound=0.3
                          max_bound=0.85
 
                          pert = sfc_wts(nb,i,v)*lndp_prt_list(v)
+                         pert = pert*factor
                          call apply_pert ('snoalb',pert,print_flag, snoalb(nb,i), ierr,p,min_bound, max_bound)
                      endif
                 case('emi')  ! emissivity
-                     if (param_update_flag) then
+                     if (param_update_flag .or. lndp_each_step) then
                          p =5.
-                         min_bound=0.
+                         min_bound=0.8
                          max_bound=1.
 
                          pert = sfc_wts(nb,i,v)*lndp_prt_list(v)
+                         pert = pert*factor
                          call apply_pert ('semis',pert,print_flag, semis(nb,i), ierr,p,min_bound, max_bound)
                      endif
                 case default
