@@ -34,19 +34,20 @@ c     ******************************************************************
 c     ******************************************************************
 c
       SUBROUTINE RFFTB_STOCHY (N,R,WSAVE)
-      DIMENSION       R(1)       ,WSAVE(1)
+      DIMENSION       R(*)       ,WSAVE(44002)
       IF (N .EQ. 1) RETURN
       CALL RFFTB1_STOCHY (N,R,WSAVE,WSAVE(N+1),WSAVE(2*N+1))
       RETURN
       END
       SUBROUTINE RFFTI_STOCHY (N,WSAVE)
-      DIMENSION       WSAVE(1)
+c      DIMENSION       WSAVE(1)
+      DIMENSION       WSAVE(44002)
       IF (N .EQ. 1) RETURN
       CALL RFFTI1_STOCHY (N,WSAVE(N+1),WSAVE(2*N+1))
       RETURN
       END
       SUBROUTINE RFFTB1_STOCHY (N,C,CH,WA,IFAC)
-      DIMENSION       CH(1)      ,C(1)       ,WA(1)      ,IFAC(*)
+      DIMENSION       CH(44002)      ,C(*)       ,WA(*)      ,IFAC(*)
       NF = IFAC(2)
       NA = 0
       L1 = 1
@@ -108,7 +109,7 @@ c
 
 
       SUBROUTINE RFFTI1_STOCHY (N,WA,IFAC)
-      DIMENSION       WA(1)      ,IFAC(*)    ,NTRYH(4)
+      DIMENSION       WA(*)      ,IFAC(*)    ,NTRYH(4)
       DATA NTRYH(1),NTRYH(2),NTRYH(3),NTRYH(4)/4,2,3,5/
       NL = N
       NF = 0
@@ -170,7 +171,7 @@ c
 
       SUBROUTINE RADB2_STOCHY (IDO,L1,CC,CH,WA1)
       DIMENSION       CC(IDO,2,L1)           ,CH(IDO,L1,2)           ,
-     1                WA1(1)
+     1                WA1(*)
       DO 101 K=1,L1
          CH(1,K,1) = CC(1,1,K)+CC(IDO,2,K)
          CH(1,K,2) = CC(1,1,K)-CC(IDO,2,K)
@@ -200,7 +201,7 @@ c
 
       SUBROUTINE RADB3_STOCHY (IDO,L1,CC,CH,WA1,WA2)
       DIMENSION       CC(IDO,3,L1)           ,CH(IDO,L1,3)           ,
-     1                WA1(1)     ,WA2(1)
+     1                WA1(*)     ,WA2(*)
       DATA TAUR,TAUI /-.5,.866025403784439/
       DO 101 K=1,L1
          TR2 = CC(IDO,2,K)+CC(IDO,2,K)
@@ -240,7 +241,7 @@ c
 
       SUBROUTINE RADB4_STOCHY (IDO,L1,CC,CH,WA1,WA2,WA3)
       DIMENSION       CC(IDO,4,L1)           ,CH(IDO,L1,4)           ,
-     1                WA1(1)     ,WA2(1)     ,WA3(1)
+     1                WA1(*)     ,WA2(*)     ,WA3(*)
       DATA SQRT2 /1.414213562373095/
       DO 101 K=1,L1
          TR1 = CC(1,1,K)-CC(IDO,4,K)
@@ -300,7 +301,7 @@ c
 
       SUBROUTINE RADB5_STOCHY (IDO,L1,CC,CH,WA1,WA2,WA3,WA4)
       DIMENSION       CC(IDO,5,L1)           ,CH(IDO,L1,5)           ,
-     1                WA1(1)     ,WA2(1)     ,WA3(1)     ,WA4(1)
+     1                WA1(*)     ,WA2(*)     ,WA3(*)     ,WA4(*)
       DATA TR11,TI11,TR12,TI12 /.309016994374947,.951056516295154,
      1-.809016994374947,.587785252292473/
       DO 101 K=1,L1
@@ -366,7 +367,7 @@ c
       SUBROUTINE RADBG_STOCHY (IDO,IP,L1,IDL1,CC,C1,C2,CH,CH2,WA)
       DIMENSION       CH(IDO,L1,IP)          ,CC(IDO,IP,L1)          ,
      1                C1(IDO,L1,IP)          ,C2(IDL1,IP),
-     2                CH2(IDL1,IP)           ,WA(1)
+     2                CH2(IDL1,IP)           ,WA(*)
       DATA TPI/6.28318530717959/
       ARG = TPI/FLOAT(IP)
       DCP = COS(ARG)
