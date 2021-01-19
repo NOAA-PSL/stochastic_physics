@@ -21,7 +21,7 @@ module lndp_apply_perts_mod
                 n_var_lndp, lndp_var_list, lndp_prt_list,                       &
                 sfc_wts, xlon, xlat, stype, smcmax, smcmin, param_update_flag,  &
                 smc, slc, stc, vfrac, alvsf, alnsf, alvwf, alnwf, facsf, facwf, &
-                snoalb, semis, ierr)
+                snoalb, semis, zorll, ierr)
 
         implicit none
 
@@ -55,6 +55,7 @@ module lndp_apply_perts_mod
         real(kind=kind_dbl_prec),     intent(inout) :: facsf(:,:)
         real(kind=kind_dbl_prec),     intent(inout) :: facwf(:,:)
         real(kind=kind_dbl_prec),     intent(inout) :: semis(:,:)
+        real(kind=kind_dbl_prec),     intent(inout) :: zorll(:,:)
 
         ! intent(out)
         integer,                        intent(out) :: ierr
@@ -219,6 +220,16 @@ module lndp_apply_perts_mod
                          pert = sfc_wts(nb,i,v)*lndp_prt_list(v)
                          pert = pert*factor
                          call apply_pert ('semis',pert,print_flag, semis(nb,i), ierr,p,min_bound, max_bound)
+                     endif
+                case('zol')  ! land roughness length
+                     if (param_update_flag .or. lndp_each_step) then
+                         p =5.
+                         min_bound=0.
+                         max_bound=300.
+
+                         pert = sfc_wts(nb,i,v)*lndp_prt_list(v)
+                         pert = pert*factor
+                         call apply_pert ('zol',pert,print_flag, zorll(nb,i), ierr,p,min_bound, max_bound)
                      endif
                 case default
                     print*, &
