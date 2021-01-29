@@ -410,7 +410,7 @@ endif
 
 end subroutine run_stochastic_physics
 
-subroutine run_stochastic_physics_ocn(t_rp,sppt_wts)
+subroutine run_stochastic_physics_ocn(sppt_wts,t_rp1,t_rp2)
 !use MOM_forcing_type, only : mech_forcing
 !use MOM_grid, only : ocean_grid_type   
 use stochy_internal_state_mod
@@ -419,32 +419,32 @@ use get_stochy_pattern_mod,only : get_random_pattern_scalar
 use stochy_namelist_def
 implicit none
 !type(ocean_grid_type),       intent(in) :: G
-real, intent(inout) :: t_rp(:,:,:),sppt_wts(:,:)
+real, intent(inout) :: sppt_wts(:,:),t_rp1(:,:),t_rp2(:,:)
 real, allocatable :: tmp_wts(:,:)
 if (do_epbl .OR. do_ocnsppt) then
-allocate(tmp_wts(gis_stochy_ocn%nx,gis_stochy_ocn%ny))
-
-!if (mod(Model%kdt,nsocnp) == 1 .or. nsocnp == 1) then
-if (do_epbl) then
-   call get_random_pattern_scalar(rpattern_epbl1,nepbl,gis_stochy_ocn,tmp_wts)
-   t_rp(:,:,1)=2.0/(1+exp(-1*tmp_wts))
-   call get_random_pattern_scalar(rpattern_epbl2,nepbl,gis_stochy_ocn,tmp_wts)
-   t_rp(:,:,2)=2.0/(1+exp(-1*tmp_wts))
+   allocate(tmp_wts(gis_stochy_ocn%nx,gis_stochy_ocn%ny))
+   if (do_epbl) then
+      call get_random_pattern_scalar(rpattern_epbl1,nepbl,gis_stochy_ocn,tmp_wts)
+      t_rp1(:,:)=2.0/(1+exp(-1*tmp_wts))
+      call get_random_pattern_scalar(rpattern_epbl2,nepbl,gis_stochy_ocn,tmp_wts)
+      t_rp2(:,:)=2.0/(1+exp(-1*tmp_wts))
+   else
+      t_rp1(:,:)=1.0
+      t_rp2(:,:)=1.0
+   endif
+   if (do_ocnsppt) then
+      call get_random_pattern_scalar(rpattern_ocnsppt,nocnsppt,gis_stochy_ocn,tmp_wts)
+      sppt_wts=2.0/(1+exp(-1*tmp_wts))
+   else
+      sppt_wts=1.0
+   endif
+   deallocate(tmp_wts)
 else
-   t_rp=1.0
+   sppt_wts(:,:)=1.0
+   t_rp1(:,:)=1.0
+   t_rp2(:,:)=1.0
 endif
-if (do_ocnsppt) then
-   call get_random_pattern_scalar(rpattern_ocnsppt,nocnsppt,gis_stochy_ocn,tmp_wts)
-   sppt_wts=2.0/(1+exp(-1*tmp_wts))
-else
-   sppt_wts=1.0
-endif
-!endif
-deallocate(tmp_wts)
-else
-   t_rp=1.0
-   sppt_wts=1.0
-endif
+   print*,'in run_stochastic_physics_ocn',minval(t_rp1),maxval(t_rp1)
 
 end subroutine run_stochastic_physics_ocn
 subroutine finalize_stochastic_physics()

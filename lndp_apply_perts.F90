@@ -117,7 +117,7 @@ module lndp_apply_perts_mod
 
         nblks = size(blksz)
 
-        call  set_printing_nb_i(blksz,gis_stochy%parent_lons,gis_stochy%parent_lats,print_i,print_nb)
+        call  set_printing_nb_i(blksz,xlon,xlat,print_i,print_nb)
 
         do nb =1,nblks
            do i = 1, blksz(nb)
