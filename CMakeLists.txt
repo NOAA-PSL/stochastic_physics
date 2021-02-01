@@ -53,12 +53,20 @@ list(APPEND _stoch_phys_srcs
 )
 
 add_library(stochastic_physics ${_stoch_phys_srcs})
-add_dependencies(stochastic_physics fms)
+if(32BIT)
+   add_dependencies(stochastic_physics FMS::fms_r4)
+else()
+   add_dependencies(stochastic_physics FMS::fms_r8)
+endif()
 
 target_compile_definitions(stochastic_physics PRIVATE INTERNAL_FILE_NML)
 
 target_link_libraries(stochastic_physics PUBLIC sp::sp_d)
-target_link_libraries(stochastic_physics PUBLIC fms)
+if(32BIT)
+   target_link_libraries(stochastic_physics PUBLIC FMS::fms_r4)
+else()
+   target_link_libraries(stochastic_physics PUBLIC FMS::fms_r8)
+endif()
 if(OpenMP_Fortran_FOUND)
   target_link_libraries(stochastic_physics PUBLIC OpenMP::OpenMP_Fortran)
 endif()
