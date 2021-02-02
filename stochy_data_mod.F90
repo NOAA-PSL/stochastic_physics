@@ -462,7 +462,7 @@ module stochy_data_mod
    iret=0
    call compns_stochy_ocn (delt,iret)
    if(is_master()) print*,'in init stochdata_ocn'
-   if ( (.NOT. do_epbl) .AND. (.NOT. do_ocnsppt) ) return
+   if ( (.NOT. pert_epbl) .AND. (.NOT. do_ocnsppt) ) return
    call initialize_spectral(gis_stochy_ocn, iret)
    if (iret/=0) return
    allocate(noise_e(len_trie_ls,2),noise_o(len_trio_ls,2))

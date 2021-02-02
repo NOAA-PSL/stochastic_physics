@@ -30,7 +30,7 @@
       integer(8),dimension(5) ::iseed_sppt,iseed_shum,iseed_skeb,iseed_epbl,iseed_ocnsppt,iseed_epbl2
       logical stochini,sppt_logit,new_lscale
       logical use_zmtnblck
-      logical do_shum,do_sppt,do_skeb,do_epbl,do_ocnsppt
+      logical do_shum,do_sppt,do_skeb,pert_epbl,do_ocnsppt
 
       real(kind=kind_dbl_prec), dimension(5) :: lndp_lscale,lndp_tau
       integer n_var_lndp

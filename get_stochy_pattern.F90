@@ -463,14 +463,14 @@ subroutine write_stoch_restart_atm(sfile)
 subroutine write_stoch_restart_ocn(sfile)
 !\callgraph
     use netcdf
-    use stochy_namelist_def, only : do_ocnsppt,do_epbl
+    use stochy_namelist_def, only : do_ocnsppt,pert_epbl
     implicit none
     character(len=*) :: sfile
     integer :: stochlun,k,n,isize,ierr
     integer :: ncid,varid1a,varid1b,varid2a,varid2b,varid3a,varid3b
     integer :: seed_dim_id,spec_dim_id,np_dim_id
     include 'netcdf.inc'
-    if ( ( .NOT. do_ocnsppt) .AND. (.NOT. do_epbl) ) return
+    if ( ( .NOT. do_ocnsppt) .AND. (.NOT. pert_epbl) ) return
     stochlun=99
     if (is_master()) then
        ierr=nf90_create(trim(sfile),cmode=NF90_CLOBBER,ncid=ncid)
@@ -488,7 +488,7 @@ subroutine write_stoch_restart_ocn(sfile)
           ierr=NF90_DEF_VAR(ncid,"ocnsppt_spec",NF90_DOUBLE,(/spec_dim_id, np_dim_id/), varid1b)
           ierr=NF90_PUT_ATT(ncid,varid1b,"long_name","spectral cofficients SPPT")
        endif
-       if (do_epbl) then
+       if (pert_epbl) then
           ierr=NF90_DEF_VAR(ncid,"epbl1_seed",NF90_DOUBLE,(/seed_dim_id, np_dim_id/), varid2a)
           ierr=NF90_PUT_ATT(ncid,varid2a,"long_name","random number seed for EPBL1")
           ierr=NF90_DEF_VAR(ncid,"epbl1_spec",NF90_DOUBLE,(/spec_dim_id, np_dim_id/), varid2b)
@@ -633,15 +633,8 @@ subroutine write_stoch_restart_ocn(sfile)
       do lan=1,lats_node_a
          lat = global_lats_a(ipt_lats_node_a-1+lan)
          lons_lat = lonsperlar(lat)
-#ifdef MKL
-         CALL FOUR_TO_GRID(for_gr_a_1(1,1,lan),for_gr_a_2(1,1,lan),&
-                           lon_dim_a,lonf,lons_lat,nlevs)
-         CALL FOUR_TO_GRID(for_gr_a_1(1,2,lan),for_gr_a_2(1,2,lan),&
-                           lon_dim_a,lonf,lons_lat,nlevs)
-#else
          CALL FOUR_TO_GRID(for_gr_a_1(1,1,lan),for_gr_a_2(1,1,lan),&
                            lon_dim_a,lonf,lons_lat,2*nlevs)
-#endif
       enddo
 
       uug = 0.; vvg = 0.

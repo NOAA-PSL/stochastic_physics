@@ -225,7 +225,7 @@ RNLAT=gg_lats(1)*2-gg_lats(2)
 end subroutine init_stochastic_physics
 
 !!!!!!!!!!!!!!!!!!!!
-subroutine init_stochastic_physics_ocn(delt,geoLonT,geoLatT,nx,ny,nz,do_epbl_out,do_sppt_out, &
+subroutine init_stochastic_physics_ocn(delt,geoLonT,geoLatT,nx,ny,nz,pert_epbl_in,do_sppt_in, &
                                        mpiroot, mpicomm, iret)
 use stochy_data_mod, only : init_stochdata_ocn,gg_lats,gg_lons,&
                             rad2deg,INTTYP,wlon,rnlat,gis_stochy_ocn
@@ -239,7 +239,7 @@ implicit none
 real,intent(in)  :: delt
 integer,intent(in) :: nx,ny,nz
 real,intent(in) :: geoLonT(nx,ny),geoLatT(nx,ny)
-logical,intent(inout) :: do_epbl_out,do_sppt_out
+logical,intent(in) :: pert_epbl_in,do_sppt_in
 integer,intent(in)    :: mpiroot, mpicomm
 integer, intent(out) :: iret
 real(kind=kind_dbl_prec), parameter     :: con_pi =4.0d0*atan(1.0d0)
@@ -264,9 +264,17 @@ gis_stochy_ocn%parent_lats=geoLatT
 INTTYP=0 ! bilinear interpolation
 km=nz
 call init_stochdata_ocn(km,delt,iret)
-do_epbl_out=do_epbl
-do_sppt_out=do_ocnsppt
-if ( (.NOT. do_epbl) .AND. (.NOT. do_sppt_out) ) return
+if (do_sppt_in.neqv.do_ocnsppt) then
+   write(0,'(*(a))') 'Logic error in stochastic_physics_ocn_init: incompatible', &
+                   & ' namelist settings do_sppt and sppt'
+   iret = 20 
+   return
+else if (pert_epbl_in.neqv.pert_epbl) then
+   write(0,'(*(a))') 'Logic error in stochastic_physics_ocn_init: incompatible', &
+                   & ' namelist settings pert_epbl and epbl'
+   iret = 20 
+   return
+end if
 
 ! get interpolation weights
 ! define gaussian grid lats and lons
@@ -421,9 +429,9 @@ implicit none
 !type(ocean_grid_type),       intent(in) :: G
 real, intent(inout) :: sppt_wts(:,:),t_rp1(:,:),t_rp2(:,:)
 real, allocatable :: tmp_wts(:,:)
-if (do_epbl .OR. do_ocnsppt) then
+if (pert_epbl .OR. do_ocnsppt) then
    allocate(tmp_wts(gis_stochy_ocn%nx,gis_stochy_ocn%ny))
-   if (do_epbl) then
+   if (pert_epbl) then
       call get_random_pattern_scalar(rpattern_epbl1,nepbl,gis_stochy_ocn,tmp_wts)
       t_rp1(:,:)=2.0/(1+exp(-1*tmp_wts))
       call get_random_pattern_scalar(rpattern_epbl2,nepbl,gis_stochy_ocn,tmp_wts)
@@ -444,7 +452,6 @@ else
    t_rp1(:,:)=1.0
    t_rp2(:,:)=1.0
 endif
-   print*,'in run_stochastic_physics_ocn',minval(t_rp1),maxval(t_rp1)
 
 end subroutine run_stochastic_physics_ocn
 subroutine finalize_stochastic_physics()

@@ -395,7 +395,7 @@ module compns_stochy_mod
       epbl             = -999.  ! stochastic physics tendency amplitude
       ocnsppt          = -999.  ! stochastic physics tendency amplitude
 ! logicals
-      do_epbl = .false.
+      pert_epbl = .false.
       do_ocnsppt = .false.
       new_lscale = .false.
       epblint          = 0
@@ -417,7 +417,7 @@ module compns_stochy_mod
 
 ! PJP stochastic physics additions
       IF (epbl(1) > 0 ) THEN
-        do_epbl=.true.
+        pert_epbl=.true.
       ENDIF
       IF (ocnsppt(1) > 0 ) THEN
         do_ocnsppt=.true.
@@ -469,7 +469,7 @@ module compns_stochy_mod
 !
       if (mpp_pe()==mpp_root_pe()) then
          print *, 'ocean stochastic physics'
-         print *, ' do_epbl : ', do_epbl
+         print *, ' pert_epbl : ', pert_epbl
          print *, ' do_ocnsppt : ', do_ocnsppt
       endif
       iret = 0
