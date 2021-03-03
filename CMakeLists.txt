@@ -57,3 +57,17 @@ target_link_libraries(stochastic_physics PUBLIC fms)
 if(OpenMP_Fortran_FOUND)
   target_link_libraries(stochastic_physics PRIVATE OpenMP::OpenMP_Fortran)
 endif()
+
+###############################################################################
+### Install
+###############################################################################
+install(
+  TARGETS stochastic_physics
+  EXPORT  stochastic_physics-config
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib)
+
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/mod DESTINATION ${CMAKE_INSTALL_PREFIX})
+
+install(EXPORT stochastic_physics-config
+    DESTINATION lib/cmake)
