@@ -49,7 +49,7 @@ list(APPEND _stoch_phys_srcs
 )
 
 add_library(stochastic_physics ${_stoch_phys_srcs})
-add_dependencies(stochastic_physicsfms)
+add_dependencies(stochastic_physics fms)
 
 target_compile_definitions(stochastic_physics PRIVATE INTERNAL_FILE_NML)
 
