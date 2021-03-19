@@ -9,6 +9,7 @@ module spectral_layout_mod
 ! 20161011   philip pegion :  make stochastic pattern generator standalone
 !
 ! 20190503   dom heinzeller : add ompthreads and stochy_la2ga; todo: cleanup nodes, me, ... (defined multiple times in several files)
+! 20201002   philip pegion:  cleanup of code
 !
    integer :: nodes,             &
               me,                &
@@ -24,32 +25,35 @@ module spectral_layout_mod
               len_trio_ls,       &
               len_trie_ls_max,   &
               len_trio_ls_max,   &
-              me_l_0,            &
               lats_dim_ext,      &
-              lats_node_ext,     &
-              ipt_lats_node_ext
+              jcap,latg,latg2,   &
+              skeblevs,levs,lnt, &
+              lonf,lonfx,        &
+              latgd,lotls
 
-   integer :: ompthreads = 1
 !
    integer, allocatable :: lat1s_a(:), lon_dims_a(:),lon_dims_ext(:)
+   real, allocatable, dimension(:) ::  colrad_a, wgt_a, wgtcs_a, rcs2_a, &
+                                       sinlat_a, coslat_a
+   integer ,allocatable, dimension(:) :: lats_nodes_h,global_lats_h
+
+   integer lats_dim_h,   &
+              lats_node_h,   &
+              lats_node_h_max,   &
+              ipt_lats_node_h,   &
+              lon_dim_h  
+   INTEGER ,ALLOCATABLE :: lat1s_h(:) 
 
 contains
 
-   logical function is_master()
-      if (me == master) then
-         is_master = .true.
-      else
-         is_master = .false.
-      end if
-   end function is_master
-
+!
    !  interpolation from lat/lon or gaussian grid to other lat/lon grid
    !
 !>@brief The subroutine 'stochy_la2ga' intepolates from the global gaussian grid
 !! to the cubed sphere points
 !>@details This code is taken from the legacy spectral GFS
    subroutine stochy_la2ga(regin,imxin,jmxin,rinlon,rinlat,rlon,rlat, &
-                           gauout,len,rslmsk, outlat, outlon)
+                           gauout,len,outlat, outlon)
       use kinddef , only : kind_io8, kind_io4
       implicit none
       ! interface variables
@@ -62,16 +66,14 @@ contains
       real (kind=kind_io8), intent(in)  :: rlat
       real (kind=kind_io8), intent(out) :: gauout(len)
       integer,              intent(in)  :: len
-      real (kind=kind_io8), intent(in)  :: rslmsk(imxin,jmxin)
       real (kind=kind_io8), intent(in)  :: outlat(len)
       real (kind=kind_io8), intent(in)  :: outlon(len)
       ! local variables
-      real (kind=kind_io8) :: wei4,wei3,wei2,sum2,sum1,sum3,wei1,sum4
+      real (kind=kind_io8) :: sum2,sum1,sum3,sum4
       real (kind=kind_io8) :: wsum,wsumiv,sums,sumn,wi2j2,x,y,wi1j1
       real (kind=kind_io8) :: wi1j2,wi2j1,aphi,rnume,alamd,denom
-      integer              :: jy,ix,i,j,jq,jx
-      integer              :: j1,j2,ii,i1,i2,kmami,it
-      integer              :: nx,kxs,kxt
+      integer              :: i,j,jq,jx
+      integer              :: j1,j2,ii,i1,i2
       integer              :: iindx1(len)
       integer              :: iindx2(len)
       integer              :: jindx1(len)
@@ -79,43 +81,22 @@ contains
       real(kind=kind_io8)  :: ddx(len)
       real(kind=kind_io8)  :: ddy(len)
       real(kind=kind_io8)  :: wrk(len)
-      integer              :: len_thread_m
-      integer              :: len_thread
-      integer              :: i1_t
-      integer              :: i2_t
 !
-      len_thread_m  = (len+ompthreads-1) / ompthreads
-!
-      !$omp parallel do num_threads(ompthreads) default(none)               &
-      !$omp private(i1_t,i2_t,len_thread,it,i,ii,i1,i2)                     &
-      !$omp private(j,j1,j2,jq,ix,jy,nx,kxs,kxt,kmami)                      &
-      !$omp private(alamd,denom,rnume,aphi,x,y,wsum,wsumiv,sum1,sum2)       &
-      !$omp private(sum3,sum4,wi1j1,wi2j1,wi1j2,wi2j2,wei1,wei2,wei3,wei4)  &
-      !$omp private(sumn,sums)                                              &
-      !$omp shared(imxin,jmxin)                                             &
-      !$omp shared(outlon,outlat,wrk,iindx1,rinlon,jindx1,rinlat,ddx,ddy)   &
-      !$omp shared(rlon,rlat,regin,gauout)                                  &
-      !$omp shared(ompthreads,len_thread_m,len,iindx2,jindx2,rslmsk)
-      do it=1,ompthreads ! start of threaded loop
-        i1_t       = (it-1)*len_thread_m+1
-        i2_t       = min(i1_t+len_thread_m-1,len)
-        len_thread = i2_t-i1_t+1
 !
 !       find i-index for interpolation
-!
-        do i=i1_t, i2_t
+        do i=1,len
           alamd = outlon(i)
           if (alamd .lt. rlon)   alamd = alamd + 360.0
           if (alamd .gt. 360.0+rlon) alamd = alamd - 360.0
           wrk(i)    = alamd
           iindx1(i) = imxin
         enddo
-        do i=i1_t,i2_t
+        do i=1,len
           do ii=1,imxin
             if(wrk(i) .ge. rinlon(ii)) iindx1(i) = ii
           enddo
         enddo
-        do i=i1_t,i2_t
+        do i=1,len
           i1 = iindx1(i)
           if (i1 .lt. 1) i1 = imxin
           i2 = i1 + 1
@@ -132,15 +113,15 @@ contains
 !  find j-index for interplation
 !
         if(rlat.gt.0.) then
-          do j=i1_t,i2_t
+          do j=1,len
             jindx1(j)=0
           enddo
           do jx=1,jmxin
-            do j=i1_t,i2_t
+            do j=1,len
               if(outlat(j).le.rinlat(jx)) jindx1(j) = jx
             enddo
           enddo
-          do j=i1_t,i2_t
+          do j=1,len
             jq = jindx1(j)
             aphi=outlat(j)
             if(jq.ge.1 .and. jq .lt. jmxin) then
@@ -168,15 +149,15 @@ contains
             jindx2(j)=j2
           enddo
         else
-          do j=i1_t,i2_t
+          do j=1,len
             jindx1(j) = jmxin+1
           enddo
           do jx=jmxin,1,-1
-            do j=i1_t,i2_t
+            do j=1,len
               if(outlat(j).le.rinlat(jx)) jindx1(j) = jx
             enddo
           enddo
-          do j=i1_t,i2_t
+          do j=1,len
             jq = jindx1(j)
             aphi=outlat(j)
             if(jq.gt.1 .and. jq .le. jmxin) then
@@ -220,7 +201,7 @@ contains
 !
 !  quasi-bilinear interpolation
 !
-        do i=i1_t,i2_t
+        do i=1,len
           y  = ddy(i)
           j1 = jindx1(i)
           j2 = jindx2(i)
@@ -270,20 +251,17 @@ contains
             endif            ! if j1 .ne. j2
           endif
         enddo
-        do i=i1_t,i2_t
+        do i=1,len
           j1 = jindx1(i)
           j2 = jindx2(i)
           i1 = iindx1(i)
           i2 = iindx2(i)
           if(wrk(i) .eq. 0.0) then
-            write(6,*) ' la2ga: bad rslmsk given'
+            write(6,*) ' la2ga: error'
             call sleep(2)
             stop
           endif
         enddo
-      enddo ! end of threaded loop
-!$omp end parallel do
-!
       return
 !
    end subroutine stochy_la2ga
