@@ -15,11 +15,10 @@
      &                         lats_node,ipt_lats_node,
      &                         lons_lat,londi,latl,nvars_0)
 !
-      use stochy_resol_def , only : jcap,latgd
-      use spectral_layout_mod, only : len_trie_ls,len_trio_ls,
-     &                                ls_dim,ls_max_node,me,nodes
+      use spectral_layout_mod   , only : len_trie_ls,len_trio_ls,
+     &                                   ls_dim,ls_max_node,me,
+     &                                   nodes,jcap
       use kinddef
-      use spectral_layout_mod, only : num_parthds_stochy => ompthreads
       use mpi_wrapper, only : mp_alltoall
 
       implicit none
@@ -29,6 +28,7 @@
       integer lat1s(0:jcap),latl2
 !
       integer              nvars,nvars_0
+      integer :: npes
       real(kind=kind_dbl_prec) flnev(len_trie_ls,2*nvars)
       real(kind=kind_dbl_prec) flnod(len_trio_ls,2*nvars)
 !
@@ -44,14 +44,12 @@
 !    local scalars
 !    -------------
 !
-      integer              j, k, l, lat, lat1, n, kn, n2,indev,indod
+      integer              j, l, lat, lat1, n, kn, n2,indev,indod
 !
 !    local arrays
 !    ------------
 !
       real(kind=kind_dbl_prec), dimension(nvars*2,latl2) ::  apev, apod
-      integer               num_threads, nvar_thread_max, nvar_1, nvar_2
-     &,                     thread
 ! xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 !
       integer              nvarsdim,  latl, workdim, londi
@@ -73,7 +71,7 @@
       integer, dimension(nodes) :: kpts, kptr, sendcounts, recvcounts,
      &                              sdispls
 !
-      integer              ierr,ilat,ipt_ls, lmax,lval,i,jj,lonl,nv
+      integer              ilat,ipt_ls, lmax,lval,jj,lonl,nv
       integer              node,nvar,arrsz,my_pe
       integer              ilat_list(nodes)              !    for OMP buffer copy
 !
@@ -90,8 +88,6 @@
 ! xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 !
       arrsz=2*nvars*ls_dim*workdim*nodes
-      num_threads     = min(num_parthds_stochy,nvars)
-      nvar_thread_max = (nvars+num_threads-1)/num_threads
       kpts   = 0
 !     write(0,*)' londi=',londi,'nvarsdim=',nvarsdim,'workdim=',workdim
 !
@@ -107,14 +103,7 @@
         lat1 = lat1s(l)
         if ( kind_dbl_prec == 8 ) then !------------------------------------
 
-!$omp parallel do num_threads(num_threads)
-!$omp+private(thread,nvar_1,nvar_2,n2)
-          do thread=1,num_threads   ! start of thread loop ..............
-            nvar_1 = (thread-1)*nvar_thread_max + 1
-            nvar_2 = min(nvar_1+nvar_thread_max-1,nvars)
-
-            if (nvar_2 >= nvar_1) then
-              n2 = 2*(nvar_2-nvar_1+1)
+              n2 = 2*nvars
 
 !           compute the even and odd components of the fourier coefficients
 !
@@ -133,12 +122,12 @@
      &                   latl2-lat1+1,
      &                   (jcap+3-l)/2,
      &                   cons1,
-     &                   flnev(indev,2*nvar_1-1),
+     &                   flnev(indev,1),
      &                   len_trie_ls,
      &                   plnev(indev,lat1),
      &                   len_trie_ls,
      &                   cons0,
-     &                   apev(2*nvar_1-1,lat1),
+     &                   apev(1,lat1),
      &                   2*nvars
      &                   )
 !
@@ -157,25 +146,16 @@
      &                   latl2-lat1+1,
      &                  (jcap+2-l)/2,
      &                   cons1,
-     &                   flnod(indod,2*nvar_1-1),
+     &                   flnod(indod,1),
      &                   len_trio_ls,
      &                   plnod(indod,lat1),
      &                   len_trio_ls,
      &                   cons0,
-     &                   apod(2*nvar_1-1,lat1),
+     &                   apod(1,lat1),
      &                   2*nvars
      &                   )
 !
             endif
-          enddo   ! end of thread loop ..................................
-        else !------------------------------------------------------------
-!$omp parallel do num_threads(num_threads)
-!$omp+private(thread,nvar_1,nvar_2)
-          do thread=1,num_threads   ! start of thread loop ..............
-            nvar_1 = (thread-1)*nvar_thread_max + 1
-            nvar_2 = min(nvar_1+nvar_thread_max-1,nvars)
-          enddo   ! end of thread loop ..................................
-        endif !-----------------------------------------------------------
 !
 ccxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 !
@@ -186,8 +166,7 @@ ccxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
         do node = 1, nodes - 1
           ilat_list(node+1) = ilat_list(node) + lats_nodes(node)
         end do
-!$omp parallel do num_threads(num_threads)
-!$omp+private(node,jj,ilat,lat,ipt_ls,nvar,kn,n2)
+!$omp parallel do private(node,jj,ilat,lat,ipt_ls,nvar,kn,n2)
         do node=1,nodes
           do jj=1,lats_nodes(node)
             ilat  = ilat_list(node) + jj
@@ -237,7 +216,7 @@ ccxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 !
 !
       n2 = nvars + nvars
-!$omp parallel do num_threads(num_threads) private(node)
+!$omp parallel do private(node)
       do node=1,nodes
          sendcounts(node) = kpts(node) * n2
          recvcounts(node) = kptr(node) * n2
@@ -245,12 +224,11 @@ ccxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
       end do
       work1dr(1:arrsz)=>workr
       work1ds(1:arrsz)=>works
-      call mp_alltoall(work1ds,sendcounts,sdispls,
-     &                 work1dr,recvcounts,sdispls)
+      call mp_alltoall(work1ds, sendcounts, sdispls,
+     &                  work1dr,recvcounts,sdispls)
       nullify(work1dr)
       nullify(work1ds)
-!$omp parallel do num_threads(num_threads)
-!$omp+private(j,lat,lmax,nvar,lval,n2,lonl,nv)
+!$omp parallel do private(j,lat,lmax,nvar,lval,n2,lonl,nv)
       do j=1,lats_node
          lat  = global_lats(ipt_lats_node-1+j)
          lonl = lons_lat(lat)
@@ -274,8 +252,7 @@ ccxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
       kptr = 0
 !     write(0,*)' kptr=',kptr(1)
 !!
-!$omp parallel do num_threads(num_threads)
-!$omp+private(node,l,lval,j,lat,nvar,kn,n2)
+!$omp parallel do private(node,l,lval,j,lat,nvar,kn,n2)
       do node=1,nodes
         do l=1,max_ls_nodes(node)
           lval = ls_nodes(l,node)+1

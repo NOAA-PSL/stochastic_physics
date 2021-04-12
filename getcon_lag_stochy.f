@@ -10,12 +10,9 @@
       subroutine getcon_lag_stochy(lats_nodes_a,global_lats_a,
      &                      lats_nodes_h,global_lats_h_sn,
      &                      lonsperlat,xhalo,yhalo)
-      use stochy_resol_def,     only : jcap,latg,latg2,lonf
-      use spectral_layout_mod,     only : me,nodes
-
-      use stochy_gg_def,      only : colrad_a,sinlat_a
-      use stochy_layout_lag, only :
-     &                           ipt_lats_node_h,lat1s_h,lats_dim_h,
+      use spectral_layout_mod, only : me,nodes,jcap,latg,latg2,lonf,
+     &                          colrad_a,sinlat_a,
+     &                          ipt_lats_node_h,lat1s_h,lats_dim_h,
      &                          lats_node_h,lats_node_h_max,lon_dim_h
       use setlats_lag_stochy_mod, only: setlats_lag_stochy
       implicit none
