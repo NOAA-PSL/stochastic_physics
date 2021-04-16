@@ -50,7 +50,7 @@ add_dependencies(stochastic_physics fms)
 target_compile_definitions(stochastic_physics PRIVATE INTERNAL_FILE_NML)
 
 target_link_libraries(stochastic_physics PUBLIC fms)
-if(OpenMP_Fortran_FOUND)
+if(OPENMP)
   target_link_libraries(stochastic_physics PRIVATE OpenMP::OpenMP_Fortran)
 endif()
 
