@@ -49,6 +49,10 @@ add_dependencies(stochastic_physics fms)
 
 target_compile_definitions(stochastic_physics PRIVATE INTERNAL_FILE_NML)
 
+set_target_properties(stochastic_physics PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/mod)
+target_include_directories(stochastic_physics INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/mod>
+                                                        $<INSTALL_INTERFACE:mod>)
+
 target_link_libraries(stochastic_physics PUBLIC fms)
 if(OPENMP)
   target_link_libraries(stochastic_physics PRIVATE OpenMP::OpenMP_Fortran)
