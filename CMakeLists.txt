@@ -1,11 +1,7 @@
 if(32BIT)
   message ("Force 64 bits in stochastic_physics")
   if(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
-    if(REPRO)
-      string (REPLACE "-i4 -real-size 32" "-i4 -real-size 64" CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS}")
-    else()
-      string (REPLACE "-i4 -real-size 32" "-i4 -real-size 64 -no-prec-div -no-prec-sqrt" CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS}")
-    endif()
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -real-size 64")
   elseif(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
     set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fdefault-real-8")
   endif()
@@ -53,8 +49,12 @@ add_dependencies(stochastic_physics fms)
 
 target_compile_definitions(stochastic_physics PRIVATE INTERNAL_FILE_NML)
 
+set_target_properties(stochastic_physics PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/mod)
+target_include_directories(stochastic_physics INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/mod>
+                                                        $<INSTALL_INTERFACE:mod>)
+
 target_link_libraries(stochastic_physics PUBLIC fms)
-if(OpenMP_Fortran_FOUND)
+if(OPENMP)
   target_link_libraries(stochastic_physics PRIVATE OpenMP::OpenMP_Fortran)
 endif()
 
