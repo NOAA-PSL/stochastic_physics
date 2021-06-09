@@ -246,7 +246,7 @@ k_in=1
  else
     ! don't rely on compiler to truncate integer(8) to integer(4) on
     ! overflow, do wrap around explicitly.
-    count4 = mod(mype + iseed_ca + 2147483648, 4294967296) - 2147483648
+    count4 = mod(kstep + mype + iseed_ca + 2147483648, 4294967296) - 2147483648
  endif
  call random_setseed(count4)
  
