@@ -4,20 +4,21 @@ implicit none
 
 contains
 
-subroutine cellular_automata_global(kstep,ca1_cpl,ca2_cpl,ca3_cpl,ca1_diag,ca2_diag,ca3_diag, &
+subroutine cellular_automata_global(kstep,first_time_step,ca1_cpl,ca2_cpl,ca3_cpl,ca1_diag,ca2_diag,ca3_diag, &
             domain_for_coupler,nblks,isc,iec,jsc,jec,npx,npy,nlev, &
-            nca,ncells,nlives,nfracseed,nseed,nthresh,ca_global,ca_sgs,iseed_ca, &
+            nca,ncells,nlives,nfracseed,nseed,ca_global,ca_sgs,iseed_ca, &
             ca_smooth,nspinup,blocksize,nsmooth,ca_amplitude,mpiroot,mpicomm)
 
 use kinddef,           only: kind_phys
-use update_ca,         only: update_cells_sgs, update_cells_global
+use update_ca,         only: update_cells_sgs, update_cells_global,define_ca_domain
 use halo_exchange,     only: atmosphere_scalar_field_halo
 use mersenne_twister,  only: random_setseed,random_gauss,random_stat,random_number
 use mpp_domains_mod,   only: domain2D
 use block_control_mod, only: block_control_type, define_blocks_packed
 use mpi_wrapper,       only: mype,mp_reduce_sum,mp_bcst,mp_reduce_max,mp_reduce_min, &
                              mpi_wrapper_initialize
-
+use mpp_domains_mod
+use mpp_mod
 
 implicit none
 
@@ -28,13 +29,13 @@ implicit none
 
 integer,              intent(in)    :: kstep,ncells,nca,nlives,nseed,nspinup,nsmooth,mpiroot,mpicomm
 integer,              intent(in)    :: iseed_ca
-real(kind=kind_phys), intent(in)    :: nfracseed,nthresh,ca_amplitude
-logical,              intent(in)    :: ca_global, ca_sgs, ca_smooth
+real(kind=kind_phys), intent(in)    :: nfracseed,ca_amplitude
+logical,              intent(in)    :: ca_global, ca_sgs, ca_smooth,first_time_step
 integer,              intent(in)    :: nblks,isc,iec,jsc,jec,npx,npy,nlev,blocksize
 real(kind=kind_phys), intent(out)   :: ca1_cpl(:,:),ca2_cpl(:,:),ca3_cpl(:,:)
 real(kind=kind_phys), intent(out)   :: ca1_diag(:,:),ca2_diag(:,:),ca3_diag(:,:)
 type(domain2D),       intent(inout) :: domain_for_coupler
-    
+type(domain2D)                      :: domain_ncellx    
 type(block_control_type) :: Atm_block
 type(random_stat) :: rstate
 integer :: nlon, nlat, isize,jsize,nf,nn
@@ -42,12 +43,15 @@ integer :: inci, incj, nxc, nyc, nxch, nych
 integer :: halo, k_in, i, j, k
 integer :: seed, ierr7,blk, ix, iix, count4,ih,jh
 integer :: blocksz,levs
+integer :: isdnx,iednx,jsdnx,jednx
+integer :: iscnx,iecnx,jscnx,jecnx
+integer :: nxncells, nyncells
 integer(8) :: count, count_rate, count_max, count_trunc
 integer(8) :: iscale = 10000000000
 integer, allocatable :: iini_g(:,:,:),ilives_g(:,:)
-real(kind=kind_phys), allocatable :: field_out(:,:,:), field_in(:,:),field_smooth(:,:)
+real(kind=kind_phys), allocatable :: field_out(:,:,:), field_smooth(:,:)
 real(kind=kind_phys), allocatable :: CA(:,:),CA1(:,:),CA2(:,:),CA3(:,:)
-real(kind=kind_phys), allocatable :: noise1D(:),vertvelhigh(:,:),noise(:,:,:)
+real(kind=kind_phys), allocatable :: noise1D(:),noise(:,:,:)
 real(kind=kind_phys) :: psum,csum,CAmean,sq_diff,CAstdv
 real(kind=kind_phys) :: Detmax(nca),Detmin(nca),Detmean(nca)
 logical,save         :: block_message=.true.
@@ -55,17 +59,16 @@ logical,save         :: block_message=.true.
 
 !nca         :: switch for number of cellular automata to be used.
 !ca_global   :: switch for global cellular automata
-!ca_sgs      :: switch for cellular automata conditioned on SGS perturbed vertvel.
+!ca_sgs      :: switch for cellular automata conditioned on physics.
 !nfracseed   :: switch for number of random cells initially seeded
 !nlives      :: switch for maximum number of lives a cell can have
 !nspinup     :: switch for number of itterations to spin up the ca
 !ncells      :: switch for higher resolution grid e.g ncells=4
 !               gives 4x4 times the FV3 model grid resolution.
 !ca_smooth   :: switch to smooth the cellular automata
-!nthresh     :: threshold of perturbed vertical velocity used in case of sgs
 
 ! Initialize MPI and OpenMP
-if (kstep==0) then
+if (first_time_step) then
    call mpi_wrapper_initialize(mpiroot,mpicomm)
 end if
 
@@ -102,21 +105,25 @@ k_in=1
  inci=ncells
  incj=ncells
 
- nxc=nlon*ncells
- nyc=nlat*ncells
+ 
+ !--- get params from domain_ncellx for building board and board_halo
+ !Get CA domain
+                                                                                                                                                     
+ call define_ca_domain(domain_for_coupler,domain_ncellx,ncells,nxncells,nyncells)
+ call mpp_get_data_domain    (domain_ncellx,isdnx,iednx,jsdnx,jednx)
+ call mpp_get_compute_domain (domain_ncellx,iscnx,iecnx,jscnx,jecnx)
 
- nxch=nxc+2*halo
- nych=nyc+2*halo
+ nxc = iecnx-iscnx+1
+ nyc = jecnx-jscnx+1
+ nxch = iednx-isdnx+1
+ nych = jednx-jsdnx+1
 
 
  !Allocate fields:
-
- allocate(field_in(nlon*nlat,1))
  allocate(field_out(isize,jsize,1))
  allocate(field_smooth(nlon,nlat))
  allocate(iini_g(nxc,nyc,nca))
  allocate(ilives_g(nxc,nyc))
- allocate(vertvelhigh(nxc,nyc))
  allocate(CA(nlon,nlat))
  allocate(CA1(nlon,nlat))
  allocate(CA2(nlon,nlat))
@@ -142,8 +149,9 @@ k_in=1
  call define_blocks_packed('cellular_automata', Atm_block, isc, iec, jsc, jec, levs, &
                               blocksz, block_message)
 
+if(first_time_step)then
 !Generate random number, following stochastic physics code:
-!if(kstep==0) then
+
   if (iseed_ca == 0) then
     ! generate a random seed from system clock and ens member number
     call system_clock(count, count_rate, count_max)
@@ -156,7 +164,6 @@ k_in=1
     ! overflow, do wrap around explicitly.
     count4 = mod(mype + iseed_ca + 2147483648, 4294967296) - 2147483648
   endif
-!endif !kstep == 0
 
   call random_setseed(count4,rstate)
   do nf=1,nca
@@ -171,7 +178,7 @@ k_in=1
    enddo
 
 !Initiate the cellular automaton with random numbers larger than nfracseed
-if(kstep ==0)then
+
    do nf=1,nca
     do j = 1,nyc
       do i = 1,nxc
@@ -183,7 +190,7 @@ if(kstep ==0)then
       enddo
     enddo
   enddo !nf
-endif ! kstep==0
+endif ! 
 
 !In case we want to condition the cellular automaton on a large scale field
 !we here set the "condition" variable to a different model field depending
@@ -206,27 +213,19 @@ endif ! kstep==0
 
   CA(:,:)=0.
 
-  call update_cells_global(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,isc,iec,jsc,jec, &
-                           npx,npy,domain_for_coupler,CA,iini_g,ilives_g,         &
-                           nlives,ncells,nfracseed,nseed,nthresh,nspinup,nf)
+  call update_cells_global(kstep,first_time_step,iseed_ca,nca,nxc,nyc,nxch,nych,nlon,nlat,nxncells,nyncells,isc,iec,jsc,jec, &
+                           npx,npy,iscnx,iecnx,jscnx,jecnx,domain_ncellx,CA,iini_g,ilives_g,         &
+                           nlives,ncells,nfracseed,nseed,nspinup,nf)
 
 
 if (ca_smooth) then
 
 do nn=1,nsmooth !number of iterations for the smoothing.
 
-field_in=0.
-
-!get halo
-do j=1,nlat
- do i=1,nlon
- field_in(i+(j-1)*nlon,1)=CA(i,j)
- enddo
-enddo
-
 field_out=0.
+field_out(1+halo:nlon+halo,1+halo:nlat+halo,nf) = real(CA(1:nlon,1:nlat),kind=8)
 
-call atmosphere_scalar_field_halo(field_out,halo,isize,jsize,k_in,field_in,isc,iec,jsc,jec,npx,npy,domain_for_coupler)
+call atmosphere_scalar_field_halo(field_out,halo,isize,jsize,k_in,isc,iec,jsc,jec,npx,npy,domain_for_coupler)
 
 do j=1,nlat
  do i=1,nlon
@@ -307,7 +306,7 @@ enddo
 
 !Put back into blocks 1D array to be passed to physics
 !or diagnostics output
-if(kstep < 1)then
+if(first_time_step)then
 CA(:,:)=1.
 endif
 
@@ -335,7 +334,6 @@ enddo !nf
   enddo
 
 
- deallocate(field_in)
  deallocate(field_out)
  deallocate(field_smooth)
  deallocate(iini_g)

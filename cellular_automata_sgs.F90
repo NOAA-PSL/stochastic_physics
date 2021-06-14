@@ -4,48 +4,44 @@ implicit none
 
 contains
 
-subroutine cellular_automata_sgs(kstep,ugrs,qgrs,pgr,vvl,prsl,condition_cpl, &
-            ca_deep_cpl,ca_turb_cpl,ca_shal_cpl,ca_deep_diag,ca_turb_diag,ca_shal_diag,domain_for_coupler, &
-            nblks,isc,iec,jsc,jec,npx,npy,nlev, &
-            nca,ncells,nlives,nfracseed,nseed,nthresh,ca_global,ca_sgs,iseed_ca, &
-            ca_smooth,nspinup,blocksize,mpiroot, mpicomm)
+subroutine cellular_automata_sgs(kstep,dtf,restart,first_time_step,sst,lsmsk,lake,condition_cpl, &
+            ca_deep_cpl,ca_turb_cpl,ca_shal_cpl,ca_deep_diag,ca_turb_diag,ca_shal_diag,domain, &
+            nblks,isc,iec,jsc,jec,npx,npy,nlev,nthresh,rcell, &
+            nca,scells,tlives,nfracseed,nseed,ca_global,ca_sgs,iseed_ca, &
+            ca_smooth,nspinup,ca_trigger,blocksize,mpiroot,mpicomm)
 
 use kinddef,           only: kind_phys
-use update_ca,         only: update_cells_sgs, update_cells_global
+use update_ca,         only: update_cells_sgs, update_cells_global, define_ca_domain
 use mersenne_twister,  only: random_setseed,random_gauss,random_stat,random_number
 use mpp_domains_mod,   only: domain2D
 use block_control_mod, only: block_control_type, define_blocks_packed
+use time_manager_mod, only: time_type
 use mpi_wrapper,       only: mype,mp_reduce_sum,mp_bcst,mp_reduce_max,mp_reduce_min, &
                              mpi_wrapper_initialize
+use mpp_domains_mod
+use mpp_mod
+
 
 
 implicit none
-
 !L.Bengtsson, 2017-06
 
-!This program evolves a cellular automaton uniform over the globe given
-!the flag ca_global, if instead ca_sgs is .true. it evolves a cellular automata conditioned on
-!perturbed grid-box mean field. The perturbations to the mean field are given by a
-!stochastic gaussian skewed (SGS) distribution.
+!L.Bengtsson, 2021-05
+!Significant cleaning of old ideas
+!Inclusion of restart capability
+!Setting control variables as a function of dx and dt
+!for scale adaptation. 
 
-!If ca_global is .true. it weighs the number of ca (nca) together to produce 1 output pattern
-!If instead ca_sgs is given, it produces nca ca:
-! 1 CA_DEEP = deep convection
-! 2 CA_SHAL = shallow convection
-! 3 CA_TURB = turbulence
+!This routine produces an output field CA_DEEP for coupling to convection (saSAS).
+!CA_DEEP can be either number of plumes in a cluster (nca_plumes=true) or updraft 
+!area fraction (nca_plumes=false)
 
-!PLEASE NOTE: This is considered to be version 0 of the cellular automata code for FV3GFS, some functionally
-!is missing/limited.
-
-integer,intent(in) :: kstep,ncells,nca,nlives,nseed,iseed_ca,nspinup,mpiroot,mpicomm
-real(kind=kind_phys), intent(in)    :: nfracseed,nthresh
-logical,intent(in) :: ca_global, ca_sgs, ca_smooth
+integer,intent(in) :: kstep,scells,nca,tlives,nseed,iseed_ca,nspinup,mpiroot,mpicomm
+real(kind=kind_phys), intent(in)    :: nfracseed,dtf,rcell
+logical,intent(in) :: ca_global, ca_sgs, ca_smooth, restart,ca_trigger,first_time_step
 integer, intent(in) :: nblks,isc,iec,jsc,jec,npx,npy,nlev,blocksize
-real(kind=kind_phys), intent(in)    :: ugrs(:,:,:)
-real(kind=kind_phys), intent(in)    :: qgrs(:,:,:)
-real(kind=kind_phys), intent(in)    :: pgr(:,:)
-real(kind=kind_phys), intent(in)    :: vvl(:,:,:)
-real(kind=kind_phys), intent(in)    :: prsl(:,:,:)
+real  , intent(out) :: nthresh
+real(kind=kind_phys), intent(in)    :: sst(:,:),lsmsk(:,:),lake(:,:)
 real(kind=kind_phys), intent(inout) :: condition_cpl(:,:)
 real(kind=kind_phys), intent(inout) :: ca_deep_cpl(:,:)
 real(kind=kind_phys), intent(inout) :: ca_turb_cpl(:,:)
@@ -53,69 +49,66 @@ real(kind=kind_phys), intent(inout) :: ca_shal_cpl(:,:)
 real(kind=kind_phys), intent(out)   :: ca_deep_diag(:,:)
 real(kind=kind_phys), intent(out)   :: ca_turb_diag(:,:)
 real(kind=kind_phys), intent(out)   :: ca_shal_diag(:,:)
-type(domain2D), intent(inout)       :: domain_for_coupler
+type(domain2D),       intent(inout) :: domain
 
 type(block_control_type)          :: Atm_block
 type(random_stat) :: rstate
 integer :: nlon, nlat, isize,jsize,nf,nn
-integer :: inci, incj, nxc, nyc, nxch, nych
+integer :: inci, incj, nxc, nyc, nxch, nych, nx, ny
+integer :: nxncells, nyncells
 integer :: halo, k_in, i, j, k
 integer :: seed, ierr7,blk, ix, iix, count4,ih,jh
-integer :: blocksz,levs,k350,k850
+integer :: blocksz,levs
+integer :: isdnx,iednx,jsdnx,jednx
+integer :: iscnx,iecnx,jscnx,jecnx
+integer :: ncells,nlives
+integer, save :: initialize_ca
 integer(8) :: count, count_rate, count_max, count_trunc
 integer(8) :: iscale = 10000000000
-integer, allocatable :: iini(:,:,:),ilives(:,:,:),iini_g(:,:,:),ilives_g(:,:),ca_plumes(:,:)
-real(kind=kind_phys), allocatable :: field_out(:,:,:), field_in(:,:),field_smooth(:,:),Detfield(:,:,:)
-real(kind=kind_phys), allocatable :: omega(:,:,:),pressure(:,:,:),cloud(:,:),humidity(:,:),uwind(:,:)
-real(kind=kind_phys), allocatable :: vertvelsum(:,:),vertvelmean(:,:),dp(:,:,:),surfp(:,:),shalp(:,:),gamt(:,:)
-real(kind=kind_phys), allocatable :: CA(:,:),condition(:,:),rho(:,:),conditiongrid(:,:)
-real(kind=kind_phys), allocatable :: CA_DEEP(:,:),CA_TURB(:,:),CA_SHAL(:,:)
-real(kind=kind_phys), allocatable :: noise1D(:),vertvelhigh(:,:),noise(:,:,:)
-real(kind=kind_phys) :: psum,csum,CAmean,sq_diff,CAstdv,count1,lambda
-real(kind=kind_phys) :: Detmax(nca),Detmin(nca),Detmean(nca),phi,stdev,delt,condmax
+integer, allocatable :: iini(:,:,:),ilives_in(:,:,:),ca_plumes(:,:)
+real(kind=kind_phys), allocatable :: ssti(:,:),lsmski(:,:),lakei(:,:)
+real(kind=kind_phys), allocatable :: CA(:,:),condition(:,:),conditiongrid(:,:)
+real(kind=kind_phys), allocatable :: CA_DEEP(:,:)
+real(kind=kind_phys), allocatable :: noise1D(:),noise(:,:,:)
+real(kind=kind_phys) :: condmax,livesmax,factor,dx,pi,re
+type(domain2D)       :: domain_ncellx
 logical,save         :: block_message=.true.
 logical              :: nca_plumes
+logical,save         :: first_flag
 
 !nca         :: switch for number of cellular automata to be used.
+!            :: for the moment only 1 CA can be used if ca_sgs = true
 !ca_global   :: switch for global cellular automata
-!ca_sgs      :: switch for cellular automata conditioned on SGS perturbed vertvel.
+!ca_sgs      :: switch for cellular automata for deep convection
 !nfracseed   :: switch for number of random cells initially seeded
-!nlives      :: switch for maximum number of lives a cell can have
+!tlives      :: switch for time scale (s)
 !nspinup     :: switch for number of itterations to spin up the ca
-!ncells      :: switch for higher resolution grid e.g ncells=4
-!               gives 4x4 times the FV3 model grid resolution.
+!scells      :: switch for CA cell size (m)
 !ca_smooth   :: switch to smooth the cellular automata
-!nthresh     :: threshold of perturbed vertical velocity used in case of sgs
 !nca_plumes   :: compute number of CA-cells ("plumes") within a NWP gridbox.
 
 ! Initialize MPI and OpenMP
-if (kstep==0) then
+if (first_time_step) then
    call mpi_wrapper_initialize(mpiroot,mpicomm)
 end if
 
 halo=1
 k_in=1
 
-if (nlev .EQ. 64) then
-   k350=29
-   k850=13
-elseif (nlev .EQ. 127) then
-   k350=61
-   k850=28
-else ! make a guess
-   k350=int(nlev/2)
-   k850=int(nlev/5)
-   print*,'this level selection is not supported, making an approximation for k350 and k850'
+nca_plumes = .true.
+
+if(first_time_step)then
+   first_flag = .false.
+   initialize_ca = 100000
 endif
 
-nca_plumes = .true.
 !----------------------------------------------------------------------------
 ! Get information about the compute domain, allocate fields on this
 ! domain
 
 ! Some security checks for namelist combinations:
- if(nca > 5)then
- write(0,*)'Namelist option nca cannot be larger than 5 - exiting'
+ if(nca > 1)then
+ write(0,*)'When ca_sgs=.True., nca has to be 1 - exiting'
  stop
  endif
 
@@ -124,67 +117,68 @@ nca_plumes = .true.
  isize=nlon+2*halo
  jsize=nlat+2*halo
 
+ !Set time and length scales:
+ call mpp_get_global_domain(domain,xsize=nx,ysize=ny,position=CENTER)
+ pi=3.14159
+ re=6371000.
+ dx=0.5*pi*re/real(nx)
+ ncells=int(dx/real(scells))
+ nlives=int(real(tlives)/dtf)
+ ncells = MIN(ncells,10)
+ nlives = MAX(nlives,5)
+
+ nthresh=rcell*real(ncells)*real(ncells)
+
+ if(mype == 1)then
+ write(*,*)'ncells=',ncells
+ write(*,*)'nlives=',nlives
+ write(*,*)'nthresh=',nthresh
+ endif
+
  inci=ncells
  incj=ncells
 
- nxc=nlon*ncells
- nyc=nlat*ncells
+!--- get params from domain_ncellx for building board and board_halo                                                                                
 
- nxch=nxc+2*halo
- nych=nyc+2*halo
+  !Get CA domain                                                                                                                                       
+  call define_ca_domain(domain,domain_ncellx,ncells,nxncells,nyncells)
+  call mpp_get_data_domain    (domain_ncellx,isdnx,iednx,jsdnx,jednx)
+  call mpp_get_compute_domain (domain_ncellx,iscnx,iecnx,jscnx,jecnx)
+  !write(1000+mpp_pe(),*) "nxncells,nyncells: ",nxncells,nyncells
+  !write(1000+mpp_pe(),*) "iscnx,iecnx,jscnx,jecnx: ",iscnx,iecnx,jscnx,jecnx
+  !write(1000+mpp_pe(),*) "isdnx,iednx,jsdnx,jednx: ",isdnx,iednx,jsdnx,jednx
+
+  nxc = iecnx-iscnx+1
+  nyc = jecnx-jscnx+1
+  nxch = iednx-isdnx+1
+  nych = jednx-jsdnx+1
+
+
 
  !Allocate fields:
 
- allocate(cloud(nlon,nlat))
- allocate(omega(nlon,nlat,nlev))
- allocate(pressure(nlon,nlat,nlev))
- allocate(humidity(nlon,nlat))
- allocate(uwind(nlon,nlat))
- allocate(dp(nlon,nlat,nlev))
- allocate(rho(nlon,nlat))
- allocate(surfp(nlon,nlat))
- allocate(vertvelmean(nlon,nlat))
- allocate(vertvelsum(nlon,nlat))
- allocate(field_in(nlon*nlat,1))
- allocate(field_out(isize,jsize,1))
- allocate(field_smooth(nlon,nlat))
+ allocate(ssti(nlon,nlat))
+ allocate(lsmski(nlon,nlat))
+ allocate(lakei(nlon,nlat))
  allocate(iini(nxc,nyc,nca))
- allocate(ilives(nxc,nyc,nca))
- allocate(iini_g(nxc,nyc,nca))
- allocate(ilives_g(nxc,nyc))
- allocate(vertvelhigh(nxc,nyc))
+ allocate(ilives_in(nxc,nyc,nca))
  allocate(condition(nxc,nyc))
  allocate(conditiongrid(nlon,nlat))
- allocate(shalp(nlon,nlat))
- allocate(gamt(nlon,nlat))
- allocate(Detfield(nlon,nlat,nca))
  allocate(CA(nlon,nlat))
  allocate(ca_plumes(nlon,nlat))
- allocate(CA_TURB(nlon,nlat))
  allocate(CA_DEEP(nlon,nlat))
- allocate(CA_SHAL(nlon,nlat))
  allocate(noise(nxc,nyc,nca))
  allocate(noise1D(nxc*nyc))
 
  !Initialize:
- Detfield(:,:,:)=0.
- vertvelmean(:,:) =0.
- vertvelsum(:,:)=0.
- cloud(:,:)=0.
- humidity(:,:)=0.
- uwind(:,:) = 0.
  condition(:,:)=0.
  conditiongrid(:,:)=0.
- vertvelhigh(:,:)=0.
  ca_plumes(:,:) = 0
  noise(:,:,:) = 0.0
  noise1D(:) = 0.0
  iini(:,:,:) = 0
- ilives(:,:,:) = 0
- iini_g(:,:,:) = 0
- ilives_g(:,:) = 0
- Detmax(:)=0.
- Detmin(:)=0.
+ ilives_in(:,:,:) = 0
+ CA_DEEP(:,:) = 0.
 
  !Put the blocks of model fields into a 2d array - can't use nlev and blocksize directly,
  !because the arguments to define_blocks_packed are intent(inout) and not intent(in).
@@ -198,49 +192,61 @@ nca_plumes = .true.
   do ix = 1, Atm_block%blksz(blk)
       i = Atm_block%index(blk)%ii(ix) - isc + 1
       j = Atm_block%index(blk)%jj(ix) - jsc + 1
-      uwind(i,j)         = ugrs(blk,ix,k350)
       conditiongrid(i,j) = condition_cpl(blk,ix)
-      shalp(i,j)         = ca_shal_cpl(blk,ix)
-      gamt(i,j)          = ca_turb_cpl(blk,ix)
-      surfp(i,j)         = pgr(blk,ix)
-      humidity(i,j)      = qgrs(blk,ix,k850) !about 850 hpa
-      do k = 1,k350 !Lower troposphere
-      omega(i,j,k)       = vvl(blk,ix,k) ! layer mean vertical velocity in pa/sec
-      pressure(i,j,k)    = prsl(blk,ix,k) ! layer mean pressure in Pa
-      enddo
+      ssti(i,j)          = sst(blk,ix)
+      lsmski(i,j)        = lsmsk(blk,ix)
+      lakei(i,j)         = lake(blk,ix)
   enddo
  enddo
 
- CA_TURB(:,:) = 0.0
- CA_DEEP(:,:) = 0.0
- CA_SHAL(:,:) = 0.0
+!Initialize the CA when the condition field is populated
 
-!Compute layer averaged vertical velocity (Pa/s)
- vertvelsum=0.
- vertvelmean=0.
- do j=1,nlat
-  do i =1,nlon
-    dp(i,j,1)=(surfp(i,j)-pressure(i,j,1))
-    do k=2,k350
-     dp(i,j,k)=(pressure(i,j,k-1)-pressure(i,j,k))
-    enddo
-    count1=0.
-    do k=1,k350
-     count1=count1+1.
-     vertvelsum(i,j)=vertvelsum(i,j)+(omega(i,j,k)*dp(i,j,k))
+  do j=1,nyc
+   do i=1,nxc
+     condition(i,j)=conditiongrid(inci/ncells,incj/ncells)
+     if(i.eq.inci)then
+     inci=inci+ncells
+     endif
    enddo
+   inci=ncells
+   if(j.eq.incj)then
+   incj=incj+ncells
+   endif
   enddo
- enddo
 
- do j=1,nlat
-  do i=1,nlon
-   vertvelmean(i,j)=vertvelsum(i,j)/(surfp(i,j)-pressure(i,j,k350))
+  condmax=maxval(condition)
+  call mp_reduce_max(condmax)
+  if(condmax > 0.)then
+     if(.not. first_flag)then
+        first_flag = .true.
+        initialize_ca = kstep
+     endif
+  endif
+
+if(kstep >=initialize_ca)then
+  do nf=1,nca
+     do j = 1,nyc
+        do i = 1,nxc
+           ilives_in(i,j,nf)=int(real(nlives)*(condition(i,j)/condmax))
+        enddo
+     enddo
   enddo
- enddo
 
+else
+
+   do nf=1,nca
+      do j = 1,nyc
+         do i = 1,nxc
+            ilives_in(i,j,nf)=0
+         enddo
+      enddo
+   enddo
+
+endif
+                                                                                                                                        
 !Generate random number, following stochastic physics code:
-!if(kstep==2) then
-  if (iseed_ca == 0) then
+if(kstep == initialize_ca) then
+   if (iseed_ca == 0) then
     ! generate a random seed from system clock and ens member number
     call system_clock(count, count_rate, count_max)
     ! iseed is elapsed time since unix epoch began (secs)
@@ -263,10 +269,10 @@ nca_plumes = .true.
         noise(i,j,nf)=noise1D(i+(j-1)*nxc)
       enddo
     enddo
-
+   enddo
 
 !Initiate the cellular automaton with random numbers larger than nfracseed
-
+   do nf=1,nca
     do j = 1,nyc
       do i = 1,nxc
         if (noise(i,j,nf) > nfracseed ) then
@@ -276,285 +282,44 @@ nca_plumes = .true.
         endif
       enddo
     enddo
-
   enddo !nf
-!endif ! kstep=0
 
-!In case we want to condition the cellular automaton on a large scale field
-!we here set the "condition" variable to a different model field depending
-!on nf. (this is not used if ca_global = .true.)
-
-
-do nf=1,nca !update each ca
-
-
-  if(nf==1)then
-  inci=ncells
-  incj=ncells
-  do j=1,nyc
-   do i=1,nxc
-     condition(i,j)=conditiongrid(inci/ncells,incj/ncells)
-     if(i.eq.inci)then
-     inci=inci+ncells
-     endif
-   enddo
-   inci=ncells
-   if(j.eq.incj)then
-   incj=incj+ncells
-   endif
-  enddo
-
-  condmax=maxval(condition)
-  call mp_reduce_max(condmax)
-
-   do j = 1,nyc
-    do i = 1,nxc
-      ilives(i,j,nf)=real(nlives)*(condition(i,j)/condmax)
-    enddo
-   enddo
-
- elseif(nf==2)then
-  inci=ncells
-  incj=ncells
-  do j=1,nyc
-   do i=1,nxc
-     condition(i,j)=conditiongrid(inci/ncells,incj/ncells)
-     if(i.eq.inci)then
-     inci=inci+ncells
-     endif
-   enddo
-   inci=ncells
-   if(j.eq.incj)then
-   incj=incj+ncells
-   endif
-  enddo
-
-  condmax=maxval(condition)
-  call mp_reduce_max(condmax)
-
-   do j = 1,nyc
-    do i = 1,nxc
-      ilives(i,j,nf)=real(nlives)*(condition(i,j)/condmax)
-    enddo
-   enddo
-
- else
-
-  inci=ncells
-  incj=ncells
-  do j=1,nyc
-   do i=1,nxc
-     condition(i,j)=conditiongrid(inci/ncells,incj/ncells)
-     if(i.eq.inci)then
-     inci=inci+ncells
-     endif
-   enddo
-   inci=ncells
-   if(j.eq.incj)then
-   incj=incj+ncells
-   endif
-  enddo
-
-  condmax=maxval(condition)
-  call mp_reduce_max(condmax)
-
-  do j = 1,nyc
-    do i = 1,nxc
-      ilives(i,j,nf)=real(nlives)*(condition(i,j)/condmax)
-    enddo
-   enddo
-
- endif !nf
-
-
-!Vertical velocity has its own variable in order to condition on combination
-!of "condition" and vertical velocity.
-
-  inci=ncells
-  incj=ncells
-  do j=1,nyc
-   do i=1,nxc
-     vertvelhigh(i,j)=vertvelmean(inci/ncells,incj/ncells)
-     if(i.eq.inci)then
-     inci=inci+ncells
-     endif
-   enddo
-   inci=ncells
-   if(j.eq.incj)then
-   incj=incj+ncells
-   endif
-  enddo
+endif ! 
 
 !Calculate neighbours and update the automata
-!If ca-global is used, then nca independent CAs are called and weighted together to create one field; CA
+ do nf=1,nca
+  call update_cells_sgs(kstep,initialize_ca,first_flag,restart,first_time_step,iseed_ca,nca,nxc,nyc, &
+                        nxch,nych,nlon,nlat,nxncells,nyncells,isc,iec,jsc,jec, &
+                        npx,npy,isdnx,iednx,jsdnx,jednx,iscnx,iecnx,jscnx,jecnx,domain_ncellx,CA,ca_plumes,iini,ilives_in,        &
+                        nlives,nfracseed,nseed,nspinup,nf,nca_plumes,ncells)
 
-  call update_cells_sgs(kstep,nca,nxc,nyc,nxch,nych,nlon,nlat,isc,iec,jsc,jec, &
-                   npx,npy,domain_for_coupler,CA,ca_plumes,iini,ilives,        &
-                   nlives,ncells,nfracseed,nseed,nthresh,nspinup,nf,nca_plumes)
-
-   if(nf==1)then
-    CA_DEEP(:,:)=CA(:,:)
-   elseif(nf==2)then
-    CA_SHAL(:,:)=CA(:,:)
-   else
-    CA_TURB(:,:)=CA(:,:)
-   endif
-
+    if(nca_plumes)then
+    do j=1,nlat
+       do i=1,nlon
+          CA_DEEP(i,j)=ca_plumes(i,j)
+       enddo
+    enddo
+    else
+    livesmax=maxval(ilives_in)
+    call mp_reduce_max(livesmax)
+    do j=1,nlat
+       do i=1,nlon
+          CA_DEEP(i,j)=CA(i,j)/livesmax
+       enddo
+    enddo
+    endif
 
  enddo !nf (nca)
 
-!!Post-processesing - could be made into a separate sub-routine
-
-!Deep convection ====================================
-
-if(kstep > 1)then
-
-!Use min-max method to normalize range
-Detmax(1)=maxval(CA_DEEP,CA_DEEP.NE.0.)
-call mp_reduce_max(Detmax(1))
-Detmin(1)=minval(CA_DEEP,CA_DEEP.NE.0.)
-call mp_reduce_min(Detmin(1))
-
+!Limit CA activity to the Tropical Ocean
 
 do j=1,nlat
- do i=1,nlon
- if(CA_DEEP(i,j).NE.0.)then
-    CA_DEEP(i,j) =(CA_DEEP(i,j) - Detmin(1))/(Detmax(1)-Detmin(1))
- endif
- enddo
+   do i=1,nlon
+      if(ssti(i,j) < 300. .or. lsmski(i,j) /= 0. .or. lakei(i,j) > 0.0)then
+      CA_DEEP(i,j)=0.
+      endif
+   enddo
 enddo
-
-!Compute the mean of the new range and subtract
-CAmean=0.
-psum=0.
-csum=0.
-do j=1,nlat
- do i=1,nlon
-  if(CA_DEEP(i,j).NE.0.)then
-  psum=psum+(CA_DEEP(i,j))
-  csum=csum+1
-  endif
- enddo
-enddo
-
-call mp_reduce_sum(psum)
-call mp_reduce_sum(csum)
-
-CAmean=psum/csum
-
-do j=1,nlat
- do i=1,nlon
- if(CA_DEEP(i,j).NE.0.)then
-  CA_DEEP(i,j)=(CA_DEEP(i,j)-CAmean)
- endif
- enddo
-enddo
-
-Detmin(1) = minval(CA_DEEP,CA_DEEP.NE.0)
-call mp_reduce_min(Detmin(1))
-
-!Shallow convection ============================================================
-
-!Use min-max method to normalize range
-Detmax(2)=maxval(CA_SHAL,CA_SHAL.NE.0)
-call mp_reduce_max(Detmax(2))
-Detmin(2)=minval(CA_SHAL,CA_SHAL.NE.0)
-call mp_reduce_min(Detmin(2))
-
-do j=1,nlat
- do i=1,nlon
- if(CA_SHAL(i,j).NE.0.)then
-    CA_SHAL(i,j)=(CA_SHAL(i,j) - Detmin(2))/(Detmax(2)-Detmin(2))
- endif
- enddo
-enddo
-
-!Compute the mean of the new range and subtract
-CAmean=0.
-psum=0.
-csum=0.
-do j=1,nlat
- do i=1,nlon
-  if(CA_SHAL(i,j).NE.0.)then
-  psum=psum+(CA_SHAL(i,j))
-  csum=csum+1
-  endif
- enddo
-enddo
-
-call mp_reduce_sum(psum)
-call mp_reduce_sum(csum)
-
-CAmean=psum/csum
-
-do j=1,nlat
- do i=1,nlon
- if(CA_SHAL(i,j).NE.0.)then
- CA_SHAL(i,j)=(CA_SHAL(i,j)-CAmean)
- endif
- enddo
-enddo
-
-!Turbulence =============================================================================
-
-!Use min-max method to normalize range
-Detmax(3)=maxval(CA_TURB,CA_TURB.NE.0)
-call mp_reduce_max(Detmax(3))
-Detmin(3)=minval(CA_TURB,CA_TURB.NE.0)
-call mp_reduce_min(Detmin(3))
-
-do j=1,nlat
- do i=1,nlon
- if(CA_TURB(i,j).NE.0.)then
-    CA_TURB(i,j)=(CA_TURB(i,j) - Detmin(3))/(Detmax(3)-Detmin(3))
- endif
- enddo
-enddo
-
-!Compute the mean of the new range and subtract
-CAmean=0.
-psum=0.
-csum=0.
-do j=1,nlat
- do i=1,nlon
-  if(CA_TURB(i,j).NE.0.)then
-  psum=psum+(CA_TURB(i,j))
-  csum=csum+1
-  endif
- enddo
-enddo
-
-call mp_reduce_sum(psum)
-call mp_reduce_sum(csum)
-
-CAmean=psum/csum
-
-do j=1,nlat
- do i=1,nlon
- if(CA_TURB(i,j).NE.0.)then
- CA_TURB(i,j)=(CA_TURB(i,j)-CAmean)
- endif
- enddo
-enddo
-
-endif !kstep >1
-
-do j=1,nlat
- do i=1,nlon
-    if(conditiongrid(i,j) == 0)then
-     CA_DEEP(i,j)=0.
-     ca_plumes(i,j)=0.
-   endif
- enddo
-enddo
-
-if(kstep == 1)then
-do j=1,nlat
- do i=1,nlon
-   ca_plumes(i,j)=0.
- enddo
-enddo
-endif
 
 !Put back into blocks 1D array to be passed to physics
 !or diagnostics output
@@ -563,39 +328,21 @@ endif
   do ix = 1,Atm_block%blksz(blk)
      i = Atm_block%index(blk)%ii(ix) - isc + 1
      j = Atm_block%index(blk)%jj(ix) - jsc + 1
-     ca_deep_diag(blk,ix)=ca_plumes(i,j)
-     ca_turb_diag(blk,ix)=conditiongrid(i,j)
-     ca_shal_diag(blk,ix)=CA_SHAL(i,j)
-     ca_deep_cpl(blk,ix)=ca_plumes(i,j)
-     ca_turb_cpl(blk,ix)=CA_TURB(i,j)
-     ca_shal_cpl(blk,ix)=CA_SHAL(i,j)
+     ca_deep_diag(blk,ix)=CA_DEEP(i,j)
+     ca_deep_cpl(blk,ix)=CA_DEEP(i,j) 
   enddo
   enddo
 
-
- deallocate(omega)
- deallocate(pressure)
- deallocate(humidity)
- deallocate(dp)
  deallocate(conditiongrid)
- deallocate(shalp)
- deallocate(gamt)
- deallocate(rho)
- deallocate(surfp)
- deallocate(vertvelmean)
- deallocate(vertvelsum)
- deallocate(field_in)
- deallocate(field_out)
- deallocate(field_smooth)
+ deallocate(ssti)
+ deallocate(lsmski)
+ deallocate(lakei)
  deallocate(iini)
- deallocate(ilives)
+ deallocate(ilives_in)
  deallocate(condition)
- deallocate(Detfield)
  deallocate(CA)
  deallocate(ca_plumes)
- deallocate(CA_TURB)
  deallocate(CA_DEEP)
- deallocate(CA_SHAL)
  deallocate(noise)
  deallocate(noise1D)
 
