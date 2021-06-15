@@ -1,3 +1,3 @@
 # stochastic_physics
 
-Contains the stochastic physics pattern generator for the NOAA FV3-GFS system developed at NOAA/ESRL/PSD.
+Contains the stochastic physics pattern generator for the Unified Forecast System developed at NOAA/ESRL/PSL.
