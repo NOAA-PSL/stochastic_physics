@@ -20,8 +20,9 @@ contains
 !>@detail Up to three point haloes can be returned by this API which includes special handling for
 !! the cubed-sphere tile corners. Output will be in (i,j,k) while input can be in (i,j,k) or 
 !! horizontally-packed form (ix,k).
- subroutine atmosphere_scalar_field_halo (data, halo, isize, jsize, ksize, data_p, &
-                                          isc, iec, jsc, jec, npx, npy, domain_for_coupler)
+ 
+ subroutine atmosphere_scalar_field_halo (data, halo, isize, jsize, ksize, &
+                                          isc, iec, jsc, jec, npx, npy, domain_for_coupler,data_p)
    !--------------------------------------------------------------------
    ! data   - output array to return the field with halo (i,j,k)
    !          optionally input for field already in (i,j,k) form
