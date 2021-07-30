@@ -62,6 +62,9 @@ integer :: k,kflip,latghf,blk,k2
 character*2::proc
 
 ! Initialize MPI and OpenMP
+print*,'calling mpiwrapper'
+print*,'mpiroot',mpiroot
+print*,'mpicomm',mpicomm
 call mpi_wrapper_initialize(mpiroot,mpicomm)
 me         = mype
 nodes      = npes
@@ -90,7 +93,9 @@ enddo
 INTTYP=0 ! bilinear interpolation
 gis_stochy%me=me
 gis_stochy%nodes=nodes
+print*,'calling init stochdata',levs
 call init_stochdata(levs,dtp,input_nml_file_in,fn_nml,nlunit,iret)
+print*,'back from init stochdata',iret
 if (iret .ne. 0) return
 ! check namelist entries for consistency
 if (do_sppt_in.neqv.do_sppt) then
@@ -111,9 +116,11 @@ else if (do_skeb_in.neqv.do_skeb) then
 else if (lndp_type_in /= lndp_type) then
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
                    & ' namelist settings lndp_type in physics and nam_sfcperts'
+   print*,'lndp_type',lndp_type_in,lndp_type
    iret = 20 
    return
 else if (n_var_lndp_in /=  n_var_lndp) then
+   print*,'n_var_lndp',n_var_lndp_in , n_var_lndp
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
                    & ' namelist settings n_var_lndp in physics nml, and lndp_* in nam_sfcperts'
    iret = 20 
