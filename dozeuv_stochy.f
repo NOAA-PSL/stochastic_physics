@@ -12,7 +12,6 @@
       subroutine dozeuv_stochy(dod,zev,uod,vev,epsedn,epsodn,
      &                  snnp1ev,snnp1od,ls_node)
 cc
-      use stochy_resol_def
       use spectral_layout_mod
       use kinddef
       implicit none

@@ -9,8 +9,7 @@
       subroutine setlats_a_stochy(lats_nodes_a,global_lats_a,
      &                         iprint,lonsperlat)
 !
-      use stochy_resol_def , only : latg,lonf
-      use spectral_layout_mod   , only : nodes,me
+      use spectral_layout_mod   , only : nodes,me,latg,lonf
 !
       implicit none
 !

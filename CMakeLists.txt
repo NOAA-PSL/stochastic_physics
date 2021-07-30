@@ -1,11 +1,7 @@
 if(32BIT)
   message ("Force 64 bits in stochastic_physics")
   if(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
-    if(REPRO)
-      string (REPLACE "-i4 -real-size 32" "-i4 -real-size 64" CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS}")
-    else()
-      string (REPLACE "-i4 -real-size 32" "-i4 -real-size 64 -no-prec-div -no-prec-sqrt" CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS}")
-    endif()
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -real-size 64")
   elseif(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
     set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fdefault-real-8")
   endif()
@@ -16,11 +12,8 @@ list(APPEND _stoch_phys_srcs
   mpi_wrapper.F90
   halo_exchange.fv3.F90
   plumes.f90
-
-  stochy_gg_def.f
-  stochy_resol_def.f
-  stochy_layout_lag.f
   four_to_grid_stochy.F
+  fftpack_stochy.f
   glats_stochy.f
   sumfln_stochy.f
   gozrineo_stochy.f
@@ -35,7 +28,6 @@ list(APPEND _stoch_phys_srcs
   dozeuv_stochy.f
   dezouv_stochy.f
   mersenne_twister.F
-
   spectral_layout.F90
   getcon_spectral.F90
   stochy_namelist_def.F90
@@ -53,20 +45,29 @@ list(APPEND _stoch_phys_srcs
 )
 
 add_library(stochastic_physics ${_stoch_phys_srcs})
-if(32BIT)
-   add_dependencies(stochastic_physics FMS::fms_r4)
-else()
-   add_dependencies(stochastic_physics FMS::fms_r8)
-endif()
+add_dependencies(stochastic_physics fms)
 
 target_compile_definitions(stochastic_physics PRIVATE INTERNAL_FILE_NML)
 
-target_link_libraries(stochastic_physics PUBLIC sp::sp_d)
-if(32BIT)
-   target_link_libraries(stochastic_physics PUBLIC FMS::fms_r4)
-else()
-   target_link_libraries(stochastic_physics PUBLIC FMS::fms_r8)
+set_target_properties(stochastic_physics PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/mod)
+target_include_directories(stochastic_physics INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/mod>
+                                                        $<INSTALL_INTERFACE:mod>)
+
+target_link_libraries(stochastic_physics PUBLIC fms)
+if(OPENMP)
+  target_link_libraries(stochastic_physics PRIVATE OpenMP::OpenMP_Fortran)
 endif()
-if(OpenMP_Fortran_FOUND)
-  target_link_libraries(stochastic_physics PUBLIC OpenMP::OpenMP_Fortran)
-endif()
+
+###############################################################################
+### Install
+###############################################################################
+install(
+  TARGETS stochastic_physics
+  EXPORT  stochastic_physics-config
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib)
+
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/mod DESTINATION ${CMAKE_INSTALL_PREFIX})
+
+install(EXPORT stochastic_physics-config
+    DESTINATION lib/cmake)
