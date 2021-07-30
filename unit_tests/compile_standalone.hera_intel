@@ -4,8 +4,8 @@ FC=mpif90
 FMS_INC=${FMS_ROOT}/include_r8
 FMS_LIB=${FMS_ROOT}/lib
 INCS="-I. -I${FMS_INC} -I${NETCDF}/include"
-FLAGS64=" -C -traceback -real-size 64 -DSTOCHY_UNIT_TEST -c "$INCS
-FLAGS=" -C -traceback -DSTOCHY_UNIT_TEST -c "$INCS
+FLAGS64=" -traceback -real-size 64 -DSTOCHY_UNIT_TEST -c "$INCS
+FLAGS=" -traceback -DSTOCHY_UNIT_TEST -c "$INCS
 cd ..
 if [ $compile_all -eq 1 ];then
    rm -f *.i90 *.i *.o *.mod lib*a
@@ -44,5 +44,5 @@ if [ $compile_all -eq 1 ];then
    $FC ${FLAGS64} stochastic_physics.F90
    ar rv libstochastic_physics.a *.o
 fi
-$FC -C -traceback -real-size 64 -qopenmp -o unit_tests/standalone_stochy.x unit_tests/standalone_stochy.F90 ${INCS} -I${NETCDF}/include -L. -lstochastic_physics -L${FMS_LIB} -lfms_r8 -L${ESMF_LIB} -Wl,-rpath,${ESMF_LIB} -lesmf -L${NETCDF}/lib -lnetcdff -lnetcdf -L${HDF5_LIBRARIES} -lhdf5_hl -lhdf5 \
+$FC -traceback -real-size 64 -qopenmp -o unit_tests/standalone_stochy.x unit_tests/standalone_stochy.F90 ${INCS} -I${NETCDF}/include -L. -lstochastic_physics -L${FMS_LIB} -lfms_r8 -L${ESMF_LIB} -Wl,-rpath,${ESMF_LIB} -lesmf -L${NETCDF}/lib -lnetcdff -lnetcdf -L${HDF5_LIBRARIES} -lhdf5_hl -lhdf5 \
 -L${ZLIB_LIBRARIES} -lz

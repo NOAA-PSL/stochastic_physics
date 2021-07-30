@@ -13,8 +13,12 @@ integer, allocatable :: layout_x(:),layout_y(:)
 real, allocatable :: truth(:,:,:),expt(:,:,:),diff(:,:,:),accum_error(:)
 
 integer :: i1,i2,j1,j2,nx,ny,ierr1,ierr2,ierr3,i,j,k,ncid,varid,ncid2,t,t2
-character*2,tile1,tile2
-character*1,lx,ly
+
+character*240 :: baseline_path
+character*2   :: tile1,tile2
+character*1   :: lx,ly
+
+baseline_path='/scratch2/BMC/gsienkf/Philip.Pegion/stochastic_physics_unit_tests/baseline_20210730/'
 
 allocate(layout_x(nexpt))
 allocate(layout_y(nexpt))
@@ -37,7 +41,7 @@ do k=1,nexpt
    t2=1
    do t=1,ntiles
       write(tile1,fmt='(I2.2)') t
-      ierr1=nf90_open('layout_1x1/workg_T162_984x488.tile'//tile1//'.nc',mode=nf90_nowrite,ncid=ncid)
+      ierr1=nf90_open(trim(baseline_path)//'workg_T162_984x488.tile'//tile1//'.nc',mode=nf90_nowrite,ncid=ncid)
       ierr2=nf90_inq_varid(ncid,'sppt_wts',varid)
       ierr3=nf90_get_var(ncid,varid,truth,count=(/CRES,CRES,2/))
       if (ierr1+ierr2+ierr3.NE.0) then
@@ -57,7 +61,7 @@ do k=1,nexpt
             ierr2=nf90_inq_varid(ncid2,'sppt_wts',varid)
             ierr3=nf90_get_var(ncid2,varid,expt,count=(/nx,ny,2/))
             if (ierr1+ierr2+ierr3.NE.0) then
-               print*,'error reading in expt files'
+               print*,'error reading in expt files',ierr1,ierr2,ierr3
                call exit(2)
             endif
 !            print*,'i1,i2,j1,j2,tile=',i1,i2,j1,j2,t,t2
