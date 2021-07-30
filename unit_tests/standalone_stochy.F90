@@ -1,6 +1,7 @@
 program  standalone_stochy
 
 use stochastic_physics,  only : init_stochastic_physics,run_stochastic_physics
+use get_stochy_pattern_mod,  only : write_stoch_restart_atm
 
 use atmosphere_stub_mod, only: Atm,atmosphere_init_stub
 !use mpp_domains
@@ -10,6 +11,7 @@ use fms_mod,             only:  fms_init
 use xgrid_mod,           only: grid_box_type
 use netcdf
 use kinddef,             only : kind_dbl_prec,kind_phys
+use stochy_namelist_def, only : stochini
 
 implicit none
 integer, parameter      :: nlevs=3
@@ -37,7 +39,7 @@ integer :: halo_update_type = 1
 real        :: dx,dy,pi,rd,cp
 logical   :: write_this_tile
 integer  :: nargs,ntile_out,nlunit,pe,npes,stackmax=4000000
-integer  :: i1,i2,j1,npts
+integer  :: i1,i2,j1,npts,istart,tpt
 character*80 :: fname
 character*1  :: ntile_out_str
 integer :: iret
@@ -165,8 +167,6 @@ do nb=1,nblks
        j1=j1+1
     endif
 end do
-!xlat=xlat*180/3.1415928
-!xlon=xlon*180/3.1415928
 
 allocate(grid_xt(nx),grid_yt(ny))
 do i=1,nx
@@ -289,13 +289,20 @@ if (do_shum)allocate(shum_wts(nblks,blksz_1,nlevs))
 if (do_skeb)allocate(skebu_wts(nblks,blksz_1,nlevs))
 if (do_skeb)allocate(skebv_wts(nblks,blksz_1,nlevs))
 if (lndp_type > 0)allocate(sfc_wts(nblks,blksz_1,n_var_lndp))
-do i=1,20
+if (stochini) then
+   istart=11
+else
+   istart=1
+endif
+tpt=1
+do i=istart,20
    ts=i/4.0
    call run_stochastic_physics(nlevs, i-1, fhour, blksz, &
                                sppt_wts=sppt_wts, shum_wts=shum_wts, skebu_wts=skebu_wts, skebv_wts=skebv_wts, sfc_wts=sfc_wts, &
                                nthreads=nthreads)
   
    if (me.EQ.0 .and. do_sppt) print*,'sppt_wts=',i,sppt_wts(1,1,2)
+   if (i.EQ. 10) call write_stoch_restart_atm('stochy_middle.nc')
    if (i.eq.1 .OR. i.eq.20) then
       if (me.EQ.0 .and. do_sppt) print*,'writing sppt_wts=',i,sppt_wts(1,1,2)
       if (write_this_tile) then
@@ -303,13 +310,13 @@ do i=1,20
          do j=1,ny
             workg(:,j)=sppt_wts(j,:,2)   
          enddo
-         ierr=NF90_PUT_VAR(ncid,varid1,workg,(/1,1,i/))
+         ierr=NF90_PUT_VAR(ncid,varid1,workg,(/1,1,tpt/))
       endif
       if (do_shum)then
          do j=1,ny
             workg(:,j)=shum_wts(j,:,1)
          enddo
-         ierr=NF90_PUT_VAR(ncid,varid2,workg,(/1,1,i/))
+         ierr=NF90_PUT_VAR(ncid,varid2,workg,(/1,1,tpt/))
       endif
       if (do_skeb)then
          do k=1,nlevs
@@ -317,27 +324,33 @@ do i=1,20
                workg3d(:,j,k)=skebu_wts(j,:,k)
             enddo
          enddo
-         ierr=NF90_PUT_VAR(ncid,varid3,workg3d,(/1,1,1,i/))
+         ierr=NF90_PUT_VAR(ncid,varid3,workg3d,(/1,1,1,tpt/))
          do k=1,nlevs
             do j=1,ny
                workg3d(:,j,k)=skebv_wts(j,:,k)
             enddo
          enddo
-         ierr=NF90_PUT_VAR(ncid,varid4,workg3d,(/1,1,1,i/))
+         ierr=NF90_PUT_VAR(ncid,varid4,workg3d,(/1,1,1,tpt/))
       endif
       if (lndp_type > 0)then
          do l=1,n_var_lndp
             do j=1,ny
                workg(:,j)=sfc_wts(j,:,l)
             enddo
-            ierr=NF90_PUT_VAR(ncid,varidl(l),workg,(/1,1,i/))
+            ierr=NF90_PUT_VAR(ncid,varidl(l),workg,(/1,1,tpt/))
          enddo
       endif
-      ierr=NF90_PUT_VAR(ncid,time_var_id,ts,(/i/))
+      ierr=NF90_PUT_VAR(ncid,time_var_id,ts,(/tpt/))
       endif
+      tpt=tpt+1
    endif
 enddo
 if (write_this_tile) ierr=NF90_CLOSE(ncid)
+if (stochini) then
+   call write_stoch_restart_atm('stochy_final_2.nc')
+else
+   call write_stoch_restart_atm('stochy_final.nc')
+endif
 end
 subroutine get_outfile(fname)
 use stochy_namelist_def

@@ -1,5 +1,5 @@
 #!/bin/sh -x
-compile_all=1
+compile_all=0
 FC=mpif90
 FMS_INC=${FMS_ROOT}/include_r8
 FMS_LIB=${FMS_ROOT}/lib

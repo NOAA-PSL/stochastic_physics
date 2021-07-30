@@ -71,6 +71,7 @@
   ISEED_SHUM=1,
   ISEED_SKEB=2,
   ISEED_SPPT=3,
+  STOCHINI=_STOCHINI_
 /
 &nam_sfcperts
   lndp_type=2
