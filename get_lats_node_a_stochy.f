@@ -13,7 +13,7 @@ cc
       use spectral_layout_mod
       implicit none
 cc
-      integer   gl_lats_index,gl_start
+      integer   gl_lats_index
       integer   me_fake
       integer   global_lats_a(latg)
       integer   lats_nodes_a_fake
@@ -27,22 +27,11 @@ cc
       integer nodes_tmp
 cc
 c
-!jw      if (liope) then
-!jw         if (icolor.eq.2) then
-!jw           nodesio=1
-!jw         else
            nodesio=nodes
-!jw         endif
-!jw      else
-!jw         nodesio=nodes
-!jw      endif
-!!
 cc
       lat = 1
       nodes_tmp = nodes
-!jw      if (liope .and. icolor .eq. 2) nodes_tmp = nodes -1
 
-      gl_start = gl_lats_index
 cc.............................................
       do ijk=1,latg
 cc
@@ -63,29 +52,8 @@ cc
             lat = lat + 1
             if (lat .gt. latg) go to 200
          enddo
-cc
       enddo
-cc.............................................
-cc
   200 continue
-cc
-cc.............................................
-cc
-!jw      if (liope .and. icolor .eq. 2) gl_start = 0
-         do node=1,nodes_tmp
-            if (node.eq.me_fake+1) then
-               lats_nodes_a_fake=gl_lats_index-gl_start
-c$$$               print*,' setting lats_nodes_a_fake = ',
-c$$$     .         lats_nodes_a_fake
-            endif
-         enddo
-
-      if(iprint.eq.1) print 220
-  220 format ('completed loop 200 in  get_lats_a  ')
-c
-      if(iprint.eq.1)
-     &   print*,'completed  get_lats_node, lats_nodes_a_fake=',
-     &   lats_nodes_a_fake
 cc
       return
       end

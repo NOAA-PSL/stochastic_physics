@@ -1,5 +1,9 @@
 #!/bin/sh -x
-compile_all=0
+source ./module-setup.sh
+module purge
+module use $( pwd -P )
+module load modules.stoch
+compile_all=1
 FC=mpif90
 FMS_INC=${FMS_ROOT}/include_r8
 FMS_LIB=${FMS_ROOT}/lib
@@ -29,7 +33,7 @@ if [ $compile_all -eq 1 ];then
    $FC ${FLAGS64} four_to_grid_stochy.F
    $FC ${FLAGS64} sumfln_stochy.f
    $FC ${FLAGS64} fftpack_stochy.f
-   $FC ${FLAGS64} num_parthds_stochy.f
+#   $FC ${FLAGS64} num_parthds_stochy.f
    $FC ${FLAGS64} get_lats_node_a_stochy.f
    $FC ${FLAGS64} get_ls_node_stochy.f
    $FC ${FLAGS64} compns_stochy.F90

@@ -50,7 +50,6 @@ real(kind=4),allocatable,dimension(:,:,:) :: workg3d
 real(kind=4),allocatable,dimension(:) :: grid_xt,grid_yt
 real(kind=kind_phys), dimension(:,:),   allocatable, save :: xlat
 real(kind=kind_phys), dimension(:,:),   allocatable, save :: xlon
-real(kind=kind_dbl_prec),pointer    ,dimension(:,:) :: area
 real(kind=kind_dbl_prec)                    :: ex3d(nlevs+1),pressi(nlevs+1),pressl(nlevs),p1000,exn
 
 type(grid_box_type)           :: grid_box
@@ -110,7 +109,7 @@ call fms_init
 my_id=mpp_pe()
 ntasks=mpp_npes()
 
-call atmosphere_init_stub (grid_box, area)
+call atmosphere_init_stub (grid_box)
 isd=Atm(1)%bd%isd
 ied=Atm(1)%bd%ied
 jsd=Atm(1)%bd%jsd

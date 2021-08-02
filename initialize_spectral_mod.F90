@@ -59,11 +59,7 @@
 
 ! set up gfs internal state dimension and values for dynamics etc
 !-------------------------------------------------------------------
-!      print*,'before allocate lonsperlat,',&
-!                   allocated(gis_stochy%lonsperlat),'latg=',latg
-!
-!      gis_stochy%nodes=mpp_npes()
-!      print*,'mpp_npes=',mpp_npes()
+
       nodes  = gis_stochy%nodes
       npe_single_member = gis_stochy%npe_single_member
 
@@ -80,53 +76,16 @@
       allocate(wgtcs_a(latg2))
       allocate(rcs2_a(latg2))
 
-!      if (mpp_pe==mpp_root_pe()) then
-!        print*,'number of mpi procs is',nodes
-!      endif
-!
       ls_dim = (jcap)/nodes+1
-!      print*,'allocating lonsperlat',latg
       allocate(gis_stochy%lonsperlat(latg))
-!      print*,'size=',size(gis_stochy%lonsperlat)
 
-
-      inquire (file="lonsperlat.dat", exist=file_exists)
-      if ( .not. file_exists ) then
-        !call mpp_error(FATAL,'Requested lonsperlat.dat  data file does not exist')
-         gis_stochy%lonsperlat(:)=lonf
-      else
-        open (iunit,file='lonsperlat.dat',status='old',form='formatted',      &
-                                          action='read',iostat=iret)
-        if (iret /= 0) then
-           write(0,*) 'error while reading lonsperlat.dat'
-           rc = 1
-           return
-        end if
-        rewind iunit
-        read (iunit,*,iostat=iret) latghf,(gis_stochy%lonsperlat(i),i=1,latghf)
-        if (latghf+latghf /= latg) then
-           write(0,*)' latghf=',latghf,' not equal to latg/2=',latg/2
-           if (iret /= 0) then
-              write(0,*) 'lonsperlat file has wrong size'
-              rc = 1
-              return
-           end if
-        endif
-        do i=1,latghf
-          gis_stochy%lonsperlat(latg-i+1) = gis_stochy%lonsperlat(i)
-        enddo
-        close(iunit)
-      endif
+      gis_stochy%lonsperlat(:)=lonf
 !!
 !cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 !
-!       write(0,*)'before allocate ls_nodes,',allocated(gis_stochy%ls_nodes),&
-!       'ls_dim=', ls_dim,'nodes=',nodes
       allocate (      gis_stochy%ls_node (ls_dim*3) )
       allocate (      gis_stochy%ls_nodes(ls_dim,nodes) )
       allocate (  gis_stochy%max_ls_nodes(nodes) )
-!
-      allocate (  gis_stochy%lats_nodes_a_fix(nodes))     ! added for mGrid
 !
       allocate (  gis_stochy%lats_nodes_a(nodes) )
       allocate ( gis_stochy%global_lats_a(latg) )
@@ -195,8 +154,6 @@
 !
       allocate ( gis_stochy%plnev_a(len_trie_ls,latg2) )
       allocate ( gis_stochy%plnod_a(len_trio_ls,latg2) )
-      allocate ( gis_stochy%pddev_a(len_trie_ls,latg2) )
-      allocate ( gis_stochy%pddod_a(len_trio_ls,latg2) )
       allocate ( gis_stochy%plnew_a(len_trie_ls,latg2) )
       allocate ( gis_stochy%plnow_a(len_trio_ls,latg2) )
 
@@ -218,31 +175,21 @@
                            gis_stochy%epso,            gis_stochy%epsedn,             &
                            gis_stochy%epsodn,          gis_stochy%snnp1ev,            &
                            gis_stochy%snnp1od,         gis_stochy%plnev_a,            &
-                           gis_stochy%plnod_a,         gis_stochy%pddev_a,            &
-                           gis_stochy%pddod_a,         gis_stochy%plnew_a,            &
+                           gis_stochy%plnod_a,         gis_stochy%plnew_a,            &
                            gis_stochy%plnow_a)
 !
       gis_stochy%lats_node_a     = gis_stochy%lats_nodes_a(gis_stochy%me+1)
       gis_stochy%ipt_lats_node_a = ipt_lats_node_a
 
-!      if (gis_stochy%me == 0)                                                        &
-!       write(0,*)'after getcon_spectral lats_node_a=',gis_stochy%lats_node_a &
-!         ,'ipt_lats_node_a=',gis_stochy%ipt_lats_node_a
-!
         if (.not. allocated(lats_nodes_h))  allocate (lats_nodes_h(nodes))
         if (.not. allocated(global_lats_h)) allocate (global_lats_h(latg+2*gis_stochy%yhalo*nodes))
         call getcon_lag_stochy(gis_stochy%lats_nodes_a,gis_stochy%global_lats_a,        &
                         lats_nodes_h, global_lats_h,                       &
                         gis_stochy%lonsperlat,gis_stochy%xhalo,gis_stochy%yhalo)
 
-!
-!
       allocate ( gis_stochy%trie_ls (len_trie_ls,2,lotls) )
       allocate ( gis_stochy%trio_ls (len_trio_ls,2,lotls) )
 
-!      if (gis_stochy%me == 0) then
-!        print*, ' lats_dim_a=', lats_dim_a, ' lats_node_a=', gis_stochy%lats_node_a
-!      endif
       rc=0
 
       end subroutine initialize_spectral

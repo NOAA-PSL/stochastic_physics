@@ -47,8 +47,7 @@ module stochy_data_mod
  subroutine init_stochdata(nlevs,delt,input_nml_file,fn_nml,nlunit,iret)
 !\callgraph
 
-! initialize random patterns.  A spinup period of spinup_efolds times the
-! temporal time scale is run for each pattern.
+! initialize random patterns.  
    use netcdf
    implicit none
    integer, intent(in) :: nlunit,nlevs
@@ -59,7 +58,7 @@ module stochy_data_mod
    real :: ones(5)
 
    real :: rnn1
-   integer :: nn,nspinup,k,nm,spinup_efolds,stochlun,ierr,n
+   integer :: nn,k,nm,stochlun,ierr,n
    integer :: locl,indev,indod,indlsod,indlsev
    integer :: l,jbasev,jbasod
    integer :: jcapin,varid1,varid2
@@ -78,13 +77,6 @@ module stochy_data_mod
    if (iret/=0) return  ! need to make sure that non-zero irets are being trapped.
    if(is_master()) print*,'in init stochdata',nodes,lat_s
    if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb)  .AND. (lndp_type==0) ) return
-! initialize the specratl pattern generatore (including gaussian grid decomposition)
-!   if (nodes.GE.lat_s/2) then
-!      lat_s=(int(nodes/12)+1)*24
-!      lon_s=lat_s*2
-!      ntrunc=lat_s-2
-!      if (is_master()) print*,'WARNING: spectral resolution is too low for number of mpi_tasks, resetting lon_s,lat_s,and ntrunc to',lon_s,lat_s,ntrunc
-!   endif
 
    call initialize_spectral(gis_stochy, iret)
    if (iret/=0) return
@@ -153,7 +145,6 @@ module stochy_data_mod
       endif
    endif
    ! no spinup needed if initial patterns are defined correctly.
-   spinup_efolds = 0
    if (nsppt > 0) then
       if (is_master()) then
          print *, 'Initialize random pattern for SPPT'
@@ -175,7 +166,6 @@ module stochy_data_mod
       call patterngenerator_init(sppt_lscale(1:nsppt),spptint,sppt_tau(1:nsppt),sppt(1:nsppt),iseed_sppt,rpattern_sppt, &
            lonf,latg,jcap,gis_stochy%ls_node,nsppt,1,0,new_lscale)
       do n=1,nsppt
-         nspinup = spinup_efolds*sppt_tau(n)/spptint
          if (stochini) then
             call read_pattern(rpattern_sppt(n),jcapin,stochlun,1,n,varid1,varid2,.false.,ierr)
             if (ierr .NE. 0) then
@@ -201,9 +191,6 @@ module stochy_data_mod
                rpattern_sppt(n)%spec_o(nn,1,1) = rpattern_sppt(n)%stdev*rpattern_sppt(n)%spec_o(nn,1,1)*rpattern_sppt(n)%varspectrum(nm)
                rpattern_sppt(n)%spec_o(nn,2,1) = rpattern_sppt(n)%stdev*rpattern_sppt(n)%spec_o(nn,2,1)*rpattern_sppt(n)%varspectrum(nm)
             enddo
-            do nn=1,nspinup
-               call patterngenerator_advance(rpattern_sppt(n),1,.false.)
-            enddo
          endif
        enddo
    endif
@@ -228,7 +215,6 @@ module stochy_data_mod
       call patterngenerator_init(shum_lscale(1:nshum),shumint,shum_tau(1:nshum),shum(1:nshum),iseed_shum,rpattern_shum, &
           lonf,latg,jcap,gis_stochy%ls_node,nshum,1,0,new_lscale)
       do n=1,nshum
-         nspinup = spinup_efolds*shum_tau(n)/shumint
          if (stochini) then
             call read_pattern(rpattern_shum(n),jcapin,stochlun,1,n,varid1,varid2,.false.,ierr)
             if (ierr .NE. 0) then
@@ -253,9 +239,6 @@ module stochy_data_mod
                 if (nm .eq. 0) cycle
                 rpattern_shum(n)%spec_o(nn,1,1) = rpattern_shum(n)%stdev*rpattern_shum(n)%spec_o(nn,1,1)*rpattern_shum(n)%varspectrum(nm)
                 rpattern_shum(n)%spec_o(nn,2,1) = rpattern_shum(n)%stdev*rpattern_shum(n)%spec_o(nn,2,1)*rpattern_shum(n)%varspectrum(nm)
-             enddo
-             do nn=1,nspinup
-                call patterngenerator_advance(rpattern_shum(n),1,.false.)
              enddo
           endif
        enddo
@@ -286,7 +269,6 @@ module stochy_data_mod
            lonf,latg,jcap,gis_stochy%ls_node,nskeb,skeblevs,skeb_varspect_opt,new_lscale)
       do n=1,nskeb
          do k=1,skeblevs
-            nspinup = spinup_efolds*skeb_tau(n)/skebint
             if (stochini) then
                call read_pattern(rpattern_skeb(n),jcapin,stochlun,k,n,varid1,varid2,.true.,ierr)
                if (ierr .NE. 0) then
@@ -313,9 +295,6 @@ module stochy_data_mod
                   rpattern_skeb(n)%spec_o(nn,2,k) = rpattern_skeb(n)%stdev*rpattern_skeb(n)%spec_o(nn,2,k)*rpattern_skeb(n)%varspectrum(nm)
                enddo
             endif
-         enddo
-         do nn=1,nspinup
-            call patterngenerator_advance(rpattern_skeb(n),skeblevs,.false.)
          enddo
       enddo
 
@@ -400,7 +379,6 @@ module stochy_data_mod
       do n=1,nlndp
          if (is_master()) print *, 'Initialize random pattern for LNDP PERTS'
          do k=1,n_var_lndp
-            nspinup = spinup_efolds*lndp_tau(n)/delt
             if (stochini) then
                call read_pattern(rpattern_sfc(n),jcapin,stochlun,k,n,varid1,varid2,.true.,ierr)
                if (ierr .NE. 0) then
@@ -426,9 +404,6 @@ module stochy_data_mod
                    if (nm .eq. 0) cycle
                    rpattern_sfc(n)%spec_o(nn,1,k) = rpattern_sfc(n)%stdev*rpattern_sfc(n)%spec_o(nn,1,k)*rpattern_sfc(n)%varspectrum(nm)
                    rpattern_sfc(n)%spec_o(nn,2,k) = rpattern_sfc(n)%stdev*rpattern_sfc(n)%spec_o(nn,2,k)*rpattern_sfc(n)%varspectrum(nm)
-                enddo
-                do nn=1,nspinup
-                   call patterngenerator_advance(rpattern_sfc(n),k,.false.)
                 enddo
                 if (is_master()) print *, 'lndp pattern initialized, ',n, k, minval(rpattern_sfc(n)%spec_o(:,:,k)), maxval(rpattern_sfc(n)%spec_o(:,:,k))
             endif ! stochini

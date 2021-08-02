@@ -196,14 +196,13 @@ contains
 
 !>@brief The subroutine 'atmosphere_init' is an API to initialize the FV3 dynamical core,
 !! including the grid structures, memory, initial state (self-initialization or restart), 
- subroutine atmosphere_init_stub (Grid_box, area)
+ subroutine atmosphere_init_stub (Grid_box)
 
 #ifdef OPENMP
    use omp_lib
 #endif
 
    type(grid_box_type), intent(inout) :: Grid_box
-   real(kind=kind_phys), pointer, dimension(:,:), intent(inout) :: area
 !--- local variables ---
    integer :: i, n
 !  integer :: itrac
@@ -247,31 +246,8 @@ contains
 
    allocate(Grid_box%dx    (   isc:iec  , jsc:jec+1))
    allocate(Grid_box%dy    (   isc:iec+1, jsc:jec  ))
-   allocate(Grid_box%area  (   isc:iec  , jsc:jec  ))
-   allocate(Grid_box%edge_w(              jsc:jec+1))
-   allocate(Grid_box%edge_e(              jsc:jec+1))
-   allocate(Grid_box%edge_s(   isc:iec+1           ))
-   allocate(Grid_box%edge_n(   isc:iec+1           ))
-   allocate(Grid_box%en1   (3, isc:iec  , jsc:jec+1))
-   allocate(Grid_box%en2   (3, isc:iec+1, jsc:jec  ))
-   allocate(Grid_box%vlon  (3, isc:iec  , jsc:jec  ))
-   allocate(Grid_box%vlat  (3, isc:iec  , jsc:jec  ))
    Grid_box%dx    (   isc:iec  , jsc:jec+1) = Atm(mygrid)%gridstruct%dx    (   isc:iec,   jsc:jec+1)
    Grid_box%dy    (   isc:iec+1, jsc:jec  ) = Atm(mygrid)%gridstruct%dy    (   isc:iec+1, jsc:jec  )
-   Grid_box%area  (   isc:iec  , jsc:jec  ) = Atm(mygrid)%gridstruct%area  (   isc:iec  , jsc:jec  )
-   Grid_box%edge_w(              jsc:jec+1) = Atm(mygrid)%gridstruct%edge_w(              jsc:jec+1)
-   Grid_box%edge_e(              jsc:jec+1) = Atm(mygrid)%gridstruct%edge_e(              jsc:jec+1)
-   Grid_box%edge_s(   isc:iec+1           ) = Atm(mygrid)%gridstruct%edge_s(   isc:iec+1)
-   Grid_box%edge_n(   isc:iec+1           ) = Atm(mygrid)%gridstruct%edge_n(   isc:iec+1)
-   Grid_box%en1   (:, isc:iec  , jsc:jec+1) = Atm(mygrid)%gridstruct%en1   (:, isc:iec  , jsc:jec+1)
-   Grid_box%en2   (:, isc:iec+1, jsc:jec  ) = Atm(mygrid)%gridstruct%en2   (:, isc:iec+1, jsc:jec  )
-   do i = 1,3
-     Grid_box%vlon  (i, isc:iec  , jsc:jec  ) = Atm(mygrid)%gridstruct%vlon  (isc:iec ,  jsc:jec, i )
-     Grid_box%vlat  (i, isc:iec  , jsc:jec  ) = Atm(mygrid)%gridstruct%vlat  (isc:iec ,  jsc:jec, i )
-   enddo
-   allocate (area(isc:iec  , jsc:jec  ))
-   area(isc:iec,jsc:jec) = Atm(mygrid)%gridstruct%area_64(isc:iec,jsc:jec)
-
 
 #ifdef OPENMP
    nthreads = omp_get_max_threads()

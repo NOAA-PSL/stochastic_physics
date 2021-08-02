@@ -13,7 +13,7 @@ module getcon_spectral_mod
                                   lonsperlat,latsmax,              &
                                   epse,epso,epsedn,epsodn,         &
                                   snnp1ev,snnp1od,                 &
-                                  plnev_a,plnod_a,pddev_a,pddod_a, &
+                                  plnev_a,plnod_a,                 &
                                   plnew_a,plnow_a)
 
 ! program log:
@@ -48,13 +48,13 @@ module getcon_spectral_mod
       real(kind=kind_dbl_prec), dimension(len_trie_ls) :: epse, epsedn, snnp1ev
       real(kind=kind_dbl_prec), dimension(len_trio_ls) :: epso, epsodn, snnp1od
 !
-      real(kind=kind_dbl_prec), dimension(len_trie_ls,latg2) :: plnev_a, pddev_a, plnew_a
-      real(kind=kind_dbl_prec), dimension(len_trio_ls,latg2) :: plnod_a, pddod_a, plnow_a
+      real(kind=kind_dbl_prec), dimension(len_trie_ls,latg2) :: plnev_a, plnew_a
+      real(kind=kind_dbl_prec), dimension(len_trio_ls,latg2) :: plnod_a, plnow_a
 !
       real(kind=kind_dbl_prec), allocatable:: colrad_dp(:), wgt_dp(:),&
                       wgtcs_dp(:),  rcs2_dp(:), epse_dp(:),   epso_dp(:),&
                       epsedn_dp(:), epsodn_dp(:),plnev_dp(:), plnod_dp(:),&
-                      pddev_dp(:), pddod_dp(:),plnew_dp(:),  plnow_dp(:)
+                      plnew_dp(:),  plnow_dp(:)
 !
       integer       iprint,locl,node,&
                     len_trie_ls_nod, len_trio_ls_nod,&
@@ -135,7 +135,7 @@ module getcon_spectral_mod
            call glats_stochy(latg2,colrad_a,wgt_a,wgtcs_a,rcs2_a,iprint)
            call epslon_stochy(epse,epso,epsedn,epsodn,ls_node)
            call pln2eo_a_stochy(plnev_a,plnod_a,epse,epso,ls_node,latg2)
-           call gozrineo_a_stochy(plnev_a,plnod_a,pddev_a,pddod_a, &
+           call gozrineo_a_stochy(plnev_a,plnod_a, &
                 plnew_a,plnow_a,epse,epso,ls_node,latg2)
 !
       else !------------------------------------------------------------
@@ -151,8 +151,6 @@ module getcon_spectral_mod
 !
            allocate  (  plnev_dp(len_trie_ls) )
            allocate  (  plnod_dp(len_trio_ls) )
-           allocate  (  pddev_dp(len_trie_ls) )
-           allocate  (  pddod_dp(len_trio_ls) )
            allocate  (  plnew_dp(len_trie_ls) )
            allocate  (  plnow_dp(len_trio_ls) )
 
@@ -181,24 +179,22 @@ module getcon_spectral_mod
 !
               call pln2eo_a_stochy(plnev_dp,plnod_dp,epse_dp,epso_dp,ls_node,1)
 !
-              call gozrineo_a_stochy(plnev_dp,plnod_dp,pddev_dp,pddod_dp, plnew_dp,plnow_dp,&
+              call gozrineo_a_stochy(plnev_dp,plnod_dp,plnew_dp,plnow_dp,&
                    epse_dp,epso_dp,ls_node,1)
 !
               do i=1,len_trie_ls
                  plnev_a(i,lat) = plnev_dp(i)
-                 pddev_a(i,lat) = pddev_dp(i)
                  plnew_a(i,lat) = plnew_dp(i)
               enddo
               do i=1,len_trio_ls
                  plnod_a(i,lat) = plnod_dp(i)
-                 pddod_a(i,lat) = pddod_dp(i)
                  plnow_a(i,lat) = plnow_dp(i)
               enddo
            enddo
 !
            deallocate  ( wgt_dp,   wgtcs_dp,  rcs2_dp ,  &
                          epse_dp,   epso_dp,  epsedn_dp, epsodn_dp, &
-                         plnev_dp,  plnod_dp, pddev_dp,  pddod_dp , &
+                         plnev_dp,  plnod_dp, &
                          plnew_dp,  plnow_dp )
       endif !-----------------------------------------------------------
 !

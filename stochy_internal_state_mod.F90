@@ -36,10 +36,6 @@
 
       integer npe_single_member
 
-      character(16)                     ::  cfhour1
-!jws
-      integer                           ::  num_file
-      character(32)        ,allocatable ::  filename_base(:)
       integer                           ::  ipt_lats_node_a
       integer                           ::  lats_node_a
       integer                           ::  me
@@ -58,8 +54,6 @@
       integer              ,allocatable ::  global_lats_h  (:)
       integer                           :: xhalo,yhalo
 
-      integer              ,allocatable ::  lats_nodes_a_fix (:)
-
       real,allocatable ::        epse  (:)
       real,allocatable ::        epso  (:)
       real,allocatable ::        epsedn(:)
@@ -72,8 +66,6 @@
 
       real,allocatable ::       plnev_a(:,:)
       real,allocatable ::       plnod_a(:,:)
-      real,allocatable ::       pddev_a(:,:)
-      real,allocatable ::       pddod_a(:,:)
       real,allocatable ::       plnew_a(:,:)
       real,allocatable ::       plnow_a(:,:)
 
@@ -88,17 +80,9 @@
       INTEGER, ALLOCATABLE, DIMENSION(:)    :: LS_MAX_NODE_GLOBAL
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: LS_NODE_GLOBAL
 
-
-!
-
 !!
       integer              init,jpt,node,ibmsign,lon_dim
-
       integer              lotls
-
-!      integer              jdt,ksout,maxstp
-!      integer              mdt,idt
-!      integer              mods,n1,n2,ndgf,ndgi,nfiles,nflps
       integer              nlunit
 
       integer              iret,ierr,iprint,k,l,locl,n

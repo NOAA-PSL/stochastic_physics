@@ -64,6 +64,9 @@ else
       echo "unit tests successful"
       rm -rf layout_*
       rm logfile*
+      rm stochy*nc
+      rm ../*.o ../*.mod
+      rm ../libstochastic_physics.a
    else
       echo "restart test failed"
    fi

@@ -18,9 +18,7 @@
 !
 ! increase precision for more significant digit to help wgt
       real(kind=kind_qdt_prec) drad,dradz,p1,p2,phi,pi,rad,rc
-!     real(kind=kind_qdt_prec) drad,dradz,eps,p1,p2,phi,pi,rad,rc
       real(kind=kind_qdt_prec) rl2,scale,si,sn,w,x
-!
       real(kind=kind_dbl_prec), dimension(lgghaf) ::  colrad, wgt,
      &                                                wgtcs,  rcs2
 !
@@ -44,7 +42,7 @@
       scale = cons2/(rl2*rl2)
       k1    = l2-1
       pi    = atan(si)*cons4
-!     dradz = pi / cons360 / 10.0
+
 !  for better accuracy to start iteration
       dradz = pi / float(lgghaf) / 200.0
       rad   = cons0

@@ -45,15 +45,12 @@
 !! is altered outside of those two modules.
   type fv_grid_type
      real(kind=R_GRID), allocatable, dimension(:,:,:) :: grid_64, agrid_64
-     real(kind=R_GRID), allocatable, dimension(:,:) :: area_64, area_c_64
      real(kind=R_GRID), allocatable, dimension(:,:) :: sina_64, cosa_64
      real(kind=R_GRID), allocatable, dimension(:,:) :: dx_64, dy_64
      real(kind=R_GRID), allocatable, dimension(:,:) :: dxc_64, dyc_64
      real(kind=R_GRID), allocatable, dimension(:,:) :: dxa_64, dya_64
 
      real, allocatable, dimension(:,:,:) :: grid, agrid
-     real, allocatable, dimension(:,:) :: area, area_c
-     real, allocatable, dimension(:,:) :: rarea, rarea_c
 
      real, allocatable, dimension(:,:) :: sina, cosa
      real, allocatable, dimension(:,:,:) :: e1,e2
@@ -121,17 +118,6 @@
      real, allocatable :: cos_sg(:,:,:)
      !--------------------------------------------------
 
-     ! Unit Normal vectors at cell edges:
-     real(kind=R_GRID), allocatable :: en1(:,:,:)
-     real(kind=R_GRID), allocatable :: en2(:,:,:)
-
-     ! Extended Cubed cross-edge winds
-     real, allocatable :: eww(:,:)
-     real, allocatable :: ess(:,:)
-
-     ! Unit vectors for lat-lon grid
-     real(kind=R_GRID), allocatable :: vlon(:,:,:), vlat(:,:,:)
-     real, allocatable :: fC(:,:), f0(:,:)
 
      integer, dimension(:,:,:), allocatable :: iinta, jinta, iintb, jintb
 
@@ -139,14 +125,12 @@
 
      integer :: npx_g, npy_g, ntiles_g ! global domain
 
-     real(kind=R_GRID) :: global_area
      logical :: g_sum_initialized = .false. !< Not currently used but can be useful
      logical:: sw_corner, se_corner, ne_corner, nw_corner
 
      real(kind=R_GRID) :: da_min, da_max, da_min_c, da_max_c
 
      real  :: acapN, acapS
-     real  :: globalarea  !< total Global Area
 
      logical :: latlon = .false.
      logical :: cubed_sphere = .false.
@@ -390,14 +374,6 @@ contains
     Atm%flagstruct%ndims = ndims_in
 
 
-    allocate ( Atm%gridstruct% area(isd_2d:ied_2d  ,jsd_2d:jed_2d  ) )   ! Cell Centered
-    allocate ( Atm%gridstruct% area_64(isd_2d:ied_2d  ,jsd_2d:jed_2d  ) ) ! Cell Centered
-    allocate ( Atm%gridstruct%rarea(isd_2d:ied_2d  ,jsd_2d:jed_2d  ) )   ! Cell Centered
-
-    allocate ( Atm%gridstruct% area_c(isd_2d:ied_2d+1,jsd_2d:jed_2d+1) )   ! Cell Corners
-    allocate ( Atm%gridstruct% area_c_64(isd_2d:ied_2d+1,jsd_2d:jed_2d+1) )! Cell Corners
-    allocate ( Atm%gridstruct%rarea_c(isd_2d:ied_2d+1,jsd_2d:jed_2d+1) )   ! Cell Corners
-
     allocate ( Atm%gridstruct% dx(isd_2d:ied_2d  ,jsd_2d:jed_2d+1) )
     allocate ( Atm%gridstruct% dx_64(isd_2d:ied_2d  ,jsd_2d:jed_2d+1) )
     allocate ( Atm%gridstruct%rdx(isd_2d:ied_2d  ,jsd_2d:jed_2d+1) )
@@ -468,34 +444,10 @@ contains
     allocate (  Atm%gridstruct%z21(is_2d-1:ie_2d+1,js_2d-1:je_2d+1) )
     allocate (  Atm%gridstruct%z22(is_2d-1:ie_2d+1,js_2d-1:je_2d+1) )
 
-!   if (.not.Atm%flagstruct%hydrostatic)    &
-!   allocate (  Atm%gridstruct%w00(is_2d-1:ie_2d+1,js_2d-1:je_2d+1) )
-
     allocate (  Atm%gridstruct%a11(is_2d-1:ie_2d+1,js_2d-1:je_2d+1) )
     allocate (  Atm%gridstruct%a12(is_2d-1:ie_2d+1,js_2d-1:je_2d+1) )
     allocate (  Atm%gridstruct%a21(is_2d-1:ie_2d+1,js_2d-1:je_2d+1) )
     allocate (  Atm%gridstruct%a22(is_2d-1:ie_2d+1,js_2d-1:je_2d+1) )
-    allocate ( Atm%gridstruct%vlon(is_2d-2:ie_2d+2,js_2d-2:je_2d+2,3) )
-    allocate ( Atm%gridstruct%vlat(is_2d-2:ie_2d+2,js_2d-2:je_2d+2,3) )
-    ! Coriolis parameters:
-    allocate ( Atm%gridstruct%f0(isd_2d:ied_2d  ,jsd_2d:jed_2d  ) )
-    allocate ( Atm%gridstruct%fC(isd_2d:ied_2d+1,jsd_2d:jed_2d+1) )
-
-    ! Corner unit vectors:
-    allocate( Atm%gridstruct%ee1(3,isd_2d:ied_2d+1,jsd_2d:jed_2d+1) )
-    allocate( Atm%gridstruct%ee2(3,isd_2d:ied_2d+1,jsd_2d:jed_2d+1) )
-
-    ! Center unit vectors:
-    allocate( Atm%gridstruct%ec1(3,isd_2d:ied_2d,jsd_2d:jed_2d) )
-    allocate( Atm%gridstruct%ec2(3,isd_2d:ied_2d,jsd_2d:jed_2d) )
-
-    ! Edge unit vectors:
-    allocate( Atm%gridstruct%ew(3,isd_2d:ied_2d+1,jsd_2d:jed_2d,  2) )
-    allocate( Atm%gridstruct%es(3,isd_2d:ied_2d  ,jsd_2d:jed_2d+1,2) )
-
-    ! Edge unit "Normal" vectors: (for omega computation)
-    allocate( Atm%gridstruct%en1(3,is_2d:ie_2d,  js_2d:je_2d+1) )   ! E-W edges
-    allocate( Atm%gridstruct%en2(3,is_2d:ie_2d+1,js_2d:je_2d  ) )   ! N-S egdes
 
     allocate ( Atm%gridstruct%cosa_u(isd_2d:ied_2d+1,jsd_2d:jed_2d) )
     allocate ( Atm%gridstruct%sina_u(isd_2d:ied_2d+1,jsd_2d:jed_2d) )
@@ -520,9 +472,6 @@ contains
 
     allocate ( Atm%gridstruct%cos_sg(isd_2d:ied_2d,jsd_2d:jed_2d,9) )
     allocate ( Atm%gridstruct%sin_sg(isd_2d:ied_2d,jsd_2d:jed_2d,9) )
-
-    allocate( Atm%gridstruct%eww(3,4) )
-    allocate( Atm%gridstruct%ess(3,4) )
 
     !!Convenience pointers
     Atm%gridstruct%grid_type => Atm%flagstruct%grid_type
