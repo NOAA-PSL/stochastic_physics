@@ -47,7 +47,11 @@ list(APPEND _stoch_phys_srcs
 add_library(stochastic_physics ${_stoch_phys_srcs})
 add_dependencies(stochastic_physics fms)
 
-target_compile_definitions(stochastic_physics PRIVATE INTERNAL_FILE_NML)
+if(32BIT)
+  target_compile_definitions(stochastic_physics PRIVATE INTERNAL_FILE_NML OVERLOAD_R4)
+else()
+  target_compile_definitions(stochastic_physics PRIVATE INTERNAL_FILE_NML)  
+endif()
 
 set_target_properties(stochastic_physics PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/mod)
 target_include_directories(stochastic_physics INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/mod>
