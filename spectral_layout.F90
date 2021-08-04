@@ -28,22 +28,18 @@ module spectral_layout_mod
               lats_dim_ext,      &
               jcap,latg,latg2,   &
               skeblevs,levs,lnt, &
-              lonf,lonfx,        &
-              latgd,lotls
+              lonf,lonfx
 
 !
    integer, allocatable :: lat1s_a(:), lon_dims_a(:),lon_dims_ext(:)
-   real, allocatable, dimension(:) ::  colrad_a, wgt_a, wgtcs_a, rcs2_a, &
+   real, allocatable, dimension(:) ::  colrad_a, wgt_a, rcs2_a, &
                                        sinlat_a, coslat_a
    integer ,allocatable, dimension(:) :: lats_nodes_h,global_lats_h
 
    integer lats_dim_h,   &
-              lats_node_h,   &
-              lats_node_h_max,   &
-              ipt_lats_node_h,   &
-              lon_dim_h  
-   INTEGER ,ALLOCATABLE :: lat1s_h(:) 
-
+           lats_node_h,   &
+           lats_node_h_max,   &
+           ipt_lats_node_h
 contains
 
 !

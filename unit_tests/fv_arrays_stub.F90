@@ -15,31 +15,6 @@
   !   is performed by the module in question.
 
 
-  integer, parameter:: max_step = 1000
-!--- MAY NEED TO TEST THIS
-#ifdef OVERLOAD_R4
-  real, parameter:: real_big = 1.e8    ! big enough to cause blowup if used
-#else
-  real, parameter:: real_big = 1.e30   ! big enough to cause blowup if used
-#endif
-
-  !This is now exclusively for fields that need to be available outside of fv_diagnostics
-  type fv_diag_type
-
-     real, allocatable :: zxg(:,:)
-
-     integer :: id_u_dt_sg, id_v_dt_sg, id_t_dt_sg, id_qv_dt_sg
-     integer :: id_ws, id_te, id_amdt, id_mdt, id_divg, id_aam
-     logical :: initialized = .false.
-     real  sphum, liq_wat, ice_wat       ! GFDL physics
-     real  rainwat, snowwat, graupel
-
-     real :: efx(max_step), efx_sum, efx_nest(max_step), efx_sum_nest, mtq(max_step), mtq_sum
-     integer :: steps
-
-  end type fv_diag_type
-
-
 !>@brief The type 'fv_grid_type' is made up of grid-dependent information from fv_grid_tools and fv_grid_utils.
 !>@details It should not contain any user options (that goes in a different structure) nor data which
 !! is altered outside of those two modules.
@@ -66,16 +41,6 @@
      real(kind=R_GRID), allocatable :: edge_n(:)
      real(kind=R_GRID), allocatable :: edge_w(:)
      real(kind=R_GRID), allocatable :: edge_e(:)
-     ! Vector:
-     real(kind=R_GRID), allocatable :: edge_vect_s(:)
-     real(kind=R_GRID), allocatable :: edge_vect_n(:)
-     real(kind=R_GRID), allocatable :: edge_vect_w(:)
-     real(kind=R_GRID), allocatable :: edge_vect_e(:)
-     ! scalar:
-     real(kind=R_GRID), allocatable :: ex_s(:)
-     real(kind=R_GRID), allocatable :: ex_n(:)
-     real(kind=R_GRID), allocatable :: ex_w(:)
-     real(kind=R_GRID), allocatable :: ex_e(:)
 
      real, allocatable :: l2c_u(:,:), l2c_v(:,:)
      ! divergence Damping:
@@ -417,17 +382,6 @@ contains
     allocate ( Atm%gridstruct%edge_n(npx_2d) )
     allocate ( Atm%gridstruct%edge_w(npy_2d) )
     allocate ( Atm%gridstruct%edge_e(npy_2d) )
-
-    allocate ( Atm%gridstruct%edge_vect_s(isd_2d:ied_2d) )
-    allocate ( Atm%gridstruct%edge_vect_n(isd_2d:ied_2d) )
-    allocate ( Atm%gridstruct%edge_vect_w(jsd_2d:jed_2d) )
-    allocate ( Atm%gridstruct%edge_vect_e(jsd_2d:jed_2d) )
-
-    allocate ( Atm%gridstruct%ex_s(npx_2d) )
-    allocate ( Atm%gridstruct%ex_n(npx_2d) )
-    allocate ( Atm%gridstruct%ex_w(npy_2d) )
-    allocate ( Atm%gridstruct%ex_e(npy_2d) )
-
 
     allocate (  Atm%gridstruct%l2c_u(is_2d:ie_2d,  js_2d:je_2d+1) )
     allocate (  Atm%gridstruct%l2c_v(is_2d:ie_2d+1,js_2d:je_2d) )

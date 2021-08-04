@@ -27,9 +27,8 @@
       allocate ( lats_hold(latg,nodes) )
 !
       iprint = 0
-      opt    = 1                       ! reduced grid
       lats_nodes_a = 0
-        nodesio = nodes
+      nodesio = nodes
 !
       ngrptg = 0
       do lat=1,latg

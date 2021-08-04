@@ -51,11 +51,6 @@ module getcon_spectral_mod
       real(kind=kind_dbl_prec), dimension(len_trie_ls,latg2) :: plnev_a, plnew_a
       real(kind=kind_dbl_prec), dimension(len_trio_ls,latg2) :: plnod_a, plnow_a
 !
-      real(kind=kind_dbl_prec), allocatable:: colrad_dp(:), wgt_dp(:),&
-                      wgtcs_dp(:),  rcs2_dp(:), epse_dp(:),   epso_dp(:),&
-                      epsedn_dp(:), epsodn_dp(:),plnev_dp(:), plnod_dp(:),&
-                      plnew_dp(:),  plnow_dp(:)
-!
       integer       iprint,locl,node,&
                     len_trie_ls_nod, len_trio_ls_nod,&
                     indev, indod, indlsev,jbasev,indlsod,jbasod
@@ -131,72 +126,11 @@ module getcon_spectral_mod
 !
       iprint = 0
 !
-      if ( kind_dbl_prec == 8 ) then !------------------------------------
-           call glats_stochy(latg2,colrad_a,wgt_a,wgtcs_a,rcs2_a,iprint)
+           call glats_stochy(latg2,colrad_a,wgt_a,rcs2_a)
            call epslon_stochy(epse,epso,epsedn,epsodn,ls_node)
            call pln2eo_a_stochy(plnev_a,plnod_a,epse,epso,ls_node,latg2)
            call gozrineo_a_stochy(plnev_a,plnod_a, &
                 plnew_a,plnow_a,epse,epso,ls_node,latg2)
-!
-      else !------------------------------------------------------------
-           allocate  ( colrad_dp(latg2) )
-           allocate  (    wgt_dp(latg2) )
-           allocate  (  wgtcs_dp(latg2) )
-           allocate  (   rcs2_dp(latg2) )
-!
-           allocate  (   epse_dp(len_trie_ls) )
-           allocate  (   epso_dp(len_trio_ls) )
-           allocate  ( epsedn_dp(len_trie_ls) )
-           allocate  ( epsodn_dp(len_trio_ls) )
-!
-           allocate  (  plnev_dp(len_trie_ls) )
-           allocate  (  plnod_dp(len_trio_ls) )
-           allocate  (  plnew_dp(len_trie_ls) )
-           allocate  (  plnow_dp(len_trio_ls) )
-
-           call glats_stochy(latg2,colrad_dp,wgt_dp,wgtcs_dp,rcs2_dp,iprint)
-!
-           do i=1,latg2
-              colrad_a(i) = colrad_dp(i)
-                 wgt_a(i) =    wgt_dp(i)
-               wgtcs_a(i) =  wgtcs_dp(i)
-                rcs2_a(i) =   rcs2_dp(i)
-           enddo
-!
-           call epslon_stochy(epse_dp,epso_dp,epsedn_dp,epsodn_dp,ls_node)
-!
-           do i=1,len_trie_ls
-                epse(i) =   epse_dp(i)
-              epsedn(i) = epsedn_dp(i)
-           enddo
-!
-           do i=1,len_trio_ls
-                epso(i) =   epso_dp(i)
-              epsodn(i) = epsodn_dp(i)
-           enddo
-!
-           do lat=1,latg2
-!
-              call pln2eo_a_stochy(plnev_dp,plnod_dp,epse_dp,epso_dp,ls_node,1)
-!
-              call gozrineo_a_stochy(plnev_dp,plnod_dp,plnew_dp,plnow_dp,&
-                   epse_dp,epso_dp,ls_node,1)
-!
-              do i=1,len_trie_ls
-                 plnev_a(i,lat) = plnev_dp(i)
-                 plnew_a(i,lat) = plnew_dp(i)
-              enddo
-              do i=1,len_trio_ls
-                 plnod_a(i,lat) = plnod_dp(i)
-                 plnow_a(i,lat) = plnow_dp(i)
-              enddo
-           enddo
-!
-           deallocate  ( wgt_dp,   wgtcs_dp,  rcs2_dp ,  &
-                         epse_dp,   epso_dp,  epsedn_dp, epsodn_dp, &
-                         plnev_dp,  plnod_dp, &
-                         plnew_dp,  plnow_dp )
-      endif !-----------------------------------------------------------
 !
 !
       do locl=1,ls_max_node

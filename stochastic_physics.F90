@@ -465,7 +465,7 @@ subroutine finalize_stochastic_physics()
 use stochy_data_mod, only : nshum,rpattern_shum,rpattern_sppt,nsppt,rpattern_skeb,nskeb,&
                             vfact_sppt,vfact_shum,vfact_skeb, skeb_vwts,skeb_vpts, &
                             rpattern_sfc, nlndp,gg_lats,gg_lons,sl,skebu_save,skebv_save,gis_stochy
-use spectral_layout_mod, only : lat1s_h,lat1s_a ,lon_dims_a,wgt_a,sinlat_a,coslat_a,colrad_a,wgtcs_a,rcs2_a,lats_nodes_h,global_lats_h
+use spectral_layout_mod, only : lat1s_a ,lon_dims_a,wgt_a,sinlat_a,coslat_a,colrad_a,rcs2_a,lats_nodes_h,global_lats_h
 implicit none
 
    if (allocated(gg_lats)) deallocate (gg_lats)
@@ -494,12 +494,10 @@ implicit none
 deallocate(lat1s_a)
 deallocate(lon_dims_a)
 deallocate(wgt_a)
-deallocate(wgtcs_a)
 deallocate(rcs2_a)
 deallocate(colrad_a)
 deallocate(sinlat_a)
 deallocate(coslat_a)
-deallocate(lat1s_h)
 deallocate(gis_stochy%lonsperlat)
 deallocate(gis_stochy%ls_node)
 deallocate(gis_stochy%ls_nodes)

@@ -32,17 +32,12 @@
       integer                   :: nodes
 
 !
-      integer lonf,latg,lats_node_a_max
+      integer lats_node_a_max
 
       integer npe_single_member
 
-      integer                           ::  ipt_lats_node_a
       integer                           ::  lats_node_a
       integer                           ::  me
-!jwe
-
-      integer                           ::  nblck,kdt
-!      real                              ::  deltim
 
       integer              ,allocatable ::      lonsperlat (:)
       integer              ,allocatable ::      ls_node    (:)

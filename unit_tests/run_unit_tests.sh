@@ -15,7 +15,7 @@ module load modules.stoch
 
 # compile codes
 sh compile_standalone.hera_intel
-sh compile_compare.sh
+#sh compile_compare.sh
 
 # test 3 different domain decompositions and compare to baseline
 #layout 1x4
@@ -67,6 +67,7 @@ else
       rm stochy*nc
       rm ../*.o ../*.mod
       rm ../libstochastic_physics.a
+      rm standalone_stochy.x
    else
       echo "restart test failed"
    fi

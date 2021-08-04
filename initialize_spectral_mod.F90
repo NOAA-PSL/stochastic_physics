@@ -17,11 +17,11 @@
 !!uses:
 !
       use kinddef
-      use spectral_layout_mod,      only : ipt_lats_node_a, lats_node_a_max,lon_dim_a,len_trie_ls,len_trio_ls &
+      use spectral_layout_mod,      only : lats_node_a_max,lon_dim_a,len_trie_ls,len_trio_ls &
                                       ,nodes,ls_max_node,lats_dim_a,ls_dim,lat1s_a
-      use stochy_internal_state_mod
-      use spectral_layout_mod,only:jcap,lon_dims_a,wgt_a,sinlat_a,coslat_a,colrad_a,wgtcs_a,rcs2_a,lats_nodes_h,global_lats_h,&
-                                   latg,latg2,lonf,lotls,lat1s_h
+      use stochy_internal_state_mod, only : stochy_internal_state
+      use spectral_layout_mod,only:jcap,lon_dims_a,wgt_a,sinlat_a,coslat_a,colrad_a,rcs2_a,lats_nodes_h,global_lats_h,&
+                                   latg,latg2,lonf
       use stochy_namelist_def
       use mpp_mod, only : mpp_pe,mpp_root_pe
       use getcon_spectral_mod, only: getcon_spectral
@@ -50,10 +50,8 @@
 !      type(stochy_internal_state), pointer, intent(inout) :: gis_stochy
       type(stochy_internal_state), intent(inout) :: gis_stochy
       integer,                                    intent(out)   :: rc
-      integer           :: npe_single_member, iret,latghf
+      integer           :: npe_single_member
       integer           :: i, l, locl
-      logical           :: file_exists=.false.
-      integer, parameter :: iunit=101
 
 !-------------------------------------------------------------------
 
@@ -73,7 +71,6 @@
       allocate(lon_dims_a(latg))
 
       allocate(wgt_a(latg2))
-      allocate(wgtcs_a(latg2))
       allocate(rcs2_a(latg2))
 
       ls_dim = (jcap)/nodes+1
@@ -160,13 +157,6 @@
       allocate(colrad_a(latg2))
       allocate(sinlat_a(latg))
       allocate(coslat_a(latg))
-      allocate(lat1s_h(0:jcap))
-!
-      if(gis_stochy%iret/=0) then
-         write(0,*) 'incompatible namelist - aborted in stochy'
-         rc = 1
-         return
-      end if
 !!
       call getcon_spectral(gis_stochy%ls_node,         gis_stochy%ls_nodes,           &
                            gis_stochy%max_ls_nodes,    gis_stochy%lats_nodes_a,       &
@@ -179,7 +169,6 @@
                            gis_stochy%plnow_a)
 !
       gis_stochy%lats_node_a     = gis_stochy%lats_nodes_a(gis_stochy%me+1)
-      gis_stochy%ipt_lats_node_a = ipt_lats_node_a
 
         if (.not. allocated(lats_nodes_h))  allocate (lats_nodes_h(nodes))
         if (.not. allocated(global_lats_h)) allocate (global_lats_h(latg+2*gis_stochy%yhalo*nodes))
@@ -187,8 +176,8 @@
                         lats_nodes_h, global_lats_h,                       &
                         gis_stochy%lonsperlat,gis_stochy%xhalo,gis_stochy%yhalo)
 
-      allocate ( gis_stochy%trie_ls (len_trie_ls,2,lotls) )
-      allocate ( gis_stochy%trio_ls (len_trio_ls,2,lotls) )
+      allocate ( gis_stochy%trie_ls (len_trie_ls,2,gis_stochy%lotls) )
+      allocate ( gis_stochy%trio_ls (len_trio_ls,2,gis_stochy%lotls) )
 
       rc=0
 

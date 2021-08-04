@@ -12,8 +12,8 @@
      &                      lonsperlat,xhalo,yhalo)
       use spectral_layout_mod, only : me,nodes,jcap,latg,latg2,lonf,
      &                          colrad_a,sinlat_a,
-     &                          ipt_lats_node_h,lat1s_h,lats_dim_h,
-     &                          lats_node_h,lats_node_h_max,lon_dim_h
+     &                          ipt_lats_node_h,lats_dim_h,
+     &                          lats_node_h,lats_node_h_max
       use setlats_lag_stochy_mod, only: setlats_lag_stochy
       implicit none
 !
@@ -73,16 +73,6 @@
       do j=1,latg2
         sinlat_a(j) = cos(colrad_a(j))
       enddo
-      do l=0,jcap
-         do lat = 1, latg2
-            if ( l <= min(jcap,lonsperlat(lat)/2) ) then
-               lat1s_h(l) = lat
-               go to 200
-            endif
-         end do
-  200    continue
-      end do
-      lon_dim_h = lonf + 1 + xhalo + xhalo !even/odd
       return
       end
 
