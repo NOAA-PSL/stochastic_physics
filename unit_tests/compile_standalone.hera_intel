@@ -29,21 +29,9 @@ if [ $compile_all -eq 1 ];then
    $FC ${FLAGS64} -I${FMS_INC} unit_tests/atmosphere_stub.F90
    $FC ${FLAGS64} unit_tests/mersenne_twister.F
    $FC ${FLAGS64} stochy_namelist_def.F90
-   $FC ${FLAGS64} spectral_layout.F90
    $FC ${FLAGS64} stochy_internal_state_mod.F90
-   $FC ${FLAGS64} pln2eo_stochy.F90
-   $FC ${FLAGS64} setlats_a_stochy.F90
-   $FC ${FLAGS64} setlats_lag_stochy.F90
-   $FC ${FLAGS64} glats_stochy.F90
-   $FC ${FLAGS64} gozrineo_stochy.F90
-   $FC ${FLAGS64} epslon_stochy.F90
    $FC ${FLAGS64} spectral_transforms.F90
-   $FC ${FLAGS64} get_lats_node_a_stochy.F90
-   $FC ${FLAGS64} get_ls_node_stochy.F90
    $FC ${FLAGS64} compns_stochy.F90
-   $FC ${FLAGS64} getcon_lag_stochy.F90
-   $FC ${FLAGS64} getcon_spectral.F90
-   $FC ${FLAGS64} initialize_spectral_mod.F90
    $FC ${FLAGS64} stochy_patterngenerator.F90
    $FC ${FLAGS64} stochy_data_mod.F90
    $FC ${FLAGS64} get_stochy_pattern.F90

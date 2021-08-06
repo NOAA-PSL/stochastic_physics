@@ -1,9 +1,10 @@
 !>@brief The module 'get_stochy_pattern_mod' contains the subroutines to retrieve the random pattern in the cubed-sphere grid
 module get_stochy_pattern_mod
  use kinddef, only : kind_dbl_prec, kind_evod
- use spectral_layout_mod, only : lat1s_a, len_trie_ls,                      &
-                                 len_trio_ls, ls_dim, stochy_la2ga,         &
-                                 coslat_a, latg, latg2, levs, lonf, skeblevs
+ use spectral_transforms, only : lat1s_a, len_trie_ls,                       &
+                                 len_trio_ls, ls_dim, stochy_la2ga,          &
+                                 coslat_a, latg, latg2, levs, lonf, skeblevs,&
+                                 four_to_grid, spec_to_four, dezouv_stochy,dozeuv_stochy
  use stochy_namelist_def, only : n_var_lndp, ntrunc, stochini
  use stochy_data_mod, only : gg_lats, gg_lons, inttyp, nskeb, nshum, nsppt, &
                              nocnsppt,nepbl,nlndp,                          &
@@ -16,7 +17,6 @@ module get_stochy_pattern_mod
  use stochy_internal_state_mod, only: stochy_internal_state
  use mpi_wrapper, only : mp_reduce_sum,is_rootpe
  use mersenne_twister, only: random_seed
- use spectral_transforms, only: four_to_grid, spec_to_four, dezouv_stochy,dozeuv_stochy
  implicit none
  private
 

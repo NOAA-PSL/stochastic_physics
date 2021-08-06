@@ -4,14 +4,13 @@ module stochy_data_mod
 
 ! set up and initialize stochastic random patterns.
 
- use spectral_layout_mod, only: len_trie_ls,len_trio_ls,ls_dim,ls_max_node,&
-                              skeblevs,levs,jcap,lonf,latg
+ use spectral_transforms, only: len_trie_ls,len_trio_ls,ls_dim,ls_max_node,&
+                              skeblevs,levs,jcap,lonf,latg,initialize_spectral
  use stochy_namelist_def
  use constants_mod, only : radius
  use mpi_wrapper, only: mp_bcst, is_rootpe, mype
  use stochy_patterngenerator_mod, only: random_pattern, patterngenerator_init,&
  getnoise, patterngenerator_advance,ndimspec,chgres_pattern,computevarspec_r
- use initialize_spectral_mod, only: initialize_spectral
  use stochy_internal_state_mod
 ! use mersenne_twister_stochy, only : random_seed
  use mersenne_twister, only : random_seed

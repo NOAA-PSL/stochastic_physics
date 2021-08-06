@@ -28,7 +28,7 @@ subroutine init_stochastic_physics(levs, blksz, dtp, sppt_amp, input_nml_file_in
 use stochy_data_mod, only : init_stochdata,gg_lats,gg_lons,nsppt, &
                             rad2deg,INTTYP,wlon,rnlat,gis_stochy,vfact_skeb,vfact_sppt,vfact_shum,skeb_vpts,skeb_vwts,sl
 use stochy_namelist_def
-use spectral_layout_mod,only:colrad_a,latg,lonf,skeblevs
+use spectral_transforms,only:colrad_a,latg,lonf,skeblevs
 use mpi_wrapper, only : mpi_wrapper_initialize,mype,npes,is_rootpe
 
 implicit none
@@ -231,7 +231,7 @@ subroutine init_stochastic_physics_ocn(delt,geoLonT,geoLatT,nx,ny,nz,pert_epbl_i
                                        mpiroot, mpicomm, iret)
 use stochy_data_mod, only : init_stochdata_ocn,gg_lats,gg_lons,&
                             rad2deg,INTTYP,wlon,rnlat,gis_stochy_ocn
-use spectral_layout_mod , only : latg,lonf,colrad_a
+use spectral_transforms , only : latg,lonf,colrad_a
 !use MOM_grid, only : ocean_grid_type   
 use stochy_namelist_def
 use mersenne_twister, only: random_gauss
@@ -457,7 +457,7 @@ subroutine finalize_stochastic_physics()
 use stochy_data_mod, only : nshum,rpattern_shum,rpattern_sppt,nsppt,rpattern_skeb,nskeb,&
                             vfact_sppt,vfact_shum,vfact_skeb, skeb_vwts,skeb_vpts, &
                             rpattern_sfc, nlndp,gg_lats,gg_lons,sl,skebu_save,skebv_save,gis_stochy
-use spectral_layout_mod, only : lat1s_a ,lon_dims_a,wgt_a,sinlat_a,coslat_a,colrad_a,rcs2_a,lats_nodes_h,global_lats_h
+use spectral_transforms, only : lat1s_a ,lon_dims_a,wgt_a,sinlat_a,coslat_a,colrad_a,rcs2_a
 implicit none
 
    if (allocated(gg_lats)) deallocate (gg_lats)

@@ -11,32 +11,6 @@ module spectral_layout_mod
 ! 20190503   dom heinzeller : add ompthreads and stochy_la2ga; todo: cleanup nodes, me, ... (defined multiple times in several files)
 ! 20201002   philip pegion:  cleanup of code
 !
-!   integer :: nodes,             &
-!              me,                &
-!              master,            &
-   integer :: ls_dim,            &
-              ls_max_node,       &
-              len_trie_ls,       &
-              len_trio_ls,       &
-              len_trie_ls_max,   &
-              len_trio_ls_max,   &
-              lats_dim_ext,      &
-              jcap,latg,latg2,   &
-              skeblevs,levs,lnt, &
-              lonf,lonfx
-
-!
-   integer, allocatable :: lat1s_a(:), lon_dims_a(:),lon_dims_ext(:)
-   real, allocatable, dimension(:) ::  colrad_a, wgt_a, rcs2_a, &
-                                       sinlat_a, coslat_a
-   integer ,allocatable, dimension(:) :: lats_nodes_h,global_lats_h
-
-   integer lats_dim_h,   &
-           lats_node_h,   &
-           lats_node_h_max,   &
-           ipt_lats_node_h
-contains
-
 !
    !  interpolation from lat/lon or gaussian grid to other lat/lon grid
    !

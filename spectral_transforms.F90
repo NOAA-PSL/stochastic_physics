@@ -1,12 +1,35 @@
 !>@brief The module 'spectral_transforms' contains the subroutines spec_to_four and four_to_grid
-      module spectral_transforms
+module spectral_transforms
 
-      use spectral_layout_mod   , only : len_trie_ls,len_trio_ls,  &
-                                         ls_dim,ls_max_node,jcap
-      use kinddef
-      use mpi_wrapper, only : mp_alltoall,mype,npes
+ use kinddef
+ use mpi_wrapper, only : mp_alltoall,mype,npes
+ use stochy_internal_state_mod, only : stochy_internal_state
+ use stochy_namelist_def
+ use mpp_mod, only : mpp_pe,mpp_root_pe
+#ifndef IBM
+  USE omp_lib
+#endif
       private 
       public :: spec_to_four, four_to_grid,dozeuv_stochy,dezouv_stochy
+      public :: initialize_spectral,stochy_la2ga
+
+      integer, public :: ls_dim,            &
+              ls_max_node,       &
+              len_trie_ls,       &
+              len_trio_ls,       &
+              len_trie_ls_max,   &
+              len_trio_ls_max,   &
+              lats_dim_ext,      &
+              jcap,latg,latg2,   &
+              skeblevs,levs,lnt, &
+              lonf,lonfx
+
+!
+      integer, public, allocatable :: lat1s_a(:), lon_dims_a(:),lon_dims_ext(:)
+      real, public, allocatable, dimension(:) ::  colrad_a, wgt_a, rcs2_a, &
+                                       sinlat_a, coslat_a
+
+
       contains
 
 !>@brief The subrountine 'spec_to_four' converts the spherical harmonics to fourier coefficients
@@ -223,7 +246,6 @@
 !>@details This code is taken from the legacy spectral GFS
       subroutine four_to_grid(syn_gr_a_1,syn_gr_a_2, lon_dim_coef,lon_dim_grid,lons_lat,lot)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      use kinddef
       implicit none
 !!
       real(kind=kind_dbl_prec)     syn_gr_a_1(lon_dim_coef,lot)
@@ -801,8 +823,6 @@
 !>@details This code is taken from the legacy spectral GFS
       subroutine dozeuv_stochy(dod,zev,uod,vev,epsedn,epsodn, snnp1ev,snnp1od,ls_node)
 
-      use spectral_layout_mod
-      use kinddef
 
       implicit none
       real(kind_dbl_prec), intent(in)  :: dod(len_trio_ls,2)
@@ -983,8 +1003,6 @@
 !>@details This code is taken from the legacy spectral GFS
       subroutine dezouv_stochy(dev,zod,uev,vod,epsedn,epsodn,snnp1ev,snnp1od,ls_node)
 
-      use spectral_layout_mod
-      use kinddef
 
       implicit none
 
@@ -1171,4 +1189,1205 @@
       return
       end
 
-      end module spectral_transforms
+   !  interpolation from lat/lon or gaussian grid to other lat/lon grid
+   !
+!>@brief The subroutine 'stochy_la2ga' intepolates from the global gaussian grid
+!! to the cubed sphere points
+!>@details This code is taken from the legacy spectral GFS
+   subroutine stochy_la2ga(regin,imxin,jmxin,rinlon,rinlat,rlon,rlat, &
+                           gauout,len,outlat, outlon)
+      implicit none
+      ! interface variables
+      real (kind=kind_io8), intent(in)  :: regin(imxin,jmxin)
+      integer,              intent(in)  :: imxin
+      integer,              intent(in)  :: jmxin
+      real (kind=kind_io8), intent(in)  :: rinlon(imxin)
+      real (kind=kind_io8), intent(in)  :: rinlat(jmxin)
+      real (kind=kind_io8), intent(in)  :: rlon
+      real (kind=kind_io8), intent(in)  :: rlat
+      real (kind=kind_io8), intent(out) :: gauout(len)
+      integer,              intent(in)  :: len
+      real (kind=kind_io8), intent(in)  :: outlat(len)
+      real (kind=kind_io8), intent(in)  :: outlon(len)
+      ! local variables
+      real (kind=kind_io8) :: sum2,sum1,sum3,sum4
+      real (kind=kind_io8) :: wsum,wsumiv,sums,sumn,wi2j2,x,y,wi1j1
+      real (kind=kind_io8) :: wi1j2,wi2j1,aphi,rnume,alamd,denom
+      integer              :: i,j,jq,jx
+      integer              :: j1,j2,ii,i1,i2
+      integer              :: iindx1(len)
+      integer              :: iindx2(len)
+      integer              :: jindx1(len)
+      integer              :: jindx2(len)
+      real(kind=kind_io8)  :: ddx(len)
+      real(kind=kind_io8)  :: ddy(len)
+      real(kind=kind_io8)  :: wrk(len)
+!
+!
+!       find i-index for interpolation
+        do i=1,len
+          alamd = outlon(i)
+          if (alamd .lt. rlon)   alamd = alamd + 360.0
+          if (alamd .gt. 360.0+rlon) alamd = alamd - 360.0
+          wrk(i)    = alamd
+          iindx1(i) = imxin
+        enddo
+        do i=1,len
+          do ii=1,imxin
+            if(wrk(i) .ge. rinlon(ii)) iindx1(i) = ii
+          enddo
+        enddo
+        do i=1,len
+          i1 = iindx1(i)
+          if (i1 .lt. 1) i1 = imxin
+          i2 = i1 + 1
+          if (i2 .gt. imxin) i2 = 1
+          iindx1(i) = i1
+          iindx2(i) = i2
+          denom     = rinlon(i2) - rinlon(i1)
+          if(denom.lt.0.) denom = denom + 360.
+          rnume = wrk(i) - rinlon(i1)
+          if(rnume.lt.0.) rnume = rnume + 360.
+          ddx(i) = rnume / denom
+        enddo
+!
+!  find j-index for interplation
+!
+        if(rlat.gt.0.) then
+          do j=1,len
+            jindx1(j)=0
+          enddo
+          do jx=1,jmxin
+            do j=1,len
+              if(outlat(j).le.rinlat(jx)) jindx1(j) = jx
+            enddo
+          enddo
+          do j=1,len
+            jq = jindx1(j)
+            aphi=outlat(j)
+            if(jq.ge.1 .and. jq .lt. jmxin) then
+              j2=jq+1
+              j1=jq
+             ddy(j)=(aphi-rinlat(j1))/(rinlat(j2)-rinlat(j1))
+            elseif (jq .eq. 0) then
+              j2=1
+              j1=1
+              if(abs(90.-rinlat(j1)).gt.0.001) then
+                ddy(j)=(aphi-rinlat(j1))/(90.-rinlat(j1))
+              else
+                ddy(j)=0.0
+              endif
+            else
+              j2=jmxin
+              j1=jmxin
+              if(abs(-90.-rinlat(j1)).gt.0.001) then
+                ddy(j)=(aphi-rinlat(j1))/(-90.-rinlat(j1))
+              else
+                ddy(j)=0.0
+              endif
+            endif
+            jindx1(j)=j1
+            jindx2(j)=j2
+          enddo
+        else
+          do j=1,len
+            jindx1(j) = jmxin+1
+          enddo
+          do jx=jmxin,1,-1
+            do j=1,len
+              if(outlat(j).le.rinlat(jx)) jindx1(j) = jx
+            enddo
+          enddo
+          do j=1,len
+            jq = jindx1(j)
+            aphi=outlat(j)
+            if(jq.gt.1 .and. jq .le. jmxin) then
+              j2=jq
+              j1=jq-1
+              ddy(j)=(aphi-rinlat(j1))/(rinlat(j2)-rinlat(j1))
+            elseif (jq .eq. 1) then
+              j2=1
+              j1=1
+              if(abs(-90.-rinlat(j1)).gt.0.001) then
+                 ddy(j)=(aphi-rinlat(j1))/(-90.-rinlat(j1))
+              else
+                 ddy(j)=0.0
+              endif
+            else
+              j2=jmxin
+              j1=jmxin
+              if(abs(90.-rinlat(j1)).gt.0.001) then
+                 ddy(j)=(aphi-rinlat(j1))/(90.-rinlat(j1))
+              else
+                 ddy(j)=0.0
+              endif
+            endif
+            jindx1(j)=j1
+            jindx2(j)=j2
+          enddo
+        endif
+!
+        sum1 = 0.
+        sum2 = 0.
+        sum3 = 0.
+        sum4 = 0.
+        do i=1,imxin
+          sum1 = sum1 + regin(i,1)
+          sum2 = sum2 + regin(i,jmxin)
+        enddo
+        sum1 = sum1 / imxin
+        sum2 = sum2 / imxin
+        sum3 = sum1
+        sum4 = sum2
+!
+!  quasi-bilinear interpolation
+!
+        do i=1,len
+          y  = ddy(i)
+          j1 = jindx1(i)
+          j2 = jindx2(i)
+          x  = ddx(i)
+          i1 = iindx1(i)
+          i2 = iindx2(i)
+!
+          wi1j1 = (1.-x) * (1.-y)
+          wi2j1 =     x  *( 1.-y)
+          wi1j2 = (1.-x) *      y
+          wi2j2 =     x  *      y
+!
+          wsum   = wi1j1 + wi2j1 + wi1j2 + wi2j2
+          wrk(i) = wsum
+          if(wsum.ne.0.) then
+            wsumiv = 1./wsum
+            if(j1.ne.j2) then
+              gauout(i) = (wi1j1*regin(i1,j1) + wi2j1*regin(i2,j1) + &
+                           wi1j2*regin(i1,j2) + wi2j2*regin(i2,j2))  &
+                        *wsumiv
+            else
+              if (rlat .gt. 0.0) then
+                sumn = sum3
+                sums = sum4
+                if( j1 .eq. 1) then
+                  gauout(i) = (wi1j1*sumn        +wi2j1*sumn        + &
+                               wi1j2*regin(i1,j2)+wi2j2*regin(i2,j2)) &
+                            * wsumiv
+                elseif (j1 .eq. jmxin) then
+                  gauout(i) = (wi1j1*regin(i1,j1)+wi2j1*regin(i2,j1)+ &
+                               wi1j2*sums        +wi2j2*sums        ) &
+                            * wsumiv
+                endif
+              else
+                sums = sum3
+                sumn = sum4
+                if( j1 .eq. 1) then
+                  gauout(i) = (wi1j1*regin(i1,j1)+wi2j1*regin(i2,j1)+ &
+                               wi1j2*sums        +wi2j2*sums        ) &
+                            * wsumiv
+                elseif (j1 .eq. jmxin) then
+                  gauout(i) = (wi1j1*sumn        +wi2j1*sumn        + &
+                               wi1j2*regin(i1,j2)+wi2j2*regin(i2,j2)) &
+                            * wsumiv
+                endif
+              endif
+            endif            ! if j1 .ne. j2
+          endif
+        enddo
+        do i=1,len
+          j1 = jindx1(i)
+          j2 = jindx2(i)
+          i1 = iindx1(i)
+          i2 = iindx2(i)
+          if(wrk(i) .eq. 0.0) then
+            write(6,*) ' la2ga: error'
+            call sleep(2)
+            stop
+          endif
+        enddo
+      return
+!
+   end subroutine stochy_la2ga
+
+!>@brief The subroutine 'initialize_spectral' initializes the
+!gridded component of the stochastic physics pattern
+!>@details This code is taken from the legacy spectral GFS
+      subroutine initialize_spectral(gis_stochy, rc)
+
+! this subroutine set up the internal state variables,
+! allocate internal state arrays for initializing the gfs system.
+!----------------------------------------------------------------
+!
+      implicit none
+!
+!      type(stochy_internal_state), pointer, intent(inout) :: gis_stochy
+      type(stochy_internal_state), intent(inout) :: gis_stochy
+      integer,                                    intent(out)   :: rc
+      integer           :: npe_single_member
+      integer           :: i, l, locl
+
+!-------------------------------------------------------------------
+
+! set up gfs internal state dimension and values for dynamics etc
+!-------------------------------------------------------------------
+
+      npe_single_member = gis_stochy%npe_single_member
+
+      gis_stochy%lon_dim_a = lon_s + 2
+      jcap=ntrunc
+      latg   = lat_s
+      latg2  = latg/2
+      lonf   = lon_s
+
+      allocate(lat1s_a(0:jcap))
+      allocate(lon_dims_a(latg))
+
+      allocate(wgt_a(latg2))
+      allocate(rcs2_a(latg2))
+
+      ls_dim = (jcap)/gis_stochy%nodes+1
+      allocate(gis_stochy%lonsperlat(latg))
+
+      gis_stochy%lonsperlat(:)=lonf
+!!
+!cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+!
+      allocate (      gis_stochy%ls_node (ls_dim,3) )
+      allocate (      gis_stochy%ls_nodes(ls_dim,gis_stochy%nodes) )
+      allocate (  gis_stochy%max_ls_nodes(gis_stochy%nodes) )
+!
+      allocate (  gis_stochy%lats_nodes_a(gis_stochy%nodes) )
+      allocate ( gis_stochy%global_lats_a(latg) )
+!
+
+! internal parallel structure.   Weiyu.
+!---------------------------------------------------
+      ALLOCATE(gis_stochy%TRIE_LS_SIZE      (npe_single_member))
+      ALLOCATE(gis_stochy%TRIO_LS_SIZE      (npe_single_member))
+      ALLOCATE(gis_stochy%TRIEO_LS_SIZE     (npe_single_member))
+      ALLOCATE(gis_stochy%LS_MAX_NODE_GLOBAL(npe_single_member))
+      ALLOCATE(gis_stochy%LS_NODE_GLOBAL    (LS_DIM*3, npe_single_member))
+
+      gis_stochy%LS_NODE_GLOBAL     = 0
+      gis_stochy%LS_MAX_NODE_GLOBAL = 0
+      gis_stochy%TRIEO_TOTAL_SIZE   = 0
+
+      DO i = 1, npe_single_member
+          CALL GET_LS_NODE_STOCHY(i-1, gis_stochy%LS_NODE_GLOBAL(1, i),               &
+                            gis_stochy%LS_MAX_NODE_GLOBAL(i), gis_stochy%IPRINT)
+          gis_stochy%TRIE_LS_SIZE(i) = 0
+          gis_stochy%TRIO_LS_SIZE(i) = 0
+          DO LOCL = 1, gis_stochy%LS_MAX_NODE_GLOBAL(i)
+              gis_stochy%LS_NODE_GLOBAL(LOCL+  LS_DIM, i)   = gis_stochy%TRIE_LS_SIZE(i)
+              gis_stochy%LS_NODE_GLOBAL(LOCL+  2*LS_DIM, i) = gis_stochy%TRIO_LS_SIZE(i)
+
+              L = gis_stochy%LS_NODE_GLOBAL(LOCL, i)
+
+              gis_stochy%TRIE_LS_SIZE(i) = gis_stochy%TRIE_LS_SIZE(i) + (JCAP+3-L)/2
+              gis_stochy%TRIO_LS_SIZE(i) = gis_stochy%TRIO_LS_SIZE(i) + (JCAP+2-L)/2
+          END DO
+          gis_stochy%TRIEO_LS_SIZE(i) = gis_stochy%TRIE_LS_SIZE(i)  + gis_stochy%TRIO_LS_SIZE(i) + 3
+          gis_stochy%TRIEO_TOTAL_SIZE = gis_stochy%TRIEO_TOTAL_SIZE + gis_stochy%TRIEO_LS_SIZE(i)
+      END DO
+
+
+!---------------------------------------------------
+!
+      gis_stochy%iprint = 0
+      call get_ls_node_stochy( gis_stochy%mype, gis_stochy%ls_node(:,1), ls_max_node, gis_stochy%nodes)
+!
+!
+      len_trie_ls = 0
+      len_trio_ls = 0
+      do locl=1,ls_max_node
+         gis_stochy%ls_node(locl,2) = len_trie_ls
+         gis_stochy%ls_node(locl,3) = len_trio_ls
+         l = gis_stochy%ls_node(locl,1)
+         len_trie_ls = len_trie_ls+(jcap+3-l)/2
+         len_trio_ls = len_trio_ls+(jcap+2-l)/2
+      enddo
+!
+      allocate ( gis_stochy%epse  (len_trie_ls) )
+      allocate ( gis_stochy%epso  (len_trio_ls) )
+      allocate ( gis_stochy%epsedn(len_trie_ls) )
+      allocate ( gis_stochy%epsodn(len_trio_ls) )
+      allocate ( gis_stochy%kenorm_e(len_trie_ls) )
+      allocate ( gis_stochy%kenorm_o(len_trio_ls) )
+!
+      allocate ( gis_stochy%snnp1ev(len_trie_ls) )
+      allocate ( gis_stochy%snnp1od(len_trio_ls) )
+!
+      allocate ( gis_stochy%plnev_a(len_trie_ls,latg2) )
+      allocate ( gis_stochy%plnod_a(len_trio_ls,latg2) )
+      allocate ( gis_stochy%plnew_a(len_trie_ls,latg2) )
+      allocate ( gis_stochy%plnow_a(len_trio_ls,latg2) )
+
+      allocate(colrad_a(latg2))
+      allocate(sinlat_a(latg))
+      allocate(coslat_a(latg))
+!!
+      call getcon_spectral(gis_stochy)
+!
+      gis_stochy%lats_node_a     = gis_stochy%lats_nodes_a(gis_stochy%mype+1)
+
+
+      allocate ( gis_stochy%trie_ls (len_trie_ls,2,gis_stochy%lotls) )
+      allocate ( gis_stochy%trio_ls (len_trio_ls,2,gis_stochy%lotls) )
+
+      rc=0
+
+      end subroutine initialize_spectral
+
+
+!>@brief The subroutine 'get_ls_node_stochy' calculates the decomposition of the spherical harmonics based on the processor layout
+      subroutine get_ls_node_stochy(me_fake,ls_node,ls_max_node_fake, nodes)
+!>@details This code is taken from the legacy spectral GFS
+!
+      implicit none
+!
+      integer   me_fake, ls_max_node_fake, nodes
+      integer   ls_node(ls_dim)
+
+      integer   ijk, jptls, l, node, nodesio, jcap1
+!
+      nodesio = nodes
+
+      ls_node = -1
+      jcap1=jcap+1
+      print*,'in ls_node',jcap1,nodes,me_fake
+!
+      jptls =  0
+      l = 0
+!.............................................
+      do ijk=1,jcap1
+!
+         do node=1,nodesio
+            if (node == me_fake+1) then
+               jptls = jptls + 1
+               ls_node(jptls) = l
+            endif
+            l = l + 1
+            if (l > jcap) go to 200
+         enddo
+!
+         do node=nodesio,1,-1
+            if (node == me_fake+1) then
+               jptls = jptls + 1
+               ls_node(jptls) = l
+            endif
+            l = l + 1
+            if (l > jcap) go to 200
+         enddo
+!
+      enddo
+!.............................................
+!
+  200 continue
+      print*,'in ls_node',minval(ls_node),maxval(ls_node)
+!
+!.............................................
+!
+      ls_max_node_fake = 0
+      do ijk=1,ls_dim
+         if(ls_node(ijk) >= 0) then
+            ls_max_node_fake = ijk
+          endif
+      enddo
+!
+      return
+      end
+
+!>@brief The subroutine 'getcon_spectral' gets various constants for the spectral and related gaussian grid
+!! and caluated the assoicate legendre polynomials
+!>@details This code is taken from the legacy spectral GFS
+      subroutine getcon_spectral ( gis_stochy)
+
+      implicit none
+!
+      integer              i,j,l,lat,n
+      integer              ls_node(ls_dim,3)
+!
+!     ls_node(1,1) ... ls_node(ls_max_node,1) : values of L
+!     ls_node(1,2) ... ls_node(ls_max_node,2) : values of jbasev
+!     ls_node(1,3) ... ls_node(ls_max_node,3) : values of jbasod
+!
+      type(stochy_internal_state), intent(inout) :: gis_stochy
+!
+      integer       iprint,locl,node,&
+                    len_trie_ls_nod, len_trio_ls_nod,&
+                    indev, indod, indlsev,jbasev,indlsod,jbasod
+!
+      integer gl_lats_index, latsmax
+      integer global_time_sort_index_a(latg)
+!
+      include 'function2'
+!
+      real(kind=kind_dbl_prec) global_time_a(latg)
+!
+      real(kind=kind_dbl_prec), parameter :: cons0 = 0.d0, cons0p5  = 0.5d0,&
+                                         cons1 = 1.d0, cons0p92 = 0.92d0
+!
+      gl_lats_index = 0
+      gis_stochy%global_lats_a = -1
+      do lat = 1,latg                  !my intialize global_time_a to lonsperlat
+          global_time_a(lat) = gis_stochy%lonsperlat(lat)
+      enddo
+
+      do lat = 1, latg2
+         gis_stochy%lonsperlat(latg+1-lat) = gis_stochy%lonsperlat(lat)
+      end do
+      do node=1,gis_stochy%nodes
+          call get_lats_node_a_stochy( node-1, gis_stochy%global_lats_a,gis_stochy%lats_nodes_a(node),&
+                               gl_lats_index,global_time_sort_index_a, gis_stochy%nodes)
+      enddo
+      call setlats_a_stochy(gis_stochy)
+
+      iprint = 0
+      print*,'calling get_ls_node_stochy',gis_stochy%nodes
+      do node=1,gis_stochy%nodes
+         print*,'node...',node
+         call get_ls_node_stochy( node-1, gis_stochy%ls_nodes(1,node),gis_stochy%max_ls_nodes(node), gis_stochy%nodes )
+      enddo
+      print*,'back',minval(gis_stochy%ls_nodes),maxval(gis_stochy%ls_nodes)
+!
+      len_trie_ls_max = 0
+      len_trio_ls_max = 0
+      do node=1,gis_stochy%nodes
+!
+         len_trie_ls_nod = 0
+         len_trio_ls_nod = 0
+         do locl=1,gis_stochy%max_ls_nodes(node)
+            l=gis_stochy%ls_nodes(locl,node)
+            len_trie_ls_nod = len_trie_ls_nod+(jcap+3-l)/2
+            len_trio_ls_nod = len_trio_ls_nod+(jcap+2-l)/2
+         enddo
+         len_trie_ls_max = max(len_trie_ls_max,len_trie_ls_nod)
+         len_trio_ls_max = max(len_trio_ls_max,len_trio_ls_nod)
+!
+      enddo
+!
+      iprint = 0
+!
+      gis_stochy%lats_dim_a = 0
+      do node=1,gis_stochy%nodes
+         gis_stochy%lats_dim_a = max(gis_stochy%lats_dim_a,gis_stochy%lats_nodes_a(node))
+      enddo
+
+      gis_stochy%lats_node_a_max = 0
+      do i=1,gis_stochy%nodes
+        gis_stochy%lats_node_a_max = max(gis_stochy%lats_node_a_max, gis_stochy%lats_nodes_a(i))
+      enddo
+      latsmax = gis_stochy%lats_node_a_max
+
+!
+      gis_stochy%ipt_lats_node_a   = 1
+      if ( gis_stochy%mype > 0 ) then
+        do node=1,gis_stochy%mype
+         gis_stochy%ipt_lats_node_a = gis_stochy%ipt_lats_node_a + gis_stochy%lats_nodes_a(node)
+        enddo
+      endif
+
+!
+      iprint = 0
+!
+           call glats_stochy(latg2,colrad_a,wgt_a,rcs2_a)
+           call epslon_stochy(gis_stochy)
+           call pln2eo_a_stochy(gis_stochy,latg2)
+           call gozrineo_a_stochy(gis_stochy,latg2)
+!
+!
+      do locl=1,ls_max_node
+              l = gis_stochy%ls_node(locl,1)
+         jbasev = gis_stochy%ls_node(locl,2)
+         indev  = indlsev(l,l)
+         do n = l, jcap, 2
+            gis_stochy%snnp1ev(indev) = n*(n+1)
+              indev        = indev+1
+         end do
+      end do
+!
+!
+      do locl=1,ls_max_node
+              l = gis_stochy%ls_node(locl,1)
+         jbasod = gis_stochy%ls_node(locl,3)
+         if ( l <= jcap-1 ) then
+            indod = indlsod(l+1,l)
+            do n = l+1, jcap, 2
+               gis_stochy%snnp1od(indod) = n*(n+1)
+                 indod        = indod+1
+            end do
+         end if
+      end do
+!
+!
+      do locl=1,ls_max_node
+              l = gis_stochy%ls_node(locl,1)
+         jbasev = gis_stochy%ls_node(locl,2)
+         jbasod = gis_stochy%ls_node(locl,3)
+         if (mod(L,2) == mod(jcap+1,2)) then ! set even (n-l) terms of top row to zero
+            gis_stochy%snnp1ev(indlsev(jcap+1,l)) = cons0
+         else                                ! set odd (n-l) terms of top row to zero
+            gis_stochy%snnp1od(indlsod(jcap+1,l)) = cons0
+         endif
+      enddo
+!
+      do j=1,latg
+        if( j <= latg2 ) then
+          sinlat_a(j) =  cos(colrad_a(j))
+        else
+          sinlat_a(j) = -cos(colrad_a(latg+1-j))
+        endif
+        coslat_a(j) = sqrt(1.-sinlat_a(j)*sinlat_a(j))
+      enddo
+!
+      do L=0,jcap
+         do lat = 1, latg2
+            if ( L <= min(jcap,gis_stochy%lonsperlat(lat)/2) ) then
+               lat1s_a(L) = lat
+               go to 200
+            endif
+         end do
+  200    continue
+      end do
+!
+
+      do j=1,gis_stochy%lats_node_a
+         lat = gis_stochy%global_lats_a(gis_stochy%ipt_lats_node_a-1+j)
+         if ( gis_stochy%lonsperlat(lat) == lonf ) then
+            lon_dims_a(j) = lonfx
+         else
+            lon_dims_a(j) = gis_stochy%lonsperlat(lat) + 2
+         endif
+      enddo
+!
+      return
+      end
+
+!>@brief The subroutine 'get_lats_node_a_stochy' calculates the decomposition of the gaussian grid based on the processor layout
+!>@details This code is taken from the legacy spectral GFS
+      subroutine get_lats_node_a_stochy(me_fake,global_lats_a, &
+                lats_nodes_a_fake,gl_lats_index,               &
+                global_time_sort_index,nodes)
+!
+      implicit none
+
+      integer,intent(in)  :: me_fake
+      integer,intent(in)  :: nodes
+      integer,intent(in)  :: lats_nodes_a_fake
+      integer,intent(out) :: gl_lats_index
+      integer,intent(out) :: global_lats_a(latg)
+      integer, intent(in) :: global_time_sort_index(latg)
+
+      integer :: ijk
+      integer :: jptlats
+      integer :: lat
+      integer :: node
+
+      lat = 1
+
+!.............................................
+      do ijk=1,latg
+         do node=1,nodes
+            if (node.eq.me_fake+1) then
+               gl_lats_index=gl_lats_index+1
+               global_lats_a(gl_lats_index) = global_time_sort_index(lat)
+            endif
+            lat = lat + 1
+            if (lat .gt. latg) go to 200
+         enddo
+
+         do node=nodes,1,-1
+            if (node.eq.me_fake+1) then
+               gl_lats_index=gl_lats_index+1
+               global_lats_a(gl_lats_index) = global_time_sort_index(lat)
+            endif
+            lat = lat + 1
+            if (lat .gt. latg) go to 200
+         enddo
+      enddo
+  200 continue
+      return
+      end
+
+!>@brief The subroutine 'gozrineo_a_stochy' calculates the deriviates of assoicate legendre polynomials
+!>@details This code is taken from the legacy spectral GFS
+      subroutine gozrineo_a_stochy(gis_stochy, num_lat)
+
+      implicit none
+
+      type(stochy_internal_state), intent(inout) :: gis_stochy
+      integer,  intent(in)                       :: num_lat
+
+      integer                  l,lat,locl,n
+      integer                  indev,indev1,indev2
+      integer                  indod,indod1,indod2
+      integer                  inddif
+
+      real(kind=kind_dbl_prec) rn,rnp1,wcsa
+
+      real(kind=kind_dbl_prec) cons0     !constant
+      real(kind=kind_dbl_prec) cons2     !constant
+      real  rerth
+
+      integer                  indlsev,jbasev
+      integer                  indlsod,jbasod
+
+      include 'function2'
+
+
+      cons0 = 0.d0     !constant
+      cons2 = 2.d0     !constant
+      rerth  =6.3712e+6      ! radius of earth (m)
+
+
+      do lat=1,num_lat
+
+         wcsa=rcs2_a(lat)/rerth
+
+         do locl=1,ls_max_node
+                 l=gis_stochy%ls_node(locl,1)
+            jbasev=gis_stochy%ls_node(locl,2)
+            jbasod=gis_stochy%ls_node(locl,3)
+            indev1 = indlsev(L,L)
+            indod1 = indlsod(L+1,L)
+            if (mod(L,2).eq.mod(jcap+1,2)) then
+               indev2 = indlsev(jcap+1,L)
+               indod2 = indlsod(jcap  ,L)
+            else
+               indev2 = indlsev(jcap  ,L)
+               indod2 = indlsod(jcap+1,L)
+            endif
+            do indev = indev1 , indev2
+               gis_stochy%plnew_a(indev,lat) = gis_stochy%plnev_a(indev,lat) * wgt_a(lat)
+            enddo
+
+            do indod = indod1 , indod2
+               gis_stochy%plnow_a(indod,lat) = gis_stochy%plnod_a(indod,lat) * wgt_a(lat)
+            enddo
+         enddo
+      enddo
+      return
+      end
+
+!>@brief The subroutine 'setlats_a_stochy' selects the latitude points on this task
+!>@details This code is taken from the legacy spectral GFS
+      subroutine setlats_a_stochy(gis_stochy)
+!
+      implicit none
+!
+      type(stochy_internal_state), intent(inout) :: gis_stochy
+
+      integer :: ifin,nodesio,                       &
+                 jcount,jpt,lat,lats_sum,node,i,ii,  &
+                 ngrptg,ngrptl,ipe,irest,idp,        &
+                 ngrptgh,nodesioh           
+!
+      integer,allocatable :: lats_hold(:,:)
+!
+      allocate ( lats_hold(latg,gis_stochy%nodes) )
+!
+      gis_stochy%lats_nodes_a = 0
+      nodesio = gis_stochy%nodes
+!
+      ngrptg = 0
+      do lat=1,latg
+         do i=1,gis_stochy%lonsperlat(lat)
+           ngrptg = ngrptg + 1
+         enddo
+      enddo
+
+!
+!   ngrptg contains total number of grid points.
+!
+!     distribution of the grid
+      nodesioh = nodesio / 2
+
+      if (nodesioh*2 /= nodesio) then
+        ngrptl = 0
+        ipe    = 0
+        irest  = 0
+        idp    = 1
+
+        do lat=1,latg
+          ifin   = gis_stochy%lonsperlat(lat)
+          ngrptl = ngrptl + ifin
+
+          if (ngrptl*nodesio <= ngrptg+irest) then
+            gis_stochy%lats_nodes_a(ipe+1)  = gis_stochy%lats_nodes_a(ipe+1) + 1
+            lats_hold(idp,ipe+1) = lat
+            idp = idp + 1
+          else
+            ipe = ipe + 1
+            if (ipe <= nodesio) lats_hold(1,ipe+1) = lat
+            idp    = 2
+            irest  = irest + ngrptg - (ngrptl-ifin)*nodesio
+            ngrptl = ifin
+            gis_stochy%lats_nodes_a(ipe+1) = gis_stochy%lats_nodes_a(ipe+1) + 1
+          endif
+        enddo
+      else
+        nodesioh = nodesio/2
+        ngrptgh  = ngrptg/2
+        ngrptl = 0
+        ipe    = 0
+        irest  = 0
+        idp    = 1
+
+        do lat=1,latg/2
+          ifin   = gis_stochy%lonsperlat(lat)
+          ngrptl = ngrptl + ifin
+
+          if (ngrptl*nodesioh <= ngrptgh+irest .or. lat == latg/2) then
+            gis_stochy%lats_nodes_a(ipe+1)  = gis_stochy%lats_nodes_a(ipe+1) + 1
+            lats_hold(idp,ipe+1) = lat
+            idp = idp + 1
+          else
+            ipe = ipe + 1
+            if (ipe <= nodesioh) then
+              lats_hold(1,ipe+1) = lat
+            endif
+            idp    = 2
+            irest  = irest + ngrptgh - (ngrptl-ifin)*nodesioh
+            ngrptl = ifin
+            gis_stochy%lats_nodes_a(ipe+1) = gis_stochy%lats_nodes_a(ipe+1) + 1
+          endif
+        enddo
+        do node=1, nodesioh
+          ii = nodesio-node+1
+          jpt = gis_stochy%lats_nodes_a(node)
+          gis_stochy%lats_nodes_a(ii) = jpt
+          do i=1,jpt
+            lats_hold(jpt+1-i,ii) = latg+1-lats_hold(i,node)
+          enddo
+        enddo
+
+
+      endif
+!!
+!!........................................................
+!!
+      jpt = 0
+      do node=1,nodesio
+        if ( gis_stochy%lats_nodes_a(node) > 0 ) then
+          do jcount=1,gis_stochy%lats_nodes_a(node)
+            gis_stochy%global_lats_a(jpt+jcount) = lats_hold(jcount,node)
+          enddo
+        endif
+        jpt = jpt + gis_stochy%lats_nodes_a(node)
+      enddo
+
+      deallocate (lats_hold)
+
+      return
+      end
+
+!>@brief The subroutine 'glats_stochy' calculate the latitudes for the gaussian grid 
+!>@details This code is taken from the legacy spectral GFS
+      subroutine glats_stochy(lgghaf,colrad,wgt,rcs2)
+!
+! Jan 2013   Henry Juang  increase precision by kind_qdt_prec=16
+!                         to help wgt (Gaussian weighting)
+      implicit none
+      integer                  iter,k,k1,l2,lgghaf
+!
+! increase precision for more significant digit to help wgt
+      real(kind=kind_qdt_prec) drad,dradz,p1,p2,phi,pi,rad,rc
+      real(kind=kind_qdt_prec) rl2,scale,si,sn,w,x
+      real(kind=kind_dbl_prec), dimension(lgghaf) ::  colrad, wgt, rcs2
+!
+      real(kind=kind_dbl_prec), parameter :: cons0 = 0.d0, cons1 = 1.d0, &
+                                             cons2 = 2.d0, cons4 = 4.d0, &
+                                             cons180 = 180.d0, &
+                                             cons0p25 = 0.25d0
+      real(kind=kind_qdt_prec), parameter :: eps = 1.d-20
+!
+! for better accuracy to select smaller number
+!     eps = 1.d-12
+!     eps = 1.d-20
+!
+      si    = cons1
+      l2    = 2*lgghaf
+      rl2   = l2
+      scale = cons2/(rl2*rl2)
+      k1    = l2-1
+      pi    = atan(si)*cons4
+
+!  for better accuracy to start iteration
+      dradz = pi / float(lgghaf) / 200.0
+      rad   = cons0
+      do k=1,lgghaf
+        iter = 0
+        drad = dradz
+1       call poly(l2,rad,p2)
+2       p1 = p2
+        iter = iter + 1
+        rad = rad + drad
+        call poly(l2,rad,p2)
+        if(sign(si,p1) == sign(si,p2)) go to 2
+        if(drad < eps)go to 3
+        rad  = rad-drad
+        drad = drad * cons0p25
+        go to 1
+3       continue
+        colrad(k) = rad
+        phi = rad * cons180 / pi
+        call poly(k1,rad,p1)
+        x        = cos(rad)
+        w        =  scale * (cons1 - x*x)/ (p1*p1)
+        wgt(k)   = w
+        sn       = sin(rad)
+        w        = w/(sn*sn)
+        rc       = cons1/(sn*sn)
+        rcs2(k)  = rc
+        call poly(l2,rad,p1)
+      enddo
+!
+      return
+      end
+
+!>@brief The subroutine 'poly' does something with latitudes
+!>@details This code is taken from the legacy spectral GFS
+      subroutine poly(n,rad,p)
+!
+      implicit none
+!
+      integer                  i,n
+!
+! increase precision for more significant digit to help wgt
+      real(kind=kind_qdt_prec) floati,g,p,rad,x,y1,y2,y3
+!
+      real(kind=kind_dbl_prec), parameter ::  cons1 = 1.d0
+!
+      x  = cos(rad)
+      y1 = cons1
+      y2 = x
+      do i=2,n
+        g = x*y2
+        floati = i
+        y3 = g - y1 + g - (g-y1)/floati
+        y1 = y2
+        y2 = y3
+      enddo
+      p = y3
+      return
+      end
+
+
+!>@brief The subroutine 'pln2eo_a_stochy' calculates the assoicate legendre polynomials
+!>@details This code is taken from the legacy spectral GFS
+      subroutine pln2eo_a_stochy(gis_stochy,num_lat)
+!
+! use x-number method to archieve accuracy due to recursive to avoid
+! underflow and overflow if necessary by henry juang 2012 july
+!
+      implicit none
+!
+! define x number constant for real8 start
+      type(stochy_internal_state), intent(inout) :: gis_stochy
+      integer, intent(in)                        :: num_lat
+      integer,  parameter :: in_f = 960 , in_h = in_f/2
+      real(kind=kind_dbl_prec), parameter :: bb_f = 2.d0 ** ( in_f )
+      real(kind=kind_dbl_prec), parameter :: bs_f = 2.d0 ** (-in_f )
+      real(kind=kind_dbl_prec), parameter :: bb_h = 2.d0 ** ( in_h )
+      real(kind=kind_dbl_prec), parameter :: bs_h = 2.d0 ** (-in_h )
+! define x number constant end
+
+!cmr  ls_node(1,1) ... ls_node(ls_max_node,1) : values of L
+!cmr  ls_node(1,2) ... ls_node(ls_max_node,2) : values of jbasev
+!cmr  ls_node(1,3) ... ls_node(ls_max_node,3) : values of jbasod
+      integer                  l,lat,locl,max_l,n
+      integer                  indev
+      integer                  indod
+! need index for alp to be x-number
+      integer                  id, ialp1, ialp2, ialp3, iprod
+      integer                  ialp10(0:jcap)
+      real(kind=kind_dbl_prec) aa, bb, w
+
+      real(kind=kind_dbl_prec) alp1,alp2,alp3
+      real(kind=kind_dbl_prec) cos2,fl,prod,sinlat,coslat
+      real(kind=kind_dbl_prec) alp10(0:jcap)
+      real(kind=kind_dbl_prec) cons0,cons0p5,cons1,cons2,cons3    !constant
+      integer                  indlsev,jbasev
+      integer                  indlsod,jbasod
+
+      include 'function2'
+
+      cons0=0.0d0       !constant
+      cons0p5=0.5d0     !constant
+      cons1=1.0d0       !constant
+      cons2=2.0d0       !constant
+      cons3=3.0d0       !constant
+
+      max_l=-1
+      do locl=1,ls_max_node
+         max_l = max ( max_l, gis_stochy%ls_node(locl,1) )
+      enddo
+
+      do lat=1,num_lat
+
+         sinlat = cos(colrad_a(lat))
+         cos2=cons1-sinlat*sinlat           !constant
+         coslat = sqrt(cos2)
+
+! use x number for alp10
+         alp10(0) = sqrt(0.5)
+         ialp10(0) = 0
+
+         do l=1,max_l
+            fl = l
+            prod=coslat*sqrt(cons1+cons1/(cons2*fl))
+            iprod=0
+            w = abs(prod)
+            if( w.ge.bb_h ) then
+              prod = prod * bs_f
+              iprod = iprod + 1
+            elseif( w.lt.bs_h ) then
+              prod = prod * bb_f
+              iprod = iprod - 1
+            endif
+            alp10(l)=alp10(l-1)*prod
+            ialp10(l)=ialp10(l-1)+iprod
+            w = abs(alp10(l))
+            if( w.ge.bb_h ) then
+              alp10(l) = alp10(l) * bs_f
+              ialp10(l) = ialp10(l) + 1
+            elseif( w.lt.bs_h ) then
+              alp10(l) = alp10(l) * bb_f
+              ialp10(l) = ialp10(l) - 1
+            endif
+         enddo
+
+         do locl=1,ls_max_node
+                 l=gis_stochy%ls_node(locl,1)
+            jbasev=gis_stochy%ls_node(locl,2)
+            jbasod=gis_stochy%ls_node(locl,3)
+            n=l
+            fl=l
+! get m=normalized x number for alp1 start
+            alp1=alp10(l)
+            ialp1=ialp10(l)
+
+            indev=indlsev(n  ,l)
+            indod=indlsod(n+1,l)
+! x2f start
+            if( ialp1.eq.0 ) then
+              gis_stochy%plnev_a(indev     ,lat)=alp1
+            elseif( ialp1.eq.-1 ) then
+              gis_stochy%plnev_a(indev     ,lat)=alp1 * bs_f
+            elseif( ialp1.lt.-1 ) then
+              gis_stochy%plnev_a(indev     ,lat)=0.0
+            else
+              gis_stochy%plnev_a(indev     ,lat)=alp1 * bb_f
+            endif
+! x2f end
+
+! xltime    alp2=sqrt(cons2*fl+cons3)*sinlat*alp1     !constant
+! xltime start
+            prod=sqrt(cons2*fl+cons3)*sinlat
+            iprod=0
+            w = abs(prod)
+            if( w.ge.bb_h ) then
+              prod = prod * bs_f
+              iprod = iprod + 1
+            elseif( w.lt.bs_h ) then
+              prod = prod * bb_f
+              iprod = iprod - 1
+            endif
+            alp2=alp1*prod
+            ialp2 = ialp1 + iprod
+! xltime end
+! norm alp2 start
+            w = abs(alp2)
+            if( w.ge.bb_h ) then
+              alp2 = alp2*bs_f
+              ialp2 = ialp2 + 1
+            elseif( w.lt.bs_h ) then
+              alp2 = alp2*bb_f
+              ialp2 = ialp2 - 1
+            endif
+! norm alp2 end
+
+! x2f start
+            if( ialp2.eq.0 ) then
+              gis_stochy%plnod_a(indod       ,lat)=alp2
+            elseif( ialp2.eq.-1 ) then
+              gis_stochy%plnod_a(indod       ,lat)=alp2 * bs_f
+            elseif( ialp2.lt.-1 ) then
+              gis_stochy%plnod_a(indod       ,lat)=0.0
+            else
+              gis_stochy%plnod_a(indod       ,lat)=alp2 * bb_f
+            endif
+! x2f end
+
+            do n=l+2,jcap+1
+               if(mod(n+l,2).eq.0) then
+                  indev=indev+1
+! xlsum2 start
+                  aa = sinlat / gis_stochy%epse(indev)
+                  bb = gis_stochy%epso(indod) / gis_stochy%epse(indev)
+                  id = ialp2 - ialp1
+                  if( id.eq.0 ) then
+                    alp3 = aa*alp2 - bb*alp1
+                    ialp3 = ialp1
+                  elseif( id.eq.1 ) then
+                    alp3 = aa*alp2 - bb*alp1*bs_f
+                    ialp3 = ialp2
+                  elseif( id.eq.-1 ) then
+                    alp3 = aa*alp2*bs_f - bb*alp1
+                    ialp3 = ialp1
+                  elseif( id.gt.1 ) then
+                    alp3 = aa*alp2
+                    ialp3 = ialp2
+                  else
+                    alp3 = - bb*alp1
+                    ialp3 = ialp1
+                  endif
+! xlsum2 end
+! xnorm alp3 start
+                  w = abs(alp3)
+                  if( w.ge.bb_h ) then
+                    alp3 = alp3*bs_f
+                    ialp3 = ialp3 + 1
+                  elseif( w.lt.bs_h ) then
+                    alp3 = alp3*bb_f
+                    ialp3 = ialp3 - 1
+                  endif
+! xnorm alp3 end
+
+! x2f alp3 start
+                  if( ialp3.eq.0 ) then
+                    gis_stochy%plnev_a(indev,lat)=alp3
+                  elseif( ialp3.eq.-1 ) then
+                    gis_stochy%plnev_a(indev,lat)=alp3 * bs_f
+                  elseif( ialp3.lt.-1 ) then
+                    gis_stochy%plnev_a(indev,lat)=0.0
+                  else
+                    gis_stochy%plnev_a(indev,lat)=alp3 * bb_f
+                  endif
+! x2f alp3 end
+
+               else
+                  indod=indod+1
+
+! xlsum2 start
+                  aa = sinlat / gis_stochy%epso(indod)
+                  bb = gis_stochy%epse(indev) / gis_stochy%epso(indod)
+                  id = ialp2 - ialp1
+                  if( id.eq.0 ) then
+                    alp3 = aa*alp2 - bb*alp1
+                    ialp3 = ialp1
+                  elseif( id.eq.1 ) then
+                    alp3 = aa*alp2 - bb*alp1*bs_f
+                    ialp3 = ialp2
+                  elseif( id.eq.-1 ) then
+                    alp3 = aa*alp2*bs_f - bb*alp1
+                    ialp3 = ialp1
+                  elseif( id.gt.1 ) then
+                    alp3 = aa*alp2
+                    ialp3 = ialp2
+                  else
+                    alp3 = - bb*alp1
+                    ialp3 = ialp1
+                  endif
+! xlsum2 end
+! xnorm alp3 start
+                  w = abs(alp3)
+                  if( w.ge.bb_h ) then
+                    alp3 = alp3*bs_f
+                    ialp3 = ialp3 + 1
+                  elseif( w.lt.bs_h ) then
+                    alp3 = alp3*bb_f
+                    ialp3 = ialp3 - 1
+                  endif
+! xnorm alp3 end
+
+! x2f alp3 start
+                  if( ialp3.eq.0 ) then
+                    gis_stochy%plnod_a(indod,lat)=alp3
+                  elseif( ialp3.eq.-1 ) then
+                    gis_stochy%plnod_a(indod,lat)=alp3 * bs_f
+                  elseif( ialp3.lt.-1 ) then
+                    gis_stochy%plnod_a(indod,lat)=0.0
+                  else
+                    gis_stochy%plnod_a(indod,lat)=alp3 * bb_f
+                  endif
+! x2f alp3 end
+               endif
+               alp1=alp2
+               alp2=alp3
+               ialp1 = ialp2
+               ialp2 = ialp3
+            enddo
+         enddo
+      enddo
+
+      return
+      end
+
+!>@brief The subroutine 'epslon_stochy' calculate coeffients for use in spectral space
+!>@details This code is taken from the legacy spectral GFS
+      subroutine epslon_stochy(gis_stochy)
+
+      implicit none
+
+      type(stochy_internal_state), intent(inout) :: gis_stochy
+
+      integer                  ls_node(ls_dim,3)
+
+!cmr  ls_node(1,1) ... ls_node(ls_max_node,1) : values of L
+!cmr  ls_node(1,2) ... ls_node(ls_max_node,2) : values of jbasev
+!cmr  ls_node(1,3) ... ls_node(ls_max_node,3) : values of jbasod
+
+      integer                  l,locl,n
+
+      integer                  indev
+      integer                  indod
+
+      real(kind_dbl_prec) f1,f2,rn,val
+
+      real(kind_dbl_prec) cons0     !constant
+
+      integer                  indlsev,jbasev
+      integer                  indlsod,jbasod
+
+      include 'function2'
+
+      cons0=0.0d0     !constant
+!c
+!c......................................................................
+!c
+      do locl=1,ls_max_node
+              l=gis_stochy%ls_node(locl,1)
+         jbasev=gis_stochy%ls_node(locl,2)
+         indev=indlsev(l,l)
+         gis_stochy%epse  (indev)=cons0     !constant
+         gis_stochy%epsedn(indev)=cons0     !constant
+          indev=indev+1
+
+         do n=l+2,jcap+1,2
+            rn=n
+            f1=n*n-l*l
+            f2=4*n*n-1
+            val=sqrt(f1/f2)
+            gis_stochy%epse  (indev)=val
+            gis_stochy%epsedn(indev)=val/rn
+             indev=indev+1
+         enddo
+      enddo
+      do locl=1,ls_max_node
+              l=gis_stochy%ls_node(locl,1)
+         jbasod=gis_stochy%ls_node(locl,3)
+         indod=indlsod(l+1,l)
+
+         do n=l+1,jcap+1,2
+            rn=n
+            f1=n*n-l*l
+            f2=4*n*n-1
+            val=sqrt(f1/f2)
+            gis_stochy%epso  (indod)=val
+            gis_stochy%epsodn(indod)=val/rn
+             indod=indod+1
+         enddo
+      enddo
+
+      return
+      end
+ end module spectral_transforms

@@ -19,7 +19,7 @@
 
 !!uses:
 !------
-      use spectral_layout_mod
+!      use spectral_layout_mod
 
 
       implicit none
