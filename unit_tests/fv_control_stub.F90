@@ -48,7 +48,7 @@ module fv_control_stub_mod
                                   tm_register_tracers   => register_tracers
 
    use fv_mp_stub_mod,      only: mp_start, domain_decomp, mp_assign_gid
-   use fv_mp_stub_mod,      only: broadcast_domains, mp_barrier, is_master, setup_master, grids_master_procs
+   use fv_mp_stub_mod,      only: broadcast_domains, mp_barrier, setup_master, grids_master_procs
    use fv_mp_stub_mod,      only: MAX_NNEST, MAX_NTILE,fill_corners,XDir,YDir,ng
    use mpp_domains_mod,     only: domain2D
    use mpp_domains_mod,     only: mpp_get_global_domain

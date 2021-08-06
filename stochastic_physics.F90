@@ -28,8 +28,8 @@ subroutine init_stochastic_physics(levs, blksz, dtp, sppt_amp, input_nml_file_in
 use stochy_data_mod, only : init_stochdata,gg_lats,gg_lons,nsppt, &
                             rad2deg,INTTYP,wlon,rnlat,gis_stochy,vfact_skeb,vfact_sppt,vfact_shum,skeb_vpts,skeb_vwts,sl
 use stochy_namelist_def
-use spectral_layout_mod,only:me,master,nodes,colrad_a,latg,lonf,skeblevs
-use mpi_wrapper, only : mpi_wrapper_initialize,mype,npes,is_master
+use spectral_layout_mod,only:colrad_a,latg,lonf,skeblevs
+use mpi_wrapper, only : mpi_wrapper_initialize,mype,npes,is_rootpe
 
 implicit none
 integer, intent(out)                    :: iret
@@ -66,11 +66,8 @@ print*,'calling mpiwrapper'
 print*,'mpiroot',mpiroot
 print*,'mpicomm',mpicomm
 call mpi_wrapper_initialize(mpiroot,mpicomm)
-me         = mype
-nodes      = npes
-master     = mpiroot
 gis_stochy%nodes = npes
-gis_stochy%me=me
+gis_stochy%mype=mype
 gis_stochy%nx=maxval(blksz)
 nblks = size(blksz)
 gis_stochy%ny=nblks
@@ -91,8 +88,6 @@ enddo
 
 ! replace
 INTTYP=0 ! bilinear interpolation
-gis_stochy%me=me
-gis_stochy%nodes=nodes
 print*,'calling init stochdata',levs
 call init_stochdata(levs,dtp,input_nml_file_in,fn_nml,nlunit,iret)
 print*,'back from init stochdata',iret
@@ -151,7 +146,7 @@ if (do_sppt) then
        vfact_sppt(2)=vfact_sppt(3)*0.5
        vfact_sppt(1)=0.0
    endif
-   if (is_master()) then
+   if (is_rootpe()) then
       do k=1,levs
          print *,'sppt vert profile',k,sl(k),vfact_sppt(k)
       enddo
@@ -171,7 +166,7 @@ if (do_skeb) then
       else
           vfact_skeb(k) = 1.0
       endif
-      if (is_master())  print *,'skeb vert profile',k,sl(k),vfact_skeb(k)
+      if (is_rootpe())  print *,'skeb vert profile',k,sl(k),vfact_skeb(k)
    enddo
 ! calculate vertical interpolation weights
    do k=1,skeblevs
@@ -193,7 +188,7 @@ DO k=2,levs-1
    ENDDO
 ENDDO
 deallocate(skeb_vloc)
-if (is_master()) then
+if (is_rootpe()) then
 DO k=1,levs
    print*,'skeb vpts ',skeb_vpts(k,1),skeb_vwts(k,2)
 ENDDO
@@ -209,7 +204,7 @@ if (do_shum) then
       if (sl(k).LT. 2*shum_sigefold) then
          vfact_shum(k)=0.0
       endif
-      if (is_master())  print *,'shum vert profile',k,sl(k),vfact_shum(k)
+      if (is_rootpe())  print *,'shum vert profile',k,sl(k),vfact_shum(k)
    enddo
 endif
 ! get interpolation weights
@@ -236,11 +231,11 @@ subroutine init_stochastic_physics_ocn(delt,geoLonT,geoLatT,nx,ny,nz,pert_epbl_i
                                        mpiroot, mpicomm, iret)
 use stochy_data_mod, only : init_stochdata_ocn,gg_lats,gg_lons,&
                             rad2deg,INTTYP,wlon,rnlat,gis_stochy_ocn
-use spectral_layout_mod , only : latg,lonf,colrad_a,me,nodes
+use spectral_layout_mod , only : latg,lonf,colrad_a
 !use MOM_grid, only : ocean_grid_type   
 use stochy_namelist_def
 use mersenne_twister, only: random_gauss
-use mpi_wrapper, only : mpi_wrapper_initialize,mype,npes,is_master
+use mpi_wrapper, only : mpi_wrapper_initialize,mype,npes,is_rootpe
 
 implicit none
 real,intent(in)  :: delt
@@ -255,10 +250,8 @@ real :: dx
 integer :: k,latghf,km
 rad2deg=180.0/con_pi
 call mpi_wrapper_initialize(mpiroot,mpicomm)
-me         = mype
-nodes=npes
 gis_stochy_ocn%nodes = npes
-gis_stochy_ocn%me=me
+gis_stochy_ocn%mype = mype
 gis_stochy_ocn%nx=nx  
 gis_stochy_ocn%ny=ny
 allocate(gis_stochy_ocn%len(ny))
@@ -319,8 +312,7 @@ use get_stochy_pattern_mod,only : get_random_pattern_scalar,get_random_pattern_v
                                   get_random_pattern_sfc
 use stochy_namelist_def, only : do_shum,do_sppt,do_skeb,nssppt,nsshum,nsskeb,sppt_logit,    & 
                                 lndp_type, n_var_lndp
-use mpi_wrapper, only: is_master
-use spectral_layout_mod,only:me
+use mpi_wrapper, only: is_rootpe
 implicit none
 
 ! Interface variables
@@ -415,7 +407,7 @@ if ( lndp_type .EQ. 2  ) then
            sfc_wts(blk,1:len,k) = tmpl_wts(1:len,blk,k)
        ENDDO
     ENDDO
-    if (is_master()) print*,'sfc_wts=',sfc_wts(1,1,:)
+    if (is_rootpe()) print*,'sfc_wts=',sfc_wts(1,1,:)
     deallocate(tmpl_wts)
 endif
  deallocate(tmp_wts)

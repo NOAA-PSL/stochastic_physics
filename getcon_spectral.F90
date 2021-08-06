@@ -8,13 +8,7 @@ module getcon_spectral_mod
 !>@brief The subroutine 'getcon_spectral' gets various constants for the spectral and related gaussian grid
 !! and caluated the assoicate legendre polynomials
 !>@details This code is taken from the legacy spectral GFS
-      subroutine getcon_spectral ( ls_node,ls_nodes,max_ls_nodes,  &
-                                  lats_nodes_a,global_lats_a,      &
-                                  lonsperlat,latsmax,              &
-                                  epse,epso,epsedn,epsodn,         &
-                                  snnp1ev,snnp1od,                 &
-                                  plnev_a,plnod_a,                 &
-                                  plnew_a,plnow_a)
+      subroutine getcon_spectral ( gis_stochy)
 
 ! program log:
 ! 20110220    henry juang update code to fit mass_dp and ndslfv
@@ -28,7 +22,7 @@ module getcon_spectral_mod
       use pln2eo_a_stochy_mod, only: pln2eo_a_stochy
       use setlats_a_stochy_mod, only: setlats_a_stochy
       use spectral_layout_mod
-      use stochy_internal_state_mod
+      use stochy_internal_state_mod, only : stochy_internal_state
       use kinddef 
 
       implicit none
@@ -40,16 +34,7 @@ module getcon_spectral_mod
 !     ls_node(1,2) ... ls_node(ls_max_node,2) : values of jbasev
 !     ls_node(1,3) ... ls_node(ls_max_node,3) : values of jbasod
 !
-      integer                      ls_nodes(ls_dim,nodes)
-      integer, dimension(nodes) :: max_ls_nodes,  lats_nodes_a
-      integer, dimension(latg)  :: global_lats_a, lonsperlat
-!
-!
-      real(kind=kind_dbl_prec), dimension(len_trie_ls) :: epse, epsedn, snnp1ev
-      real(kind=kind_dbl_prec), dimension(len_trio_ls) :: epso, epsodn, snnp1od
-!
-      real(kind=kind_dbl_prec), dimension(len_trie_ls,latg2) :: plnev_a, plnew_a
-      real(kind=kind_dbl_prec), dimension(len_trio_ls,latg2) :: plnod_a, plnow_a
+      type(stochy_internal_state), intent(inout) :: gis_stochy
 !
       integer       iprint,locl,node,&
                     len_trie_ls_nod, len_trio_ls_nod,&
@@ -66,33 +51,36 @@ module getcon_spectral_mod
                                          cons1 = 1.d0, cons0p92 = 0.92d0
 !
       gl_lats_index = 0
-      global_lats_a = -1
+      gis_stochy%global_lats_a = -1
       do lat = 1,latg                  !my intialize global_time_a to lonsperlat
-          global_time_a(lat) = lonsperlat(lat)
+          global_time_a(lat) = gis_stochy%lonsperlat(lat)
       enddo
 
       do lat = 1, latg2
-         lonsperlat(latg+1-lat) = lonsperlat(lat)
+         gis_stochy%lonsperlat(latg+1-lat) = gis_stochy%lonsperlat(lat)
       end do
-      do node=1,nodes
-          call get_lats_node_a_stochy( node-1, global_lats_a,lats_nodes_a(node),&
-                               gl_lats_index,global_time_sort_index_a, iprint)
+      do node=1,gis_stochy%nodes
+          call get_lats_node_a_stochy( node-1, gis_stochy%global_lats_a,gis_stochy%lats_nodes_a(node),&
+                               gl_lats_index,global_time_sort_index_a, gis_stochy%nodes)
       enddo
-      call setlats_a_stochy(lats_nodes_a,global_lats_a,iprint, lonsperlat)
+      call setlats_a_stochy(gis_stochy)
 
       iprint = 0
-      do node=1,nodes
-         call get_ls_node_stochy( node-1, ls_nodes(1,node),max_ls_nodes(node), iprint )
+      print*,'calling get_ls_node_stochy',gis_stochy%nodes
+      do node=1,gis_stochy%nodes
+         print*,'node...',node
+         call get_ls_node_stochy( node-1, gis_stochy%ls_nodes(1,node),gis_stochy%max_ls_nodes(node), gis_stochy%nodes )
       enddo
+      print*,'back',minval(gis_stochy%ls_nodes),maxval(gis_stochy%ls_nodes)
 !
       len_trie_ls_max = 0
       len_trio_ls_max = 0
-      do node=1,nodes
+      do node=1,gis_stochy%nodes
 !
          len_trie_ls_nod = 0
          len_trio_ls_nod = 0
-         do locl=1,max_ls_nodes(node)
-            l=ls_nodes(locl,node)
+         do locl=1,gis_stochy%max_ls_nodes(node)
+            l=gis_stochy%ls_nodes(locl,node)
             len_trie_ls_nod = len_trie_ls_nod+(jcap+3-l)/2
             len_trio_ls_nod = len_trio_ls_nod+(jcap+2-l)/2
          enddo
@@ -103,23 +91,22 @@ module getcon_spectral_mod
 !
       iprint = 0
 !
-      lats_dim_a = 0
-      do node=1,nodes
-         lats_dim_a = max(lats_dim_a,lats_nodes_a(node))
+      gis_stochy%lats_dim_a = 0
+      do node=1,gis_stochy%nodes
+         gis_stochy%lats_dim_a = max(gis_stochy%lats_dim_a,gis_stochy%lats_nodes_a(node))
       enddo
-      lats_node_a = lats_nodes_a(me+1)
 
-      lats_node_a_max = 0
-      do i=1,nodes
-        lats_node_a_max = max(lats_node_a_max, lats_nodes_a(i))
+      gis_stochy%lats_node_a_max = 0
+      do i=1,gis_stochy%nodes
+        gis_stochy%lats_node_a_max = max(gis_stochy%lats_node_a_max, gis_stochy%lats_nodes_a(i))
       enddo
-      latsmax = lats_node_a_max
+      latsmax = gis_stochy%lats_node_a_max
 
 !
-      ipt_lats_node_a   = 1
-      if ( me > 0 ) then
-        do node=1,me
-          ipt_lats_node_a = ipt_lats_node_a + lats_nodes_a(node)
+      gis_stochy%ipt_lats_node_a   = 1
+      if ( gis_stochy%mype > 0 ) then
+        do node=1,gis_stochy%mype
+         gis_stochy%ipt_lats_node_a = gis_stochy%ipt_lats_node_a + gis_stochy%lats_nodes_a(node)
         enddo
       endif
 
@@ -127,30 +114,29 @@ module getcon_spectral_mod
       iprint = 0
 !
            call glats_stochy(latg2,colrad_a,wgt_a,rcs2_a)
-           call epslon_stochy(epse,epso,epsedn,epsodn,ls_node)
-           call pln2eo_a_stochy(plnev_a,plnod_a,epse,epso,ls_node,latg2)
-           call gozrineo_a_stochy(plnev_a,plnod_a, &
-                plnew_a,plnow_a,epse,epso,ls_node,latg2)
+           call epslon_stochy(gis_stochy)
+           call pln2eo_a_stochy(gis_stochy,latg2)
+           call gozrineo_a_stochy(gis_stochy,latg2)
 !
 !
       do locl=1,ls_max_node
-              l = ls_node(locl,1)
-         jbasev = ls_node(locl,2)
+              l = gis_stochy%ls_node(locl,1)
+         jbasev = gis_stochy%ls_node(locl,2)
          indev  = indlsev(l,l)
          do n = l, jcap, 2
-            snnp1ev(indev) = n*(n+1)
+            gis_stochy%snnp1ev(indev) = n*(n+1)
               indev        = indev+1
          end do
       end do
 !
 !
       do locl=1,ls_max_node
-              l = ls_node(locl,1)
-         jbasod = ls_node(locl,3)
+              l = gis_stochy%ls_node(locl,1)
+         jbasod = gis_stochy%ls_node(locl,3)
          if ( l <= jcap-1 ) then
             indod = indlsod(l+1,l)
             do n = l+1, jcap, 2
-               snnp1od(indod) = n*(n+1)
+               gis_stochy%snnp1od(indod) = n*(n+1)
                  indod        = indod+1
             end do
          end if
@@ -158,13 +144,13 @@ module getcon_spectral_mod
 !
 !
       do locl=1,ls_max_node
-              l = ls_node(locl,1)
-         jbasev = ls_node(locl,2)
-         jbasod = ls_node(locl,3)
+              l = gis_stochy%ls_node(locl,1)
+         jbasev = gis_stochy%ls_node(locl,2)
+         jbasod = gis_stochy%ls_node(locl,3)
          if (mod(L,2) == mod(jcap+1,2)) then ! set even (n-l) terms of top row to zero
-            snnp1ev(indlsev(jcap+1,l)) = cons0
+            gis_stochy%snnp1ev(indlsev(jcap+1,l)) = cons0
          else                                ! set odd (n-l) terms of top row to zero
-            snnp1od(indlsod(jcap+1,l)) = cons0
+            gis_stochy%snnp1od(indlsod(jcap+1,l)) = cons0
          endif
       enddo
 !
@@ -179,7 +165,7 @@ module getcon_spectral_mod
 !
       do L=0,jcap
          do lat = 1, latg2
-            if ( L <= min(jcap,lonsperlat(lat)/2) ) then
+            if ( L <= min(jcap,gis_stochy%lonsperlat(lat)/2) ) then
                lat1s_a(L) = lat
                go to 200
             endif
@@ -188,12 +174,12 @@ module getcon_spectral_mod
       end do
 !
 
-      do j=1,lats_node_a
-         lat = global_lats_a(ipt_lats_node_a-1+j)
-         if ( lonsperlat(lat) == lonf ) then
+      do j=1,gis_stochy%lats_node_a
+         lat = gis_stochy%global_lats_a(gis_stochy%ipt_lats_node_a-1+j)
+         if ( gis_stochy%lonsperlat(lat) == lonf ) then
             lon_dims_a(j) = lonfx
          else
-            lon_dims_a(j) = lonsperlat(lat) + 2
+            lon_dims_a(j) = gis_stochy%lonsperlat(lat) + 2
          endif
       enddo
 !

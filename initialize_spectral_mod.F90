@@ -17,8 +17,8 @@
 !!uses:
 !
       use kinddef
-      use spectral_layout_mod,      only : lats_node_a_max,lon_dim_a,len_trie_ls,len_trio_ls &
-                                      ,nodes,ls_max_node,lats_dim_a,ls_dim,lat1s_a
+      use spectral_layout_mod,      only : len_trie_ls,len_trio_ls &
+                                      ,ls_max_node,ls_dim,lat1s_a
       use stochy_internal_state_mod, only : stochy_internal_state
       use spectral_layout_mod,only:jcap,lon_dims_a,wgt_a,sinlat_a,coslat_a,colrad_a,rcs2_a,lats_nodes_h,global_lats_h,&
                                    latg,latg2,lonf
@@ -58,10 +58,9 @@
 ! set up gfs internal state dimension and values for dynamics etc
 !-------------------------------------------------------------------
 
-      nodes  = gis_stochy%nodes
       npe_single_member = gis_stochy%npe_single_member
 
-      lon_dim_a = lon_s + 2
+      gis_stochy%lon_dim_a = lon_s + 2
       jcap=ntrunc
       latg   = lat_s
       latg2  = latg/2
@@ -73,18 +72,18 @@
       allocate(wgt_a(latg2))
       allocate(rcs2_a(latg2))
 
-      ls_dim = (jcap)/nodes+1
+      ls_dim = (jcap)/gis_stochy%nodes+1
       allocate(gis_stochy%lonsperlat(latg))
 
       gis_stochy%lonsperlat(:)=lonf
 !!
 !cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 !
-      allocate (      gis_stochy%ls_node (ls_dim*3) )
-      allocate (      gis_stochy%ls_nodes(ls_dim,nodes) )
-      allocate (  gis_stochy%max_ls_nodes(nodes) )
+      allocate (      gis_stochy%ls_node (ls_dim,3) )
+      allocate (      gis_stochy%ls_nodes(ls_dim,gis_stochy%nodes) )
+      allocate (  gis_stochy%max_ls_nodes(gis_stochy%nodes) )
 !
-      allocate (  gis_stochy%lats_nodes_a(nodes) )
+      allocate (  gis_stochy%lats_nodes_a(gis_stochy%nodes) )
       allocate ( gis_stochy%global_lats_a(latg) )
 !
 
@@ -122,22 +121,18 @@
 !---------------------------------------------------
 !
       gis_stochy%iprint = 0
-      call get_ls_node_stochy( gis_stochy%me, gis_stochy%ls_node, ls_max_node, gis_stochy%iprint )
+      call get_ls_node_stochy( gis_stochy%mype, gis_stochy%ls_node(:,1), ls_max_node, gis_stochy%nodes)
 !
 !
       len_trie_ls = 0
       len_trio_ls = 0
       do locl=1,ls_max_node
-         gis_stochy%ls_node(locl+  ls_dim) = len_trie_ls
-         gis_stochy%ls_node(locl+2*ls_dim) = len_trio_ls
-         l = gis_stochy%ls_node(locl)
+         gis_stochy%ls_node(locl,2) = len_trie_ls
+         gis_stochy%ls_node(locl,3) = len_trio_ls
+         l = gis_stochy%ls_node(locl,1)
          len_trie_ls = len_trie_ls+(jcap+3-l)/2
          len_trio_ls = len_trio_ls+(jcap+2-l)/2
       enddo
-!      if (gis_stochy%me == 0) print *,'ls_node=',gis_stochy%ls_node(1:ls_dim),'2dim=',  &
-!         gis_stochy%ls_node(ls_dim+1:2*ls_dim),'3dim=',  &
-!         gis_stochy%ls_node(2*ls_dim+1:3*ls_dim)
-!
 !
       allocate ( gis_stochy%epse  (len_trie_ls) )
       allocate ( gis_stochy%epso  (len_trio_ls) )
@@ -158,23 +153,13 @@
       allocate(sinlat_a(latg))
       allocate(coslat_a(latg))
 !!
-      call getcon_spectral(gis_stochy%ls_node,         gis_stochy%ls_nodes,           &
-                           gis_stochy%max_ls_nodes,    gis_stochy%lats_nodes_a,       &
-                           gis_stochy%global_lats_a,   gis_stochy%lonsperlat,         &
-                           gis_stochy%lats_node_a_max, gis_stochy%epse,               &
-                           gis_stochy%epso,            gis_stochy%epsedn,             &
-                           gis_stochy%epsodn,          gis_stochy%snnp1ev,            &
-                           gis_stochy%snnp1od,         gis_stochy%plnev_a,            &
-                           gis_stochy%plnod_a,         gis_stochy%plnew_a,            &
-                           gis_stochy%plnow_a)
+      call getcon_spectral(gis_stochy)
 !
-      gis_stochy%lats_node_a     = gis_stochy%lats_nodes_a(gis_stochy%me+1)
+      gis_stochy%lats_node_a     = gis_stochy%lats_nodes_a(gis_stochy%mype+1)
 
-        if (.not. allocated(lats_nodes_h))  allocate (lats_nodes_h(nodes))
-        if (.not. allocated(global_lats_h)) allocate (global_lats_h(latg+2*gis_stochy%yhalo*nodes))
-        call getcon_lag_stochy(gis_stochy%lats_nodes_a,gis_stochy%global_lats_a,        &
-                        lats_nodes_h, global_lats_h,                       &
-                        gis_stochy%lonsperlat,gis_stochy%xhalo,gis_stochy%yhalo)
+        if (.not. allocated(lats_nodes_h))  allocate (lats_nodes_h(gis_stochy%nodes))
+        if (.not. allocated(global_lats_h)) allocate (global_lats_h(latg+2*gis_stochy%yhalo*gis_stochy%nodes))
+        call getcon_lag_stochy(gis_stochy, lats_nodes_h, global_lats_h)
 
       allocate ( gis_stochy%trie_ls (len_trie_ls,2,gis_stochy%lotls) )
       allocate ( gis_stochy%trio_ls (len_trio_ls,2,gis_stochy%lotls) )

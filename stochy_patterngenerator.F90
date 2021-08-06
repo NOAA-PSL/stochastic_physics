@@ -9,7 +9,7 @@ module stochy_patterngenerator_mod
 ! use mersenne_twister_stochy, only: random_setseed,random_gauss,random_stat
  use mersenne_twister, only: random_setseed,random_gauss,random_stat
  ! DH* replacing this with mpi_wrapper changes results - look for value of iseed?
- use mpi_wrapper,only: is_master, mp_bcst
+ use mpi_wrapper,only: is_rootpe, mp_bcst
  ! *DH
  implicit none
  private
@@ -48,13 +48,13 @@ module stochy_patterngenerator_mod
 !>@details It populates array defining the zonal and total wavenumbers, amplitude,
 !! temporaral and spatial correlations.
  subroutine patterngenerator_init(lscale, delt, tscale, stdev, iseed, rpattern,&
-                                  nlon, nlat, jcap, ls_node, npatterns,&
+                                  nlon, nlat, jcap, ls_nodes, npatterns,&
                                   nlevs, varspect_opt,new_lscale)
 !\callgraph
    real(kind_dbl_prec), intent(in),dimension(npatterns) :: lscale,tscale,stdev
    real, intent(in) :: delt
    integer, intent(in) :: nlon,nlat,jcap,npatterns,varspect_opt
-   integer, intent(in) :: ls_node(ls_dim,3),nlevs
+   integer, intent(in) :: ls_nodes(ls_dim,3),nlevs
    logical, intent(in) :: new_lscale
    type(random_pattern), intent(out), dimension(npatterns) :: rpattern
    integer(8), intent(inout) :: iseed(npatterns)
@@ -96,9 +96,9 @@ module stochy_patterngenerator_mod
          enddo
       enddo
       do j = 1, ls_max_node
-         l=ls_node(j,1) ! zonal wavenumber
-         jbasev=ls_node(j,2)
-         jbasod=ls_node(j,3)
+         l=ls_nodes(j,1) ! zonal wavenumber
+         jbasev=ls_nodes(j,2)
+         jbasod=ls_nodes(j,3)
          indev1 = indlsev(l,l)
          indod1 = indlsod(l+1,l)
          if (mod(l,2) .eq. mod(ntrunc+1,2)) then
@@ -126,7 +126,7 @@ module stochy_patterngenerator_mod
          enddo
       enddo
       allocate(rpattern(np)%degree(ndimspec),rpattern(np)%order(ndimspec),rpattern(np)%lap(ndimspec))
-#ifdef __GFORTRAN__
+!#ifdef __GFORTRAN__
       j = 0
       do m=0,ntrunc
         do n=m,ntrunc
@@ -135,10 +135,13 @@ module stochy_patterngenerator_mod
           rpattern(np)%order(j) = m
         end do
       end do
-#else
-      rpattern(np)%degree = (/((n,n=m,ntrunc),m=0,ntrunc)/)
-      rpattern(np)%order = (/((m,n=m,ntrunc),m=0,ntrunc)/)
-#endif
+!#else
+!      print*,'in stochy_patterngenerator',ntrunc,np
+!      print*,'size of rapttern',size(rpattern)
+!      print*,'size of degree',size(rpattern(np)%degree)
+!      rpattern(np)%degree = (/((n,n=m,ntrunc),m=0,ntrunc)/)
+!      rpattern(np)%order = (/((m,n=m,ntrunc),m=0,ntrunc)/)
+!#endif
       rpattern(np)%lap = -rpattern(np)%degree*(rpattern(np)%degree+1.0)
       rpattern(np)%tau = tscale(np)
       rpattern(np)%lengthscale = lscale(np)
@@ -148,7 +151,7 @@ module stochy_patterngenerator_mod
       allocate(rpattern(np)%varspectrum(ndimspec))
       allocate(rpattern(np)%varspectrum1d(0:ntrunc))
       ! seed computed on root, then bcast to all tasks and set.
-      if (is_master()) then
+      if (is_rootpe()) then
 !         read(ens_nam(2:3),'(i2)') member_id
 !         print *,'ens_nam,member_id',trim(ens_nam),member_id
          if (iseed(np) == 0) then
@@ -174,7 +177,7 @@ module stochy_patterngenerator_mod
       ! set seed (to be the same) on all tasks. Save random state.
       call random_setseed(rpattern(np)%seed,rpattern(np)%rstate)
       if (varspect_opt .ne. 0 .and. varspect_opt .ne. 1) then
-         if (is_master()) then
+         if (is_rootpe()) then
             print *,'WARNING: illegal value for varspect_opt (should be 0 or 1), using 0 (gaussian spectrum)...'
          endif
          call setvarspect(rpattern(np),0,new_lscale)

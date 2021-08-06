@@ -4,7 +4,7 @@ module mpi_wrapper
 
    private
 
-   public :: mype, npes, root, comm, is_master
+   public :: mype, npes, root, comm, is_rootpe
    public :: mpi_wrapper_initialize, mpi_wrapper_finalize
    public :: mp_reduce_min, mp_reduce_max, mp_reduce_sum
    public :: mp_bcst, mp_alltoall
@@ -67,13 +67,13 @@ module mpi_wrapper
 
 contains
 
-   logical function is_master()
+   logical function is_rootpe()
       if (mype==root) then
-         is_master = .true.
+         is_rootpe = .true.
       else
-         is_master = .false.
+         is_rootpe = .false.
       end if
-   end function is_master
+   end function is_rootpe
 
    subroutine mpi_wrapper_initialize(mpiroot, mpicomm)
       integer, intent(in) :: mpiroot, mpicomm

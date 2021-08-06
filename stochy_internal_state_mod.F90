@@ -37,11 +37,14 @@
       integer npe_single_member
 
       integer                           ::  lats_node_a
-      integer                           ::  me
+      integer                           ::  mype
+      integer                           :: lon_dim_a
+      integer                           :: lats_dim_a
+      integer                           :: ipt_lats_node_a
 
       integer              ,allocatable ::      lonsperlat (:)
-      integer              ,allocatable ::      ls_node    (:)
-      integer              ,allocatable ::      ls_nodes   (:, :)
+      integer              ,allocatable ::      ls_node    (:,:)
+      integer              ,allocatable ::      ls_nodes   (:,:)
       integer              ,allocatable ::  max_ls_nodes   (:)
 
       integer              ,allocatable ::  lats_nodes_a   (:)

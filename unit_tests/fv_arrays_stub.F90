@@ -20,14 +20,12 @@
 !! is altered outside of those two modules.
   type fv_grid_type
      real(kind=R_GRID), allocatable, dimension(:,:,:) :: grid_64, agrid_64
-     real(kind=R_GRID), allocatable, dimension(:,:) :: sina_64, cosa_64
      real(kind=R_GRID), allocatable, dimension(:,:) :: dx_64, dy_64
      real(kind=R_GRID), allocatable, dimension(:,:) :: dxc_64, dyc_64
      real(kind=R_GRID), allocatable, dimension(:,:) :: dxa_64, dya_64
 
      real, allocatable, dimension(:,:,:) :: grid, agrid
 
-     real, allocatable, dimension(:,:) :: sina, cosa
      real, allocatable, dimension(:,:,:) :: e1,e2
      real, allocatable, dimension(:,:) :: dx, dy
      real, allocatable, dimension(:,:) :: dxc, dyc
@@ -36,39 +34,6 @@
      real, allocatable, dimension(:,:) :: rdxc, rdyc
      real, allocatable, dimension(:,:) :: rdxa, rdya
 
-     ! Scalars:
-     real(kind=R_GRID), allocatable :: edge_s(:)
-     real(kind=R_GRID), allocatable :: edge_n(:)
-     real(kind=R_GRID), allocatable :: edge_w(:)
-     real(kind=R_GRID), allocatable :: edge_e(:)
-
-     real, allocatable :: l2c_u(:,:), l2c_v(:,:)
-     ! divergence Damping:
-     real, allocatable :: divg_u(:,:), divg_v(:,:)    !
-     ! del6 diffusion:
-     real, allocatable :: del6_u(:,:), del6_v(:,:)    !
-     ! Cubed_2_latlon:
-     real, allocatable :: a11(:,:)
-     real, allocatable :: a12(:,:)
-     real, allocatable :: a21(:,:)
-     real, allocatable :: a22(:,:)
-     ! latlon_2_cubed:
-     real, allocatable :: z11(:,:)
-     real, allocatable :: z12(:,:)
-     real, allocatable :: z21(:,:)
-     real, allocatable :: z22(:,:)
-
-!    real, allocatable :: w00(:,:)
-
-     real, allocatable :: cosa_u(:,:)
-     real, allocatable :: cosa_v(:,:)
-     real, allocatable :: cosa_s(:,:)
-     real, allocatable :: sina_u(:,:)
-     real, allocatable :: sina_v(:,:)
-     real, allocatable :: rsin_u(:,:)
-     real, allocatable :: rsin_v(:,:)
-     real, allocatable ::  rsina(:,:)
-     real, allocatable ::  rsin2(:,:)
      real(kind=R_GRID), allocatable :: ee1(:,:,:)
      real(kind=R_GRID), allocatable :: ee2(:,:,:)
      real(kind=R_GRID), allocatable :: ec1(:,:,:)
@@ -364,11 +329,6 @@ contains
     allocate ( Atm%gridstruct%grid_64 (isd_2d:ied_2d+1,jsd_2d:jed_2d+1,1:ndims_2d) )
     allocate ( Atm%gridstruct%agrid(isd_2d:ied_2d  ,jsd_2d:jed_2d  ,1:ndims_2d) )
     allocate ( Atm%gridstruct%agrid_64(isd_2d:ied_2d  ,jsd_2d:jed_2d  ,1:ndims_2d) )
-    allocate ( Atm%gridstruct% sina(isd_2d:ied_2d+1,jsd_2d:jed_2d+1) )   ! SIN(angle of intersection)
-    allocate ( Atm%gridstruct% sina_64(isd_2d:ied_2d+1,jsd_2d:jed_2d+1) )   ! SIN(angle of intersection)
-    allocate ( Atm%gridstruct%rsina(is_2d:ie_2d+1,js_2d:je_2d+1) )      ! Why is the size different?
-    allocate ( Atm%gridstruct% cosa(isd_2d:ied_2d+1,jsd_2d:jed_2d+1) )   ! COS(angle of intersection)
-    allocate ( Atm%gridstruct% cosa_64(isd_2d:ied_2d+1,jsd_2d:jed_2d+1) )   ! COS(angle of intersection)
 
     allocate ( Atm%gridstruct%  e1(3,isd_2d:ied_2d+1,jsd_2d:jed_2d+1) )
     allocate ( Atm%gridstruct%  e2(3,isd_2d:ied_2d+1,jsd_2d:jed_2d+1) )
@@ -377,55 +337,6 @@ contains
          Atm%gridstruct%jinta(4, isd_2d:ied_2d ,jsd_2d:jed_2d),  &
          Atm%gridstruct%iintb(4, is_2d:ie_2d+1 ,js_2d:je_2d+1), &
          Atm%gridstruct%jintb(4, is_2d:ie_2d+1 ,js_2d:je_2d+1) )
-
-    allocate ( Atm%gridstruct%edge_s(npx_2d) )
-    allocate ( Atm%gridstruct%edge_n(npx_2d) )
-    allocate ( Atm%gridstruct%edge_w(npy_2d) )
-    allocate ( Atm%gridstruct%edge_e(npy_2d) )
-
-    allocate (  Atm%gridstruct%l2c_u(is_2d:ie_2d,  js_2d:je_2d+1) )
-    allocate (  Atm%gridstruct%l2c_v(is_2d:ie_2d+1,js_2d:je_2d) )
-
-    ! For diveregnce damping:
-    allocate (  Atm%gridstruct%divg_u(isd_2d:ied_2d,  jsd_2d:jed_2d+1) )
-    allocate (  Atm%gridstruct%divg_v(isd_2d:ied_2d+1,jsd_2d:jed_2d) )
-    ! For del6 diffusion:
-    allocate (  Atm%gridstruct%del6_u(isd_2d:ied_2d,  jsd_2d:jed_2d+1) )
-    allocate (  Atm%gridstruct%del6_v(isd_2d:ied_2d+1,jsd_2d:jed_2d) )
-
-    allocate (  Atm%gridstruct%z11(is_2d-1:ie_2d+1,js_2d-1:je_2d+1) )
-    allocate (  Atm%gridstruct%z12(is_2d-1:ie_2d+1,js_2d-1:je_2d+1) )
-    allocate (  Atm%gridstruct%z21(is_2d-1:ie_2d+1,js_2d-1:je_2d+1) )
-    allocate (  Atm%gridstruct%z22(is_2d-1:ie_2d+1,js_2d-1:je_2d+1) )
-
-    allocate (  Atm%gridstruct%a11(is_2d-1:ie_2d+1,js_2d-1:je_2d+1) )
-    allocate (  Atm%gridstruct%a12(is_2d-1:ie_2d+1,js_2d-1:je_2d+1) )
-    allocate (  Atm%gridstruct%a21(is_2d-1:ie_2d+1,js_2d-1:je_2d+1) )
-    allocate (  Atm%gridstruct%a22(is_2d-1:ie_2d+1,js_2d-1:je_2d+1) )
-
-    allocate ( Atm%gridstruct%cosa_u(isd_2d:ied_2d+1,jsd_2d:jed_2d) )
-    allocate ( Atm%gridstruct%sina_u(isd_2d:ied_2d+1,jsd_2d:jed_2d) )
-    allocate ( Atm%gridstruct%rsin_u(isd_2d:ied_2d+1,jsd_2d:jed_2d) )
-
-    allocate ( Atm%gridstruct%cosa_v(isd_2d:ied_2d,jsd_2d:jed_2d+1) )
-    allocate ( Atm%gridstruct%sina_v(isd_2d:ied_2d,jsd_2d:jed_2d+1) )
-    allocate ( Atm%gridstruct%rsin_v(isd_2d:ied_2d,jsd_2d:jed_2d+1) )
-
-    allocate ( Atm%gridstruct%cosa_s(isd_2d:ied_2d,jsd_2d:jed_2d) )    ! cell center
-
-    allocate (  Atm%gridstruct%rsin2(isd_2d:ied_2d,jsd_2d:jed_2d) )    ! cell center
-
-
-    ! Super (composite) grid:
-
-    !     9---4---8
-    !     |       |
-    !     1   5   3
-    !     |       |
-    !     6---2---7
-
-    allocate ( Atm%gridstruct%cos_sg(isd_2d:ied_2d,jsd_2d:jed_2d,9) )
-    allocate ( Atm%gridstruct%sin_sg(isd_2d:ied_2d,jsd_2d:jed_2d,9) )
 
     !!Convenience pointers
     Atm%gridstruct%grid_type => Atm%flagstruct%grid_type

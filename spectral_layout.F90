@@ -11,16 +11,11 @@ module spectral_layout_mod
 ! 20190503   dom heinzeller : add ompthreads and stochy_la2ga; todo: cleanup nodes, me, ... (defined multiple times in several files)
 ! 20201002   philip pegion:  cleanup of code
 !
-   integer :: nodes,             &
-              me,                &
-              master,            &
-              lon_dim_a,         &
-              ls_dim,            &
+!   integer :: nodes,             &
+!              me,                &
+!              master,            &
+   integer :: ls_dim,            &
               ls_max_node,       &
-              lats_dim_a,        &
-              lats_node_a,       &
-              lats_node_a_max,   &
-              ipt_lats_node_a,   &
               len_trie_ls,       &
               len_trio_ls,       &
               len_trie_ls_max,   &

@@ -42,7 +42,6 @@ integer  :: nargs,ntile_out,nlunit,pe,npes,stackmax=4000000
 integer  :: i1,i2,j1,npts,istart,tpt
 character*80 :: fname
 character*1  :: ntile_out_str
-integer :: iret
 integer :: comm
 
 real(kind=4),allocatable,dimension(:,:) :: workg,tile_number
@@ -176,13 +175,15 @@ do j=1,ny
 enddo
 print*,'calling init_stochastic_physics',nlevs
 master=mpp_root_pe()
+allocate(input_nml_file(1))
+input_nml_file='input.nml'
 comm=MPI_COMM_WORLD
 call init_stochastic_physics(nlevs, blksz, dtp, sppt_amp,                         &
      input_nml_file, fn_nml, nlunit, xlon, xlat, do_sppt, do_shum,                &
      do_skeb, lndp_type, n_var_lndp, use_zmtnblck, skeb_npass, &
      lndp_var_list, lndp_prt_list,    &
      ak, bk, nthreads, master, comm, ierr)
-if (iret .ne. 0) print *, 'ERROR init_stochastic_physics call' ! Draper - need proper error trapping here
+if (ierr .ne. 0) print *, 'ERROR init_stochastic_physics call' ! Draper - need proper error trapping here
 call get_outfile(fname)
 write(strid,'(I2.2)') my_id+1
 if (ntile_out.EQ.0) write_this_tile=.true.
@@ -279,8 +280,10 @@ if (write_this_tile) then
    endif
 endif
 ! put lat lon and tile number
-ierr=NF90_PUT_VAR(ncid,var_id_lon,transpose(xlon(isc:iec,jsc:iec)),(/1,1,1/))
-ierr=NF90_PUT_VAR(ncid,var_id_lat,transpose(xlat(isc:iec,jsc:iec)),(/1,1,1/))
+!ierr=NF90_PUT_VAR(ncid,var_id_lon,transpose(xlon(isc:iec,jsc:iec)),(/1,1,1/))
+!ierr=NF90_PUT_VAR(ncid,var_id_lat,transpose(xlat(isc:iec,jsc:iec)),(/1,1,1/))
+ierr=NF90_PUT_VAR(ncid,var_id_lon,transpose(xlon(:,:)),(/1,1,1/))
+ierr=NF90_PUT_VAR(ncid,var_id_lat,transpose(xlat(:,:)),(/1,1,1/))
 tile_number=my_id+1
 ierr=NF90_PUT_VAR(ncid,var_id_tile,tile_number,(/1,1,1/))
 if (do_sppt)allocate(sppt_wts(nblks,blksz_1,nlevs))

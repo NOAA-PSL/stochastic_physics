@@ -72,7 +72,7 @@
       public mp_reduce_min
       public fill_corners, XDir, YDir
       public switch_current_domain, switch_current_Atm, broadcast_domains
-      public is_master, setup_master
+      public setup_master
       public start_group_halo_update, complete_group_halo_update
       public group_halo_update_type, grids_master_procs, tile_fine
       public global_nest_domain, MAX_NNEST, MAX_NTILE, ng
@@ -219,12 +219,6 @@ contains
 !
 ! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
 !-------------------------------------------------------------------------------
-
-      logical function is_master()
-
-        is_master = master
-
-      end function is_master
 
       subroutine setup_master(pelist_local)
 
