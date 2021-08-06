@@ -230,7 +230,7 @@ subroutine get_random_pattern_scalar(rpattern,npatterns,&
  type(stochy_internal_state)          :: gis_stochy
  integer,intent(in)::   npatterns
 
- integer i,j,lat,n,pe_print
+ integer i,j,lat,n
  real(kind=kind_dbl_prec), dimension(lonf,gis_stochy%lats_node_a,1):: wrk2d
 
 ! logical lprint
@@ -240,7 +240,6 @@ subroutine get_random_pattern_scalar(rpattern,npatterns,&
  integer kmsk0(lonf,gis_stochy%lats_node_a)
  real(kind=kind_dbl_prec) :: pattern_2d(gis_stochy%nx,gis_stochy%ny)
  real(kind=kind_dbl_prec) :: pattern_1d(gis_stochy%nx)
- pe_print=111
 
  kmsk0 = 0
  glolal = 0.
@@ -306,7 +305,7 @@ subroutine scalarspect_to_gaugrid(rpattern,gis_stochy,datag,nlevs,n)
       do lan=1,gis_stochy%lats_node_a
          lat = gis_stochy%global_lats_a(gis_stochy%ipt_lats_node_a-1+lan)
          lons_lat = gis_stochy%lonsperlat(lat)
-         CALL FOUR_TO_GRID(for_gr_a_1(1,1,lan),for_gr_a_2(1,1,lan),&
+         CALL four_to_grid(for_gr_a_1(:,:,lan),for_gr_a_2(:,:,lan),&
                            gis_stochy%lon_dim_a,lonf,lons_lat,nlevs)
       enddo
 

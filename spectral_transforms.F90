@@ -5,7 +5,6 @@ module spectral_transforms
  use mpi_wrapper, only : mp_alltoall,mype,npes
  use stochy_internal_state_mod, only : stochy_internal_state
  use stochy_namelist_def
- use mpp_mod, only : mpp_pe,mpp_root_pe
 #ifndef IBM
   USE omp_lib
 #endif
@@ -17,15 +16,12 @@ module spectral_transforms
               ls_max_node,       &
               len_trie_ls,       &
               len_trio_ls,       &
-              len_trie_ls_max,   &
-              len_trio_ls_max,   &
-              lats_dim_ext,      &
               jcap,latg,latg2,   &
               skeblevs,levs,lnt, &
               lonf,lonfx
 
 !
-      integer, public, allocatable :: lat1s_a(:), lon_dims_a(:),lon_dims_ext(:)
+      integer, public, allocatable :: lat1s_a(:), lon_dims_a(:)
       real, public, allocatable, dimension(:) ::  colrad_a, wgt_a, rcs2_a, &
                                        sinlat_a, coslat_a
 
@@ -267,16 +263,16 @@ module spectral_transforms
       scale_ibm = 1.0d0
 
       call dcrft_stochy(init,                  &
-      syn_gr_a_1(1,1)   ,lon_dim_coef/2,       &
-      syn_gr_a_2(1,1)   ,lon_dim_grid,         &
+      syn_gr_a_1(:,:)   ,lon_dim_coef,         &
+      syn_gr_a_2(:,:)   ,lon_dim_grid,         &
       lons_lat,lot,ibmsign,scale_ibm,          &
       aux1crs,22000,                           &
       aux1crs(22001),20000)
 
       init = 0
       call dcrft_stochy(init,                  &
-           syn_gr_a_1(1,1)   ,lon_dim_coef/2,  &
-           syn_gr_a_2(1,1)   ,lon_dim_grid,    &
+           syn_gr_a_1(:,:)   ,lon_dim_coef,    &
+           syn_gr_a_2(:,:)   ,lon_dim_grid,    &
            lons_lat,lot,ibmsign,scale_ibm,     &
            aux1crs,22000,                      &
            aux1crs(22001),20000)
@@ -290,7 +286,7 @@ module spectral_transforms
  
       implicit none
       integer init,ldx,ldy,n,m,isign,n1,n2,i,j
-      real x(2*ldx,*),y(ldy,*),scale,table(44002),wrk
+      real x(ldx,m),y(ldy,m),scale,table(44002),wrk
  
       IF (init.ne.0) THEN
         CALL rffti_stochy(n,table)
@@ -301,7 +297,7 @@ module spectral_transforms
           DO i=2,n
             y(i,j)=x(i+1,j)
           ENDDO
-          CALL rfftb_stochy(n,y(1,j),table)
+          CALL rfftb_stochy(n,y(:,j),table)
           DO i=1,n
             y(i,j)=scale*y(i,j)
           ENDDO
@@ -320,19 +316,45 @@ module spectral_transforms
 !     ******************************************************************
 !
       SUBROUTINE RFFTB_STOCHY (N,R,WSAVE)
-      DIMENSION       R(*)       ,WSAVE(44002)
+
+      implicit none
+
+      real, intent(inout) :: R(:)  
+      real, intent(inout) :: WSAVE(44002)
+
+      integer :: N
+
       IF (N .EQ. 1) RETURN
-      CALL RFFTB1_STOCHY (N,R,WSAVE,WSAVE(N+1),WSAVE(2*N+1))
+      CALL RFFTB1_STOCHY (N,R,WSAVE,WSAVE(N+1:),WSAVE(2*N+1:))
       RETURN
       END
+
       SUBROUTINE RFFTI_STOCHY (N,WSAVE)
-      DIMENSION       WSAVE(44002)
+
+      implicit none
+
+      REAL, intent(inout) ::    WSAVE(44002)
+      integer :: N
+
       IF (N .EQ. 1) RETURN
-      CALL RFFTI1_STOCHY (N,WSAVE(N+1),WSAVE(2*N+1))
+      CALL RFFTI1_STOCHY (N,WSAVE(N+1:),WSAVE(2*N+1:))
       RETURN
       END
+
+
       SUBROUTINE RFFTB1_STOCHY (N,C,CH,WA,RFAC)
-      DIMENSION       CH(44002)      ,C(*)       ,WA(*)      ,RFAC(*)
+
+      implicit none
+
+      integer, intent(in) :: N
+      real, intent(inout) :: CH(44002)
+      real, intent(inout) :: C(:)
+      real, intent(inout) :: WA(:)
+      real, intent(inout) :: RFAC(:)
+
+      integer :: NF,NA,L1,IW,IP,L2,IDO,IDL1,IX2,IX3,IX4
+      integer :: K1,I
+
       NF = INT(RFAC(2))
       NA = 0
       L1 = 1
@@ -346,24 +368,24 @@ module spectral_transforms
          IX2 = IW+IDO
          IX3 = IX2+IDO
          IF (NA .NE. 0) GO TO 101
-         CALL RADB4_STOCHY (IDO,L1,C,CH,WA(IW),WA(IX2),WA(IX3))
+         CALL RADB4_STOCHY (IDO,L1,C(1:4*IDO*L1),CH(1:4*IDO*L1),WA(IW:),WA(IX2:),WA(IX3:))
          GO TO 102
-  101    CALL RADB4_STOCHY (IDO,L1,CH,C,WA(IW),WA(IX2),WA(IX3))
+  101    CALL RADB4_STOCHY (IDO,L1,CH(1:4*IDO*L1),C(1:4*IDO*L1),WA(IW:),WA(IX2:),WA(IX3:))
   102    NA = 1-NA
          GO TO 115
   103    IF (IP .NE. 2) GO TO 106
          IF (NA .NE. 0) GO TO 104
-         CALL RADB2_STOCHY (IDO,L1,C,CH,WA(IW))
+         CALL RADB2_STOCHY (IDO,L1,C,CH,WA(IW:))
          GO TO 105
-  104    CALL RADB2_STOCHY (IDO,L1,CH,C,WA(IW))
+  104    CALL RADB2_STOCHY (IDO,L1,CH,C,WA(IW:))
   105    NA = 1-NA
          GO TO 115
   106    IF (IP .NE. 3) GO TO 109
          IX2 = IW+IDO
          IF (NA .NE. 0) GO TO 107
-         CALL RADB3_STOCHY (IDO,L1,C,CH,WA(IW),WA(IX2))
+         CALL RADB3_STOCHY (IDO,L1,C,CH,WA(IW:),WA(IX2:))
          GO TO 108
-  107    CALL RADB3_STOCHY (IDO,L1,CH,C,WA(IW),WA(IX2))
+  107    CALL RADB3_STOCHY (IDO,L1,CH,C,WA(IW:),WA(IX2:))
   108    NA = 1-NA
          GO TO 115
   109    IF (IP .NE. 5) GO TO 112
@@ -371,15 +393,15 @@ module spectral_transforms
          IX3 = IX2+IDO
          IX4 = IX3+IDO
          IF (NA .NE. 0) GO TO 110
-         CALL RADB5_STOCHY (IDO,L1,C,CH,WA(IW),WA(IX2),WA(IX3),WA(IX4))
+         CALL RADB5_STOCHY (IDO,L1,C,CH,WA(IW:),WA(IX2:),WA(IX3:),WA(IX4:))
          GO TO 111
-  110    CALL RADB5_STOCHY (IDO,L1,CH,C,WA(IW),WA(IX2),WA(IX3),WA(IX4))
+  110    CALL RADB5_STOCHY (IDO,L1,CH,C,WA(IW:),WA(IX2:),WA(IX3:),WA(IX4:))
   111    NA = 1-NA
          GO TO 115
   112    IF (NA .NE. 0) GO TO 113
-         CALL RADBG_STOCHY (IDO,IP,L1,IDL1,C,C,C,CH,CH,WA(IW))
+         CALL RADBG_STOCHY (IDO,IP,L1,IDL1,C,C,C,CH,CH,WA(IW:))
          GO TO 114
-  113    CALL RADBG_STOCHY (IDO,IP,L1,IDL1,CH,CH,CH,C,C,WA(IW))
+  113    CALL RADBG_STOCHY (IDO,IP,L1,IDL1,CH,CH,CH,C,C,WA(IW:))
   114    IF (IDO .EQ. 1) NA = 1-NA
   115    L1 = L2
          IW = IW+(IP-1)*IDO
@@ -392,11 +414,23 @@ module spectral_transforms
       END
 
 
-
       SUBROUTINE RFFTI1_STOCHY (N,WA,RFAC)
-      DIMENSION       WA(*)      ,RFAC(*) 
-      INTEGER NTRYH(4)
+      
+      implicit none
+      
+      integer, intent(in) :: N
+      REAL, intent(inout) :: WA(:)
+      REAL, intent(inout) :: RFAC(:) 
+
+      integer :: NTRYH(4)
+      integer :: NL,NF, I, J, NQ,NR,LD,FI,IS,ID,L1,L2,IP
+      integer :: NTRY, NFM1, K1,II, IB, IDO, IPM, IC
+      REAL, parameter :: TPI=6.28318530717959
+      real    :: ARG,ARGLD,ARGH, TI2,TI4
+
       DATA NTRYH(:) /4,2,3,5/
+
+
       NL = N
       NF = 0
       J = 0
@@ -421,7 +455,6 @@ module spectral_transforms
   107 IF (NL .NE. 1) GO TO 104
       RFAC(1) = FLOAT(N)
       RFAC(2) = FLOAT(NF)
-      TPI = 6.28318530717959
       ARGH = TPI/FLOAT(N)
       IS = 0
       NFM1 = NF-1
@@ -456,7 +489,17 @@ module spectral_transforms
 
 
       SUBROUTINE RADB2_STOCHY (IDO,L1,CC,CH,WA1)
-      DIMENSION  CC(IDO,2,L1), CH(IDO,L1,2), WA1(*)
+
+      implicit none
+     
+      integer, intent(in) :: IDO
+      integer, intent(in) :: L1
+      real, intent(inout) :: CC(IDO,2,L1)
+      real, intent(inout) :: CH(IDO,L1,2)
+      real, intent(inout) :: WA1(:)
+
+      integer :: K,I,IC,IDP2
+      real    :: TR2,TI2
       DO 101 K=1,L1
          CH(1,K,1) = CC(1,1,K)+CC(IDO,2,K)
          CH(1,K,2) = CC(1,1,K)-CC(IDO,2,K)
@@ -485,9 +528,22 @@ module spectral_transforms
 
 
       SUBROUTINE RADB3_STOCHY (IDO,L1,CC,CH,WA1,WA2)
-      DIMENSION  CC(IDO,3,L1), CH(IDO,L1,3), WA1(*)     ,WA2(*)
+
+      implicit none
+
+      integer, intent(in) :: IDO,L1
+      real, intent(inout) :: CC(IDO,3,L1)
+      real, intent(inout) :: CH(IDO,L1,3)
+      real, intent(inout) :: WA1(:)
+      real, intent(inout) :: WA2(:)
+
       REAL, parameter :: TAUR= -.5
       REAL, parameter :: TAUI=.866025403784439
+      integer         :: I,K,IDP2,IC
+      real            :: TR2,CR2,TI1,CI2,CR3,CI3,DR2,DR3,DI2,DI3
+      real            :: TI2,TI4
+
+
       DO 101 K=1,L1
          TR2 = CC(IDO,2,K)+CC(IDO,2,K)
          CR2 = CC(1,1,K)+TAUR*TR2
@@ -525,8 +581,20 @@ module spectral_transforms
 
 
       SUBROUTINE RADB4_STOCHY (IDO,L1,CC,CH,WA1,WA2,WA3)
-      DIMENSION  CC(IDO,4,L1), CH(IDO,L1,4), WA1(*), WA2(*), WA3(*)
+
+      implicit none
+
+      integer, intent(in) :: IDO,L1
+      real, intent(inout) :: CC(IDO,4,L1)
+      real, intent(inout) :: CH(IDO,L1,4)
+      real, intent(inout) :: WA1(:)
+      real, intent(inout) :: WA2(:)
+      real, intent(inout) :: WA3(:)
+
       REAL, parameter :: SQRT2=1.414213562373095
+      integer         :: I,K,IDP2,IC
+      real            :: TR1,TR2,TR3,TR4,TI1,TI2,TI3,TI4
+      real            :: CI2,CI3,CI4,CR2,CR3,CR4
       DO 101 K=1,L1
          TR1 = CC(1,1,K)-CC(IDO,4,K)
          TR2 = CC(1,1,K)+CC(IDO,4,K)
@@ -1410,7 +1478,7 @@ module spectral_transforms
 !>@brief The subroutine 'initialize_spectral' initializes the
 !gridded component of the stochastic physics pattern
 !>@details This code is taken from the legacy spectral GFS
-      subroutine initialize_spectral(gis_stochy, rc)
+      subroutine initialize_spectral(gis_stochy)
 
 ! this subroutine set up the internal state variables,
 ! allocate internal state arrays for initializing the gfs system.
@@ -1420,16 +1488,12 @@ module spectral_transforms
 !
 !      type(stochy_internal_state), pointer, intent(inout) :: gis_stochy
       type(stochy_internal_state), intent(inout) :: gis_stochy
-      integer,                                    intent(out)   :: rc
-      integer           :: npe_single_member
       integer           :: i, l, locl
 
 !-------------------------------------------------------------------
 
 ! set up gfs internal state dimension and values for dynamics etc
 !-------------------------------------------------------------------
-
-      npe_single_member = gis_stochy%npe_single_member
 
       gis_stochy%lon_dim_a = lon_s + 2
       jcap=ntrunc
@@ -1458,40 +1522,10 @@ module spectral_transforms
       allocate ( gis_stochy%global_lats_a(latg) )
 !
 
-! internal parallel structure.   Weiyu.
-!---------------------------------------------------
-      ALLOCATE(gis_stochy%TRIE_LS_SIZE      (npe_single_member))
-      ALLOCATE(gis_stochy%TRIO_LS_SIZE      (npe_single_member))
-      ALLOCATE(gis_stochy%TRIEO_LS_SIZE     (npe_single_member))
-      ALLOCATE(gis_stochy%LS_MAX_NODE_GLOBAL(npe_single_member))
-      ALLOCATE(gis_stochy%LS_NODE_GLOBAL    (LS_DIM*3, npe_single_member))
-
-      gis_stochy%LS_NODE_GLOBAL     = 0
-      gis_stochy%LS_MAX_NODE_GLOBAL = 0
-      gis_stochy%TRIEO_TOTAL_SIZE   = 0
-
-      DO i = 1, npe_single_member
-          CALL GET_LS_NODE_STOCHY(i-1, gis_stochy%LS_NODE_GLOBAL(1, i),               &
-                            gis_stochy%LS_MAX_NODE_GLOBAL(i), gis_stochy%IPRINT)
-          gis_stochy%TRIE_LS_SIZE(i) = 0
-          gis_stochy%TRIO_LS_SIZE(i) = 0
-          DO LOCL = 1, gis_stochy%LS_MAX_NODE_GLOBAL(i)
-              gis_stochy%LS_NODE_GLOBAL(LOCL+  LS_DIM, i)   = gis_stochy%TRIE_LS_SIZE(i)
-              gis_stochy%LS_NODE_GLOBAL(LOCL+  2*LS_DIM, i) = gis_stochy%TRIO_LS_SIZE(i)
-
-              L = gis_stochy%LS_NODE_GLOBAL(LOCL, i)
-
-              gis_stochy%TRIE_LS_SIZE(i) = gis_stochy%TRIE_LS_SIZE(i) + (JCAP+3-L)/2
-              gis_stochy%TRIO_LS_SIZE(i) = gis_stochy%TRIO_LS_SIZE(i) + (JCAP+2-L)/2
-          END DO
-          gis_stochy%TRIEO_LS_SIZE(i) = gis_stochy%TRIE_LS_SIZE(i)  + gis_stochy%TRIO_LS_SIZE(i) + 3
-          gis_stochy%TRIEO_TOTAL_SIZE = gis_stochy%TRIEO_TOTAL_SIZE + gis_stochy%TRIEO_LS_SIZE(i)
-      END DO
 
 
 !---------------------------------------------------
 !
-      gis_stochy%iprint = 0
       call get_ls_node_stochy( gis_stochy%mype, gis_stochy%ls_node(:,1), ls_max_node, gis_stochy%nodes)
 !
 !
@@ -1532,7 +1566,6 @@ module spectral_transforms
       allocate ( gis_stochy%trie_ls (len_trie_ls,2,gis_stochy%lotls) )
       allocate ( gis_stochy%trio_ls (len_trio_ls,2,gis_stochy%lotls) )
 
-      rc=0
 
       end subroutine initialize_spectral
 
@@ -1552,7 +1585,6 @@ module spectral_transforms
 
       ls_node = -1
       jcap1=jcap+1
-      print*,'in ls_node',jcap1,nodes,me_fake
 !
       jptls =  0
       l = 0
@@ -1581,7 +1613,6 @@ module spectral_transforms
 !.............................................
 !
   200 continue
-      print*,'in ls_node',minval(ls_node),maxval(ls_node)
 !
 !.............................................
 !
@@ -1611,11 +1642,9 @@ module spectral_transforms
 !
       type(stochy_internal_state), intent(inout) :: gis_stochy
 !
-      integer       iprint,locl,node,&
-                    len_trie_ls_nod, len_trio_ls_nod,&
-                    indev, indod, indlsev,jbasev,indlsod,jbasod
+      integer       locl,node, indev, indod, indlsev,jbasev,indlsod,jbasod
 !
-      integer gl_lats_index, latsmax
+      integer gl_lats_index
       integer global_time_sort_index_a(latg)
 !
       include 'function2'
@@ -1640,44 +1669,15 @@ module spectral_transforms
       enddo
       call setlats_a_stochy(gis_stochy)
 
-      iprint = 0
-      print*,'calling get_ls_node_stochy',gis_stochy%nodes
       do node=1,gis_stochy%nodes
-         print*,'node...',node
          call get_ls_node_stochy( node-1, gis_stochy%ls_nodes(1,node),gis_stochy%max_ls_nodes(node), gis_stochy%nodes )
       enddo
-      print*,'back',minval(gis_stochy%ls_nodes),maxval(gis_stochy%ls_nodes)
-!
-      len_trie_ls_max = 0
-      len_trio_ls_max = 0
-      do node=1,gis_stochy%nodes
-!
-         len_trie_ls_nod = 0
-         len_trio_ls_nod = 0
-         do locl=1,gis_stochy%max_ls_nodes(node)
-            l=gis_stochy%ls_nodes(locl,node)
-            len_trie_ls_nod = len_trie_ls_nod+(jcap+3-l)/2
-            len_trio_ls_nod = len_trio_ls_nod+(jcap+2-l)/2
-         enddo
-         len_trie_ls_max = max(len_trie_ls_max,len_trie_ls_nod)
-         len_trio_ls_max = max(len_trio_ls_max,len_trio_ls_nod)
-!
-      enddo
-!
-      iprint = 0
 !
       gis_stochy%lats_dim_a = 0
       do node=1,gis_stochy%nodes
          gis_stochy%lats_dim_a = max(gis_stochy%lats_dim_a,gis_stochy%lats_nodes_a(node))
       enddo
 
-      gis_stochy%lats_node_a_max = 0
-      do i=1,gis_stochy%nodes
-        gis_stochy%lats_node_a_max = max(gis_stochy%lats_node_a_max, gis_stochy%lats_nodes_a(i))
-      enddo
-      latsmax = gis_stochy%lats_node_a_max
-
-!
       gis_stochy%ipt_lats_node_a   = 1
       if ( gis_stochy%mype > 0 ) then
         do node=1,gis_stochy%mype
@@ -1686,40 +1686,37 @@ module spectral_transforms
       endif
 
 !
-      iprint = 0
-!
-           call glats_stochy(latg2,colrad_a,wgt_a,rcs2_a)
-           call epslon_stochy(gis_stochy)
-           call pln2eo_a_stochy(gis_stochy,latg2)
-           call gozrineo_a_stochy(gis_stochy,latg2)
+      call glats_stochy(latg2,colrad_a,wgt_a,rcs2_a)
+      call epslon_stochy(gis_stochy)
+      call pln2eo_a_stochy(gis_stochy,latg2)
+      call gozrineo_a_stochy(gis_stochy,latg2)
 !
 !
       do locl=1,ls_max_node
-              l = gis_stochy%ls_node(locl,1)
+         l = gis_stochy%ls_node(locl,1)
          jbasev = gis_stochy%ls_node(locl,2)
          indev  = indlsev(l,l)
          do n = l, jcap, 2
             gis_stochy%snnp1ev(indev) = n*(n+1)
-              indev        = indev+1
+            indev                     = indev+1
          end do
       end do
 !
-!
       do locl=1,ls_max_node
-              l = gis_stochy%ls_node(locl,1)
+         l = gis_stochy%ls_node(locl,1)
          jbasod = gis_stochy%ls_node(locl,3)
          if ( l <= jcap-1 ) then
             indod = indlsod(l+1,l)
             do n = l+1, jcap, 2
                gis_stochy%snnp1od(indod) = n*(n+1)
-                 indod        = indod+1
+               indod                     = indod+1
             end do
          end if
       end do
 !
 !
       do locl=1,ls_max_node
-              l = gis_stochy%ls_node(locl,1)
+         l = gis_stochy%ls_node(locl,1)
          jbasev = gis_stochy%ls_node(locl,2)
          jbasod = gis_stochy%ls_node(locl,3)
          if (mod(L,2) == mod(jcap+1,2)) then ! set even (n-l) terms of top row to zero
@@ -1747,17 +1744,10 @@ module spectral_transforms
          end do
   200    continue
       end do
-!
 
       do j=1,gis_stochy%lats_node_a
-         lat = gis_stochy%global_lats_a(gis_stochy%ipt_lats_node_a-1+j)
-         if ( gis_stochy%lonsperlat(lat) == lonf ) then
             lon_dims_a(j) = lonfx
-         else
-            lon_dims_a(j) = gis_stochy%lonsperlat(lat) + 2
-         endif
       enddo
-!
       return
       end
 

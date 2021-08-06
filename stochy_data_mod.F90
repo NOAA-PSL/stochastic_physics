@@ -69,15 +69,15 @@ module stochy_data_mod
 
    iret=0
 ! read in namelist
-   print*,'calling compns'
+
    call compns_stochy (mype,size(input_nml_file,1),input_nml_file(:),fn_nml,nlunit,delt,iret)
-   print*,'back',iret
+  
    if (iret/=0) return  ! need to make sure that non-zero irets are being trapped.
    if(is_rootpe()) print*,'in init stochdata',lat_s
    if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb)  .AND. (lndp_type==0) ) return
 
-   call initialize_spectral(gis_stochy, iret)
-   if (iret/=0) return
+   call initialize_spectral(gis_stochy)
+   
    allocate(noise_e(len_trie_ls,2),noise_o(len_trio_ls,2))
 ! determine number of random patterns to be used for each scheme.
    do n=1,size(sppt)
@@ -439,7 +439,7 @@ module stochy_data_mod
    call compns_stochy_ocn (delt,iret)
    if(is_rootpe()) print*,'in init stochdata_ocn'
    if ( (.NOT. pert_epbl) .AND. (.NOT. do_ocnsppt) ) return
-   call initialize_spectral(gis_stochy_ocn, iret)
+   call initialize_spectral(gis_stochy_ocn)
    if (iret/=0) return
    allocate(noise_e(len_trie_ls,2),noise_o(len_trio_ls,2))
 ! determine number of random patterns to be used for each scheme.

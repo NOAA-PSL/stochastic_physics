@@ -29,13 +29,7 @@
       type,public::stochy_internal_state		! start type define
 ! -----------------------------------------------
 
-      integer                   :: nodes
-
-!
-      integer lats_node_a_max
-
-      integer npe_single_member
-
+      integer                           :: nodes
       integer                           ::  lats_node_a
       integer                           ::  mype
       integer                           :: lon_dim_a
@@ -71,19 +65,10 @@
       real,allocatable ::       trie_ls(:,:,:)
       real,allocatable ::       trio_ls(:,:,:)
 
-      INTEGER                               :: TRIEO_TOTAL_SIZE
-      INTEGER, ALLOCATABLE, DIMENSION(:)    :: TRIE_LS_SIZE
-      INTEGER, ALLOCATABLE, DIMENSION(:)    :: TRIO_LS_SIZE
-      INTEGER, ALLOCATABLE, DIMENSION(:)    :: TRIEO_LS_SIZE
-      INTEGER, ALLOCATABLE, DIMENSION(:)    :: LS_MAX_NODE_GLOBAL
-      INTEGER, ALLOCATABLE, DIMENSION(:, :) :: LS_NODE_GLOBAL
-
-!!
-      integer              init,jpt,node,ibmsign,lon_dim
       integer              lotls
       integer              nlunit
 
-      integer              iret,ierr,iprint,k,l,locl,n
+      integer              k,l,locl,n
       integer              lan,lat
       integer              nx,ny,nz
       integer, allocatable :: len(:)

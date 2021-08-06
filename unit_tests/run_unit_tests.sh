@@ -27,7 +27,7 @@ cp input.nml.template input.nml
 sed -i -e "s/NPX/1/g" input.nml
 sed -i -e "s/NPY/4/g" input.nml
 sed -i -e "s/_STOCHINI_/.false./g" input.nml
-time srun -n 24 standalone_stochy.x 
+time srun --label -n 24 standalone_stochy.x 
 mkdir layout_1x4
 mv workg* layout_1x4
 
