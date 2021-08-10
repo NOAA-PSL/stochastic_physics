@@ -36,7 +36,6 @@
       integer                           :: lats_dim_a
       integer                           :: ipt_lats_node_a
 
-      integer              ,allocatable ::      lonsperlat (:)
       integer              ,allocatable ::      ls_node    (:,:)
       integer              ,allocatable ::      ls_nodes   (:,:)
       integer              ,allocatable ::  max_ls_nodes   (:)

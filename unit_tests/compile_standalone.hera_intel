@@ -28,8 +28,8 @@ if [ $compile_all -eq 1 ];then
    $FC ${FLAGS64} -I${FMS_INC} unit_tests/fv_control_stub.F90
    $FC ${FLAGS64} -I${FMS_INC} unit_tests/atmosphere_stub.F90
    $FC ${FLAGS64} unit_tests/mersenne_twister.F
-   $FC ${FLAGS64} stochy_namelist_def.F90
    $FC ${FLAGS64} stochy_internal_state_mod.F90
+   $FC ${FLAGS64} stochy_namelist_def.F90
    $FC ${FLAGS64} spectral_transforms.F90
    $FC ${FLAGS64} compns_stochy.F90
    $FC ${FLAGS64} stochy_patterngenerator.F90

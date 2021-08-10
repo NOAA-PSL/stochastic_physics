@@ -19,7 +19,7 @@ if [ ! -f standalone_stochy.x ];then
   echo "compilation errors"
   exit 1
 fi
-#sh compile_compare.sh
+sh compile_compare.sh
 
 # test 3 different domain decompositions and compare to baseline
 #layout 1x4

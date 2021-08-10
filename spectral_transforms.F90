@@ -30,27 +30,25 @@ module spectral_transforms
 
 !>@brief The subrountine 'spec_to_four' converts the spherical harmonics to fourier coefficients
 !>@details This code is taken from the legacy spectral GFS
-      subroutine spec_to_four(flnev,flnod,lat1s,plnev,plnod,   &
-                               nvars,ls_node,latl2,            &
-                               workdim,nvarsdim,four_gr,       &
-                               ls_nodes,max_ls_nodes,          &
-                               lats_nodes,global_lats,         &
-                               lats_node,ipt_lats_node,        &
-                               lons_lat,londi,latl,nvars_0)
+      subroutine spec_to_four(flnev,flnod,plnev,plnod, &
+                               ls_node,                &
+                               workdim,four_gr,        &
+                               ls_nodes,max_ls_nodes,  &
+                               lats_nodes,global_lats, &
+                               lats_node,ipt_lats_node, &
+                               nvars )
 !
 
       implicit none
 !
       external esmf_dgemm
-!
-      integer lat1s(0:jcap),latl2
-!
-      integer              nvars,nvars_0
+!     
+      integer, intent(in)     :: nvars
       real(kind=kind_dbl_prec) flnev(len_trie_ls,2*nvars)
       real(kind=kind_dbl_prec) flnod(len_trio_ls,2*nvars)
 !
-      real(kind=kind_dbl_prec) plnev(len_trie_ls,latl2)
-      real(kind=kind_dbl_prec) plnod(len_trio_ls,latl2)
+      real(kind=kind_dbl_prec) plnev(len_trie_ls,latg2)
+      real(kind=kind_dbl_prec) plnod(len_trio_ls,latg2)
 !
       integer              ls_node(ls_dim,3)
 !
@@ -66,23 +64,22 @@ module spectral_transforms
 !    local arrays
 !    ------------
 !
-      real(kind=kind_dbl_prec), dimension(nvars*2,latl2) ::  apev, apod
+      real(kind=kind_dbl_prec), dimension(nvars*2,latg2) ::  apev, apod
 ! xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 !
-      integer              nvarsdim,  latl, workdim, londi, lats_node, ipt_lats_node
+      integer              workdim, lats_node, ipt_lats_node
 !
-      real(kind=kind_dbl_prec) four_gr(londi,nvarsdim,workdim)
+      real(kind=kind_dbl_prec) four_gr(lonf+2,nvars,workdim)
 !
       integer              ls_nodes(ls_dim,npes)
       integer, dimension(npes) :: max_ls_nodes, lats_nodes
-      integer, dimension(latl)  :: global_lats, lons_lat
-
+      integer, dimension(latg)  :: global_lats
       real(kind=4),target,dimension(2,nvars,ls_dim*workdim,npes)::  workr,works
       real(kind=4),pointer:: work1dr(:),work1ds(:)
       integer, dimension(npes) :: kpts, kptr, sendcounts, recvcounts,  sdispls
 !
-      integer              ilat,ipt_ls, lmax,lval,jj,lonl,nv
-      integer              node,nvar,arrsz,my_pe
+      integer              ilat,ipt_ls, lmax,lval,jj,nv
+      integer              node,arrsz,my_pe,nvar
       integer              ilat_list(npes)              !    for OMP buffer copy
 !
 !    statement functions
@@ -97,37 +94,36 @@ module spectral_transforms
 !
 ! xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 !
-      arrsz=2*nvars*ls_dim*workdim*npes
+      n2=2*nvars
+      arrsz=n2*ls_dim*workdim*npes
       kpts   = 0
-!     write(0,*)' londi=',londi,'nvarsdim=',nvarsdim,'workdim=',workdim
 !
       do j = 1, ls_max_node   ! start of do j loop #####################
 !
-             l = ls_node(j,1)
+        l = ls_node(j,1)
         jbasev = ls_node(j,2)
         jbasod = ls_node(j,3)
 
         indev  = indlsev(l,l)
         indod  = indlsod(l+1,l)
 !
-        lat1 = lat1s(l)
-        n2 = 2*nvars
+        lat1 = lat1s_a(l)
 
 !           compute the even and odd components of the fourier coefficients
 !
 !           compute the sum of the even real      terms for each level
 !           compute the sum of the even imaginary terms for each level
 !
-        call esmf_dgemm('t', 'n', n2, latl2-lat1+1, (jcap+3-l)/2, &
+        call esmf_dgemm('t', 'n', n2, latg2-lat1+1, (jcap+3-l)/2, &
                         cons1, flnev(indev,1), len_trie_ls, plnev(indev,lat1), &
-                        len_trie_ls, cons0,  apev(1,lat1), 2*nvars )
+                        len_trie_ls, cons0,  apev(1,lat1), n2 )
 !
 !           compute the sum of the odd real      terms for each level
 !           compute the sum of the odd imaginary terms for each level
 !
-        call esmf_dgemm('t', 'n', n2, latl2-lat1+1, (jcap+2-l)/2,  &
+        call esmf_dgemm('t', 'n', n2, latg2-lat1+1, (jcap+2-l)/2,  &
                         cons1, flnod(indod,1), len_trio_ls, plnod(indod,lat1), &
-                        len_trio_ls, cons0, apod(1,lat1), 2*nvars)
+                        len_trio_ls, cons0, apod(1,lat1), n2 )
 !
 !cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 !
@@ -143,24 +139,24 @@ module spectral_transforms
           do jj=1,lats_nodes(node)
             ilat  = ilat_list(node) + jj
             lat    = global_lats(ilat)
-            ipt_ls = min(lat,latl-lat+1)
-            if ( ipt_ls >= lat1s(ls_nodes(j,mype+1)) ) then
+            ipt_ls = min(lat,latg-lat+1)
+            if ( ipt_ls >= lat1s_a(ls_nodes(j,mype+1)) ) then
               kpts(node) = kpts(node) + 1
               kn = kpts(node)
 !
-              if ( lat <= latl2 ) then
+              if ( lat <= latg2 ) then
 !                                                northern hemisphere
                 do nvar=1,nvars
                   n2 = nvar + nvar
                   works(1,nvar,kn,node) = apev(n2-1,ipt_ls) + apod(n2-1,ipt_ls)
-                  works(2,nvar,kn,node) = apev(n2,  ipt_ls) + apod(n2,  ipt_ls)
+                  works(2,nvar,kn,node) = apev(n2,ipt_ls)  + apod(n2,ipt_ls)
                 enddo
               else
 !                                                southern hemisphere
                 do nvar=1,nvars
                   n2 = nvar + nvar
                   works(1,nvar,kn,node) = apev(n2-1,ipt_ls) - apod(n2-1,ipt_ls)
-                  works(2,nvar,kn,node) = apev(n2,  ipt_ls) - apod(n2,  ipt_ls)
+                  works(2,nvar,kn,node) = apev(n2,ipt_ls)   - apod(n2,ipt_ls)
                 enddo
               endif
             endif
@@ -175,7 +171,7 @@ module spectral_transforms
             lval = ls_nodes(l,node)+1
             do j=1,lats_node
                lat = global_lats(ipt_lats_node-1+j)
-               if ( min(lat,latl-lat+1) >= lat1s(lval-1) ) then
+               if ( min(lat,latg-lat+1) >= lat1s_a(lval-1) ) then
                   kptr(node) = kptr(node) + 1
                endif
             enddo
@@ -183,7 +179,6 @@ module spectral_transforms
       enddo
 !
 !
-      n2 = nvars + nvars
 !$omp parallel do private(node)
       do node=1,npes
          sendcounts(node) = kpts(node) * n2
@@ -196,19 +191,16 @@ module spectral_transforms
                         work1dr,recvcounts,sdispls)
       nullify(work1dr)
       nullify(work1ds)
-!$omp parallel do private(j,lat,lmax,nvar,lval,n2,lonl,nv)
+!$omp parallel do private(j,lat,lmax,nvar,lval,lonf,nv)
       do j=1,lats_node
-         lat  = global_lats(ipt_lats_node-1+j)
-         lonl = lons_lat(lat)
-         lmax = min(jcap,lonl/2)
+         lmax = min(jcap,lonf/2)
          n2   = lmax + lmax + 3
-         if ( n2 <= lonl+2 ) then
-           do nvar=1,nvars
-             nv = nvars_0 + nvar
-             do lval = n2, lonl+2
-               four_gr(lval,nv,j) = cons0
-             enddo
-           enddo
+         if ( n2 <= lonf+2 ) then
+            do nv=1,nvars
+               do lval = n2, lonf+2
+                  four_gr(lval,nv,j) = cons0
+               enddo
+            enddo
          endif
       enddo
 !
@@ -221,13 +213,12 @@ module spectral_transforms
           n2   = lval + lval
           do j=1,lats_node
             lat = global_lats(ipt_lats_node-1+j)
-            if ( min(lat,latl-lat+1) >= lat1s(lval-1) ) then
+            if ( min(lat,latg-lat+1) >= lat1s_a(lval-1) ) then
               kptr(node) = kptr(node) + 1
               kn = kptr(node)
-
-              do nvar=1,nvars
-                four_gr(n2-1,nvars_0+nvar,j) = workr(1,nvar,kn,node)
-                four_gr(n2,  nvars_0+nvar,j) = workr(2,nvar,kn,node)
+              do nv=1,nvars
+                four_gr(n2-1,nv,j) = workr(1,nv,kn,node)
+                four_gr(n2,  nv,j) = workr(2,nv,kn,node)
               enddo
             endif
           enddo
@@ -240,40 +231,34 @@ module spectral_transforms
 
 !>@brief The subroutine 'four_to_grid' calculate real values form fourrier coefficients
 !>@details This code is taken from the legacy spectral GFS
-      subroutine four_to_grid(syn_gr_a_1,syn_gr_a_2, lon_dim_coef,lon_dim_grid,lons_lat,lot)
+      subroutine four_to_grid(syn_gr_a_1,syn_gr_a_2, lon_dim_coef,nvars)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       implicit none
 !!
-      real(kind=kind_dbl_prec)     syn_gr_a_1(lon_dim_coef,lot)
-      real(kind=kind_dbl_prec)     syn_gr_a_2(lon_dim_grid,lot)
+      integer, intent(in)  :: nvars
+      real(kind=kind_dbl_prec)     syn_gr_a_1(lon_dim_coef,nvars)
+      real(kind=kind_dbl_prec)     syn_gr_a_2(lonf,nvars)
       integer                  lon_dim_coef
-      integer                  lon_dim_grid
-      integer                  lons_lat
-      integer                  lot
 !________________________________________________________
       real(kind=kind_dbl_prec) aux1crs(44002)
-      real(kind=kind_dbl_prec)     scale_ibm
-      integer                  ibmsign
       integer                  init
 !________________________________________________________
 
 
       init      = 1
-      ibmsign   = -1
-      scale_ibm = 1.0d0
 
       call dcrft_stochy(init,                  &
       syn_gr_a_1(:,:)   ,lon_dim_coef,         &
-      syn_gr_a_2(:,:)   ,lon_dim_grid,         &
-      lons_lat,lot,ibmsign,scale_ibm,          &
+      syn_gr_a_2(:,:)   ,lonf,         &
+      lonf, nvars,                             &
       aux1crs,22000,                           &
       aux1crs(22001),20000)
 
       init = 0
       call dcrft_stochy(init,                  &
            syn_gr_a_1(:,:)   ,lon_dim_coef,    &
-           syn_gr_a_2(:,:)   ,lon_dim_grid,    &
-           lons_lat,lot,ibmsign,scale_ibm,     &
+           syn_gr_a_2(:,:)   ,lonf,    &
+           lonf, nvars,                        &
            aux1crs,22000,                      &
            aux1crs(22001),20000)
 
@@ -281,27 +266,23 @@ module spectral_transforms
       end
 
 
-      SUBROUTINE dcrft_stochy(init,x,ldx,y,ldy,n,m,isign,scale,  &
-                       table,n1,wrk,n2)
+      SUBROUTINE dcrft_stochy(init,x,ldx,y,ldy,n,nvars, table,n1,wrk,n2)
  
       implicit none
-      integer init,ldx,ldy,n,m,isign,n1,n2,i,j
-      real x(ldx,m),y(ldy,m),scale,table(44002),wrk
+      integer ,intent(in) :: ldx,ldy,n,nvars
+      integer init,n1,n2,i,j
+      real x(ldx,nvars),y(ldy,nvars),table(44002),wrk
  
       IF (init.ne.0) THEN
-        CALL rffti_stochy(n,table)
+         CALL rffti_stochy(n,table)
       ELSE
-!OCL NOVREC
-        DO j=1,m
-          y(1,j)=x(1,j)
-          DO i=2,n
-            y(i,j)=x(i+1,j)
-          ENDDO
-          CALL rfftb_stochy(n,y(:,j),table)
-          DO i=1,n
-            y(i,j)=scale*y(i,j)
-          ENDDO
-        ENDDO
+         DO j=1,nvars
+            y(1,j)=x(1,j)
+            DO i=2,n
+              y(i,j)=x(i+1,j)
+            ENDDO
+            CALL rfftb_stochy(n,y(:,j),table)
+         ENDDO
       ENDIF
  
       RETURN
@@ -1508,9 +1489,6 @@ module spectral_transforms
       allocate(rcs2_a(latg2))
 
       ls_dim = (jcap)/gis_stochy%nodes+1
-      allocate(gis_stochy%lonsperlat(latg))
-
-      gis_stochy%lonsperlat(:)=lonf
 !!
 !cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 !
@@ -1539,6 +1517,7 @@ module spectral_transforms
          len_trio_ls = len_trio_ls+(jcap+2-l)/2
       enddo
 !
+      print*,'allocating',len_trie_ls,len_trio_ls
       allocate ( gis_stochy%epse  (len_trie_ls) )
       allocate ( gis_stochy%epso  (len_trio_ls) )
       allocate ( gis_stochy%epsedn(len_trie_ls) )
@@ -1649,20 +1628,12 @@ module spectral_transforms
 !
       include 'function2'
 !
-      real(kind=kind_dbl_prec) global_time_a(latg)
-!
       real(kind=kind_dbl_prec), parameter :: cons0 = 0.d0, cons0p5  = 0.5d0,&
                                          cons1 = 1.d0, cons0p92 = 0.92d0
 !
       gl_lats_index = 0
       gis_stochy%global_lats_a = -1
-      do lat = 1,latg                  !my intialize global_time_a to lonsperlat
-          global_time_a(lat) = gis_stochy%lonsperlat(lat)
-      enddo
 
-      do lat = 1, latg2
-         gis_stochy%lonsperlat(latg+1-lat) = gis_stochy%lonsperlat(lat)
-      end do
       do node=1,gis_stochy%nodes
           call get_lats_node_a_stochy( node-1, gis_stochy%global_lats_a,gis_stochy%lats_nodes_a(node),&
                                gl_lats_index,global_time_sort_index_a, gis_stochy%nodes)
@@ -1737,7 +1708,7 @@ module spectral_transforms
 !
       do L=0,jcap
          do lat = 1, latg2
-            if ( L <= min(jcap,gis_stochy%lonsperlat(lat)/2) ) then
+            if ( L <= min(jcap,lonf/2) ) then
                lat1s_a(L) = lat
                go to 200
             endif
@@ -1865,7 +1836,7 @@ module spectral_transforms
 !
       type(stochy_internal_state), intent(inout) :: gis_stochy
 
-      integer :: ifin,nodesio,                       &
+      integer :: nodesio,                       &
                  jcount,jpt,lat,lats_sum,node,i,ii,  &
                  ngrptg,ngrptl,ipe,irest,idp,        &
                  ngrptgh,nodesioh           
@@ -1879,7 +1850,7 @@ module spectral_transforms
 !
       ngrptg = 0
       do lat=1,latg
-         do i=1,gis_stochy%lonsperlat(lat)
+         do i=1,lonf
            ngrptg = ngrptg + 1
          enddo
       enddo
@@ -1897,8 +1868,7 @@ module spectral_transforms
         idp    = 1
 
         do lat=1,latg
-          ifin   = gis_stochy%lonsperlat(lat)
-          ngrptl = ngrptl + ifin
+          ngrptl = ngrptl + lonf
 
           if (ngrptl*nodesio <= ngrptg+irest) then
             gis_stochy%lats_nodes_a(ipe+1)  = gis_stochy%lats_nodes_a(ipe+1) + 1
@@ -1908,8 +1878,8 @@ module spectral_transforms
             ipe = ipe + 1
             if (ipe <= nodesio) lats_hold(1,ipe+1) = lat
             idp    = 2
-            irest  = irest + ngrptg - (ngrptl-ifin)*nodesio
-            ngrptl = ifin
+            irest  = irest + ngrptg - (ngrptl-lonf)*nodesio
+            ngrptl = lonf
             gis_stochy%lats_nodes_a(ipe+1) = gis_stochy%lats_nodes_a(ipe+1) + 1
           endif
         enddo
@@ -1922,8 +1892,7 @@ module spectral_transforms
         idp    = 1
 
         do lat=1,latg/2
-          ifin   = gis_stochy%lonsperlat(lat)
-          ngrptl = ngrptl + ifin
+          ngrptl = ngrptl + lonf
 
           if (ngrptl*nodesioh <= ngrptgh+irest .or. lat == latg/2) then
             gis_stochy%lats_nodes_a(ipe+1)  = gis_stochy%lats_nodes_a(ipe+1) + 1
@@ -1935,8 +1904,8 @@ module spectral_transforms
               lats_hold(1,ipe+1) = lat
             endif
             idp    = 2
-            irest  = irest + ngrptgh - (ngrptl-ifin)*nodesioh
-            ngrptl = ifin
+            irest  = irest + ngrptgh - (ngrptl-lonf)*nodesioh
+            ngrptl = lonf
             gis_stochy%lats_nodes_a(ipe+1) = gis_stochy%lats_nodes_a(ipe+1) + 1
           endif
         enddo

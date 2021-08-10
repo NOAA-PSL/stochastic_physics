@@ -22,7 +22,7 @@ character*1   :: lx,ly
 character*10  :: var_list_2d(4)
 character*10  :: var_list_3d(2)
 
-baseline_path='/scratch2/BMC/gsienkf/Philip.Pegion/stochastic_physics_unit_tests/baseline_20210730/'
+baseline_path='/scratch2/BMC/gsienkf/Philip.Pegion/stochastic_physics_unit_tests/baseline_20210806/'
 
 var_list_2d(1)='sppt_wts'
 var_list_2d(2)='shum_wts'
