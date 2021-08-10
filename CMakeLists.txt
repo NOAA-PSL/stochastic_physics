@@ -11,8 +11,8 @@ list(APPEND _stoch_phys_srcs
   kinddef.F90
   mpi_wrapper.F90
   halo_exchange.fv3.F90
-  plumes.f90
-  mersenne_twister.F
+  plumes.F90
+  mersenne_twister.F90
   spectral_layout.F90
   getcon_spectral.F90
   stochy_namelist_def.F90
