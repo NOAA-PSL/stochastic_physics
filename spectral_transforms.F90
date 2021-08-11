@@ -5,9 +5,7 @@ module spectral_transforms
  use mpi_wrapper, only : mp_alltoall,mype,npes
  use stochy_internal_state_mod, only : stochy_internal_state
  use stochy_namelist_def
-#ifndef IBM
-  USE omp_lib
-#endif
+
       private 
       public :: spec_to_four, four_to_grid,dozeuv_stochy,dezouv_stochy
       public :: initialize_spectral,stochy_la2ga
@@ -191,7 +189,7 @@ module spectral_transforms
                         work1dr,recvcounts,sdispls)
       nullify(work1dr)
       nullify(work1ds)
-!$omp parallel do private(j,lat,lmax,nvar,lval,lonf,nv)
+!$omp parallel do private(j,lat,lmax,nvar,lval,nv)
       do j=1,lats_node
          lmax = min(jcap,lonf/2)
          n2   = lmax + lmax + 3
@@ -1517,7 +1515,6 @@ module spectral_transforms
          len_trio_ls = len_trio_ls+(jcap+2-l)/2
       enddo
 !
-      print*,'allocating',len_trie_ls,len_trio_ls
       allocate ( gis_stochy%epse  (len_trie_ls) )
       allocate ( gis_stochy%epso  (len_trio_ls) )
       allocate ( gis_stochy%epsedn(len_trie_ls) )

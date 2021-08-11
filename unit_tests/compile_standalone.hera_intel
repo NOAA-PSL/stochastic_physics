@@ -12,31 +12,30 @@ FMS_INC=${FMS_ROOT}/include_r8
 FMS_LIB=${FMS_ROOT}/lib
 INCS="-I. -I${FMS_INC} -I${NETCDF}/include"
 if [ $DEBUG == 'YES' ]; then
-   FLAGS64=" -g -C -traceback -real-size 64 -DSTOCHY_UNIT_TEST -c "$INCS
-   FLAGS=" -g -C -traceback -DSTOCHY_UNIT_TEST -c "$INCS
+   FLAGS=" -g -C -traceback -real-size 64 -qopenmp -c "$INCS
 else
-   FLAGS64=" -traceback -real-size 64 -DSTOCHY_UNIT_TEST -c "$INCS
-   FLAGS=" -traceback -DSTOCHY_UNIT_TEST -c "$INCS
+   FLAGS=" -traceback -real-size 64 -qopenmp -c "$INCS
 fi
 cd ..
+set -x
 if [ $compile_all -eq 1 ];then
    rm -f *.i90 *.i *.o *.mod lib*a
-   $FC ${FLAGS64} kinddef.F90
-   $FC ${FLAGS64} mpi_wrapper.F90
-   $FC ${FLAGS64} -I${FMS_INC} unit_tests/fv_arrays_stub.F90
-   $FC ${FLAGS64} -I${FMS_INC} unit_tests/fv_mp_stub_mod.F90
-   $FC ${FLAGS64} -I${FMS_INC} unit_tests/fv_control_stub.F90
-   $FC ${FLAGS64} -I${FMS_INC} unit_tests/atmosphere_stub.F90
-   $FC ${FLAGS64} mersenne_twister.F90
-   $FC ${FLAGS64} stochy_internal_state_mod.F90
-   $FC ${FLAGS64} stochy_namelist_def.F90
-   $FC ${FLAGS64} spectral_transforms.F90
-   $FC ${FLAGS64} compns_stochy.F90
-   $FC ${FLAGS64} stochy_patterngenerator.F90
-   $FC ${FLAGS64} stochy_data_mod.F90
-   $FC ${FLAGS64} get_stochy_pattern.F90
-   $FC ${FLAGS64} lndp_apply_perts.F90
-   $FC ${FLAGS64} stochastic_physics.F90
+   $FC ${FLAGS} kinddef.F90
+   $FC ${FLAGS} mpi_wrapper.F90
+   $FC ${FLAGS} unit_tests/fv_arrays_stub.F90
+   $FC ${FLAGS} unit_tests/fv_mp_stub_mod.F90
+   $FC ${FLAGS} unit_tests/fv_control_stub.F90
+   $FC ${FLAGS} unit_tests/atmosphere_stub.F90
+   $FC ${FLAGS} mersenne_twister.F90
+   $FC ${FLAGS} stochy_internal_state_mod.F90
+   $FC ${FLAGS} stochy_namelist_def.F90
+   $FC ${FLAGS} spectral_transforms.F90
+   $FC ${FLAGS} compns_stochy.F90
+   $FC ${FLAGS} stochy_patterngenerator.F90
+   $FC ${FLAGS} stochy_data_mod.F90
+   $FC ${FLAGS} get_stochy_pattern.F90
+   $FC ${FLAGS} lndp_apply_perts.F90
+   $FC ${FLAGS} stochastic_physics.F90
 fi
    ar rv libstochastic_physics.a *.o
 if [ $DEBUG == 'YES' ]; then

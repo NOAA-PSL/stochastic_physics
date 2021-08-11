@@ -62,9 +62,6 @@ integer :: k,kflip,latghf,blk,k2
 character*2::proc
 
 ! Initialize MPI and OpenMP
-print*,'calling mpiwrapper'
-print*,'mpiroot',mpiroot
-print*,'mpicomm',mpicomm
 call mpi_wrapper_initialize(mpiroot,mpicomm)
 gis_stochy%nodes = npes
 gis_stochy%mype=mype
@@ -88,7 +85,6 @@ enddo
 
 ! replace
 INTTYP=0 ! bilinear interpolation
-print*,'calling init stochdata',levs
 call init_stochdata(levs,dtp,input_nml_file_in,fn_nml,nlunit,iret)
 print*,'back from init stochdata',iret
 if (iret .ne. 0) return
@@ -223,7 +219,6 @@ enddo
 WLON=gg_lons(1)-(gg_lons(2)-gg_lons(1))
 RNLAT=gg_lats(1)*2-gg_lats(2)
 
-
 end subroutine init_stochastic_physics
 
 !!!!!!!!!!!!!!!!!!!!
@@ -334,7 +329,6 @@ integer :: nblks, blk, len, maxlen
 character*120 :: sfile
 character*6   :: STRFH
 logical :: do_advance_pattern
-
 if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb) .AND. (lndp_type==0 ) ) return
 
 ! Update number of threads in shared variables in spectral_layout_mod and set block-related variables
@@ -407,7 +401,6 @@ if ( lndp_type .EQ. 2  ) then
            sfc_wts(blk,1:len,k) = tmpl_wts(1:len,blk,k)
        ENDDO
     ENDDO
-    if (is_rootpe()) print*,'sfc_wts=',sfc_wts(1,1,:)
     deallocate(tmpl_wts)
 endif
  deallocate(tmp_wts)

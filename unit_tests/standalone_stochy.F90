@@ -17,7 +17,7 @@ implicit none
 integer, parameter      :: nlevs=3
 integer, parameter :: max_n_var_lndp = 6
 integer                 :: ntasks,fid
-integer                 :: nthreads,omp_get_num_threads
+integer                 :: nthreads
 integer                 :: ncid,xt_dim_id,yt_dim_id,time_dim_id,xt_var_id,yt_var_id,time_var_id,var_id_lat,var_id_lon,var_id_tile
 integer                 :: varid1,varid2,varid3,varid4,varid_lon,varid_lat,varid_tile
 integer                 :: varidl(max_n_var_lndp)
@@ -79,8 +79,8 @@ if (nargs.EQ.1) then
 endif
 read(ntile_out_str,'(I1.1)') ntile_out
 open (unit=nlunit, file='input.nml', READONLY, status='OLD')
-n_var_lndp=-999
-lndp_type=-999
+n_var_lndp=0
+lndp_type=0
 do_sppt=.false.
 do_shum=.false.
 do_skeb=.false.
@@ -129,7 +129,7 @@ allocate(blksz(nblks))
 do i=1,nblks
   blksz(i)=blksz_1
 enddo
-nthreads = omp_get_num_threads()
+nthreads = 1
 me=my_id
 fhour=0
 dtp=900
@@ -303,7 +303,7 @@ do i=istart,20
                                sppt_wts=sppt_wts, shum_wts=shum_wts, skebu_wts=skebu_wts, skebv_wts=skebv_wts, sfc_wts=sfc_wts, &
                                nthreads=nthreads)
   
-   if (me.EQ.0 .and. do_sppt) print*,'sppt_wts=',i,sppt_wts(1,1,2)
+   if (me.EQ.0 .and. do_sppt) print*,'SPPT_WTS=',i,sppt_wts(1,1,2)
    if (i.EQ. 10) call write_stoch_restart_atm('stochy_middle.nc')
    if (i.eq.1 .OR. i.eq.20) then
       if (me.EQ.0 .and. do_sppt) print*,'writing sppt_wts=',i,sppt_wts(1,1,2)

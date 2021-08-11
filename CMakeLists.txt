@@ -13,12 +13,10 @@ list(APPEND _stoch_phys_srcs
   halo_exchange.fv3.F90
   plumes.F90
   mersenne_twister.F90
-  spectral_layout.F90
-  getcon_spectral.F90
   stochy_namelist_def.F90
   compns_stochy.F90
   stochy_internal_state_mod.F90
-  speactral_transforms.F90
+  spectral_transforms.F90
   stochastic_physics.F90
   stochy_patterngenerator.F90
   stochy_data_mod.F90

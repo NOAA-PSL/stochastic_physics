@@ -126,7 +126,6 @@ module stochy_patterngenerator_mod
          enddo
       enddo
       allocate(rpattern(np)%degree(ndimspec),rpattern(np)%order(ndimspec),rpattern(np)%lap(ndimspec))
-!#ifdef __GFORTRAN__
       j = 0
       do m=0,ntrunc
         do n=m,ntrunc
@@ -135,13 +134,6 @@ module stochy_patterngenerator_mod
           rpattern(np)%order(j) = m
         end do
       end do
-!#else
-!      print*,'in stochy_patterngenerator',ntrunc,np
-!      print*,'size of rapttern',size(rpattern)
-!      print*,'size of degree',size(rpattern(np)%degree)
-!      rpattern(np)%degree = (/((n,n=m,ntrunc),m=0,ntrunc)/)
-!      rpattern(np)%order = (/((m,n=m,ntrunc),m=0,ntrunc)/)
-!#endif
       rpattern(np)%lap = -rpattern(np)%degree*(rpattern(np)%degree+1.0)
       rpattern(np)%tau = tscale(np)
       rpattern(np)%lengthscale = lscale(np)

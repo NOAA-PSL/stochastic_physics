@@ -54,7 +54,7 @@ subroutine get_random_pattern_sfc(rpattern,npatterns,&
    glolal = 0.
    do n=1,npatterns
      call patterngenerator_advance(rpattern(n),k,.false.)
-     if (is_rootpe()) print *, 'Random pattern for LNDP PERTS in get_random_pattern_fv3_sfc: k, min, max ',k,minval(rpattern_sfc(n)%spec_o(:,:,k)), maxval(rpattern_sfc(n)%spec_o(:,:,k))
+!     if (is_rootpe()) print *, 'Random pattern for LNDP PERTS in get_random_pattern_fv3_sfc: k, min, max ',k,minval(rpattern_sfc(n)%spec_o(:,:,k)), maxval(rpattern_sfc(n)%spec_o(:,:,k))
      call scalarspect_to_gaugrid(rpattern(n),gis_stochy,wrk2d,k)
      glolal = glolal + wrk2d(:,:,1)
    enddo
@@ -69,7 +69,7 @@ subroutine get_random_pattern_sfc(rpattern,npatterns,&
    enddo
 
    call mp_reduce_sum(workg,lonf,latg)
-   if (is_rootpe()) print *, 'workg after mp_reduce_sum for LNDP PERTS in get_random_pattern_fv3_sfc: k, min, max ',k,minval(workg), maxval(workg)
+!   if (is_rootpe()) print *, 'workg after mp_reduce_sum for LNDP PERTS in get_random_pattern_fv3_sfc: k, min, max ',k,minval(workg), maxval(workg)
 
 ! interpolate to cube grid
 
@@ -82,7 +82,7 @@ subroutine get_random_pattern_sfc(rpattern,npatterns,&
       pattern_3d(:,j,k)=pattern_1d(:)
       end associate
    enddo
-   if (is_rootpe()) print *, '3D pattern for LNDP PERTS in get_random_pattern_fv3_sfc: k, min, max ',k,minval(pattern_3d(:,:,k)), maxval(pattern_3d(:,:,k))
+!   if (is_rootpe()) print *, '3D pattern for LNDP PERTS in get_random_pattern_fv3_sfc: k, min, max ',k,minval(pattern_3d(:,:,k)), maxval(pattern_3d(:,:,k))
    deallocate(workg)
 
  enddo  ! loop over k, n_var_lndp
@@ -298,7 +298,6 @@ subroutine scalarspect_to_gaugrid(rpattern,gis_stochy,datag,n)
                   gis_stochy%ls_nodes,gis_stochy%max_ls_nodes,&
                   gis_stochy%lats_nodes_a,gis_stochy%global_lats_a,&
                   gis_stochy%lats_node_a,gis_stochy%ipt_lats_node_a,1)
-
       do lan=1,gis_stochy%lats_node_a
          lat = gis_stochy%global_lats_a(gis_stochy%ipt_lats_node_a-1+lan)
          call four_to_grid(for_gr_a_1(:,:,lan),for_gr_a_2(:,:,lan),&
