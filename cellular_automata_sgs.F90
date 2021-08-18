@@ -153,8 +153,6 @@ endif
   nyc = jecnx-jscnx+1
   nxch = iednx-isdnx+1
   nych = jednx-jsdnx+1
-  print*, "nxncells,nyncells: ",nxncells,nyncells,ncells
-  print*, "iscnx,iecnx,jscnx,jecnx: ",iscnx,iecnx,jscnx,jecnx
   nx_full=int(ncells,kind=8)*int(npx-1,kind=8)
   ny_full=int(ncells,kind=8)*int(npy-1,kind=8)
 
@@ -173,32 +171,19 @@ endif
  allocate(ca_plumes(nlon,nlat))
  allocate(CA_DEEP(nlon,nlat))
  allocate(noise(nxc,nyc,nca))
- print*,'allocating noise1d',nx_full,ny_full,nx_full*ny_full
  allocate(noise1D(nx_full*ny_full))
  allocate(noise2D(nx_full,ny_full))
- print*,'noise1d=',size(noise1D,1)
- print*,'noise2d=',size(noise2D,1),size(noise2D,2)
 
  !Initialize:
- print*,'zeroing 0'
  condition(:,:)=0.
- print*,'zeroing 1'
  conditiongrid(:,:)=0.
- print*,'zeroing 2'
  ca_plumes(:,:) = 0
- print*,'zeroing 3'
  noise(:,:,:) = 0.0
- print*,'zeroing 4'
  noise1D(:) = 0.0
- print*,'zeroing 5'
  noise2D(:,:) = 0.0
- print*,'zeroing 6'
  iini(:,:,:) = 0
- print*,'zeroing 7'
  ilives_in(:,:,:) = 0
- print*,'zeroing 8'
  CA_DEEP(:,:) = 0.
- print*,'zeroing 9'
 
  !Put the blocks of model fields into a 2d array - can't use nlev and blocksize directly,
  !because the arguments to define_blocks_packed are intent(inout) and not intent(in).
@@ -278,7 +263,6 @@ if(kstep == initialize_ca) then
     ! overflow, do wrap around explicitly.
     count4 = mod(mytile + iseed_ca + 2147483648, 4294967296) - 2147483648
   endif
- print*,'setting seeed', count4
   call random_setseed(count4,rstate_sgs)
 
   do nf=1,nca
