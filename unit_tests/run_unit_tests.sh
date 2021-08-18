@@ -21,6 +21,9 @@ if [ ! -f standalone_stochy.x ];then
 fi
 sh compile_compare.sh
 
+# copy input directory
+cp -r /scratch2/BMC/gsienkf/Philip.Pegion/stochastic_physics_unit_tests/input_data INPUT
+
 # test 3 different domain decompositions and compare to baseline
 #layout 1x4
 cp input.nml.template input.nml
@@ -42,7 +45,7 @@ time srun -n 24 standalone_stochy.x
 mkdir layout_2x2
 mv workg* layout_2x2
 #layout 1x4
-export OMP_NUM_THREADS=3
+export OMP_NUM_THREADS=1
 cp input.nml.template input.nml
 sed -i -e "s/NPX/4/g" input.nml
 sed -i -e "s/NPY/1/g" input.nml
@@ -52,7 +55,7 @@ mkdir layout_4x1
 mv workg* layout_4x1
 # restart run
 mv stochy_middle.nc INPUT/atm_stoch.res.nc
-export OMP_NUM_THREADS=3
+export OMP_NUM_THREADS=2
 cp input.nml.template input.nml
 sed -i -e "s/NPX/4/g" input.nml
 sed -i -e "s/NPY/1/g" input.nml
@@ -67,7 +70,7 @@ else
    diff stochy_final.nc stochy_final_2.nc
    if [ $? -eq 0 ];then
       echo "unit tests successful"
-      rm -rf layout_*
+#      rm -rf layout_*
       rm logfile*
       rm stochy*nc
       rm ../*.o ../*.mod

@@ -17,7 +17,6 @@ else
    FLAGS=" -traceback -real-size 64 -qopenmp -c "$INCS
 fi
 cd ..
-set -x
 if [ $compile_all -eq 1 ];then
    rm -f *.i90 *.i *.o *.mod lib*a
    $FC ${FLAGS} kinddef.F90

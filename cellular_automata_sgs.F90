@@ -1,12 +1,14 @@
 module cellular_automata_sgs_mod
 
+use update_ca, only : rstate_sgs,rstate_global
 implicit none
+
 
 contains
 
 subroutine cellular_automata_sgs(kstep,dtf,restart,first_time_step,sst,lsmsk,lake,condition_cpl, &
             ca_deep_cpl,ca_turb_cpl,ca_shal_cpl,ca_deep_diag,ca_turb_diag,ca_shal_diag,domain, &
-            nblks,isc,iec,jsc,jec,npx,npy,nlev,nthresh,rcell, &
+            nblks,isc,iec,jsc,jec,npx,npy,nlev,nthresh,rcell, mytile, &
             nca,scells,tlives,nfracseed,nseed,ca_global,ca_sgs,iseed_ca, &
             ca_smooth,nspinup,ca_trigger,blocksize,mpiroot,mpicomm)
 
@@ -16,7 +18,7 @@ use mersenne_twister,  only: random_setseed,random_gauss,random_stat,random_numb
 use mpp_domains_mod,   only: domain2D
 use block_control_mod, only: block_control_type, define_blocks_packed
 use time_manager_mod, only: time_type
-use mpi_wrapper,       only: mype,mp_reduce_sum,mp_bcst,mp_reduce_max,mp_reduce_min, &
+use mpi_wrapper,       only: mype,mp_reduce_sum,mp_reduce_max,mp_reduce_min, &
                              mpi_wrapper_initialize
 use mpp_domains_mod
 use mpp_mod
@@ -36,7 +38,7 @@ implicit none
 !CA_DEEP can be either number of plumes in a cluster (nca_plumes=true) or updraft 
 !area fraction (nca_plumes=false)
 
-integer,intent(in) :: kstep,scells,nca,tlives,nseed,iseed_ca,nspinup,mpiroot,mpicomm
+integer,intent(in) :: kstep,scells,nca,tlives,nseed,iseed_ca,nspinup,mpiroot,mpicomm,mytile
 real(kind=kind_phys), intent(in)    :: nfracseed,dtf,rcell
 logical,intent(in) :: ca_global, ca_sgs, ca_smooth, restart,ca_trigger,first_time_step
 integer, intent(in) :: nblks,isc,iec,jsc,jec,npx,npy,nlev,blocksize
@@ -52,7 +54,6 @@ real(kind=kind_phys), intent(out)   :: ca_shal_diag(:,:)
 type(domain2D),       intent(inout) :: domain
 
 type(block_control_type)          :: Atm_block
-type(random_stat) :: rstate
 integer :: nlon, nlat, isize,jsize,nf,nn
 integer :: inci, incj, nxc, nyc, nxch, nych, nx, ny
 integer :: nxncells, nyncells
@@ -63,13 +64,13 @@ integer :: isdnx,iednx,jsdnx,jednx
 integer :: iscnx,iecnx,jscnx,jecnx
 integer :: ncells,nlives
 integer, save :: initialize_ca
-integer(8) :: count, count_rate, count_max, count_trunc
+integer(8) :: count, count_rate, count_max, count_trunc,nx_full,ny_full
 integer(8) :: iscale = 10000000000
 integer, allocatable :: iini(:,:,:),ilives_in(:,:,:),ca_plumes(:,:)
 real(kind=kind_phys), allocatable :: ssti(:,:),lsmski(:,:),lakei(:,:)
 real(kind=kind_phys), allocatable :: CA(:,:),condition(:,:),conditiongrid(:,:)
 real(kind=kind_phys), allocatable :: CA_DEEP(:,:)
-real(kind=kind_phys), allocatable :: noise1D(:),noise(:,:,:)
+real*8              , allocatable :: noise1D(:),noise2D(:,:),noise(:,:,:)
 real(kind=kind_phys) :: condmax,livesmax,factor,dx,pi,re
 type(domain2D)       :: domain_ncellx
 logical,save         :: block_message=.true.
@@ -152,6 +153,10 @@ endif
   nyc = jecnx-jscnx+1
   nxch = iednx-isdnx+1
   nych = jednx-jsdnx+1
+  print*, "nxncells,nyncells: ",nxncells,nyncells,ncells
+  print*, "iscnx,iecnx,jscnx,jecnx: ",iscnx,iecnx,jscnx,jecnx
+  nx_full=int(ncells,kind=8)*int(npx-1,kind=8)
+  ny_full=int(ncells,kind=8)*int(npy-1,kind=8)
 
 
 
@@ -168,17 +173,32 @@ endif
  allocate(ca_plumes(nlon,nlat))
  allocate(CA_DEEP(nlon,nlat))
  allocate(noise(nxc,nyc,nca))
- allocate(noise1D(nxc*nyc))
+ print*,'allocating noise1d',nx_full,ny_full,nx_full*ny_full
+ allocate(noise1D(nx_full*ny_full))
+ allocate(noise2D(nx_full,ny_full))
+ print*,'noise1d=',size(noise1D,1)
+ print*,'noise2d=',size(noise2D,1),size(noise2D,2)
 
  !Initialize:
+ print*,'zeroing 0'
  condition(:,:)=0.
+ print*,'zeroing 1'
  conditiongrid(:,:)=0.
+ print*,'zeroing 2'
  ca_plumes(:,:) = 0
+ print*,'zeroing 3'
  noise(:,:,:) = 0.0
+ print*,'zeroing 4'
  noise1D(:) = 0.0
+ print*,'zeroing 5'
+ noise2D(:,:) = 0.0
+ print*,'zeroing 6'
  iini(:,:,:) = 0
+ print*,'zeroing 7'
  ilives_in(:,:,:) = 0
+ print*,'zeroing 8'
  CA_DEEP(:,:) = 0.
+ print*,'zeroing 9'
 
  !Put the blocks of model fields into a 2d array - can't use nlev and blocksize directly,
  !because the arguments to define_blocks_packed are intent(inout) and not intent(in).
@@ -256,17 +276,18 @@ if(kstep == initialize_ca) then
   else
     ! don't rely on compiler to truncate integer(8) to integer(4) on
     ! overflow, do wrap around explicitly.
-    count4 = mod(mype + iseed_ca + 2147483648, 4294967296) - 2147483648
+    count4 = mod(mytile + iseed_ca + 2147483648, 4294967296) - 2147483648
   endif
-
-  call random_setseed(count4)
+ print*,'setting seeed', count4
+  call random_setseed(count4,rstate_sgs)
 
   do nf=1,nca
-    call random_number(noise1D)
-    !Put on 2D:
+    call random_number(noise1D,rstate_sgs)
+    noise2D(:,:)=RESHAPE(noise1d,(/nx_full,ny_full/))
+    !pick out points on this task
     do j=1,nyc
       do i=1,nxc
-        noise(i,j,nf)=noise1D(i+(j-1)*nxc)
+        noise(i,j,nf)=noise2D( ncells*isc-ncells+i,ncells*jsc-ncells+j)
       enddo
     enddo
    enddo
@@ -345,6 +366,7 @@ enddo
  deallocate(CA_DEEP)
  deallocate(noise)
  deallocate(noise1D)
+ deallocate(noise2D)
 
 end subroutine cellular_automata_sgs
 

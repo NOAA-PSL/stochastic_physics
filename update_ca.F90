@@ -17,6 +17,8 @@ public  update_cells_sgs
 public  update_cells_global
 
 integer,allocatable,save :: board(:,:,:), lives(:,:,:)
+integer,allocatable,save :: board_g(:,:,:), lives_g(:,:,:)
+type(random_stat),public :: rstate_sgs,rstate_global
 
 contains
 
@@ -203,12 +205,12 @@ real,    allocatable :: board_halo(:,:,:)
 integer, dimension(nxc,nyc) :: neighbours, birth, newlives,thresh
 integer, dimension(nxc,nyc) :: neg, newcell, oldlives, newval,temp,newseed
 integer, dimension(ncells,ncells) :: onegrid
-integer(8)           :: count, count_rate, count_max, count_trunc
+integer(8)           :: count, count_rate, count_max, count_trunc,nx_full,ny_full
 integer(8)           :: iscale = 10000000000
 logical, save        :: start_from_restart
 
 real, dimension(nxc,nyc) :: NOISE_B
-real, dimension(nxc*nyc) :: noise1D2
+real, allocatable :: noise1D(:),noise2D(:,:)
 
 
 !------------------------------------------------------------------------------------------------
@@ -233,32 +235,6 @@ k_in=1
      allocate(board_halo(nxch,nych,1))
   endif
  
- !Step 1: Generate a new random number each time-step for "random seeding"
- !each nseed timestep where mod(kstep,nseed) = 0
-
- if (iseed_ca == 0) then
-    ! generate a random seed from system clock and ens member number
-    call system_clock(count, count_rate, count_max)
-    ! iseed is elapsed time since unix epoch began (secs)
-    ! truncate to 4 byte integer
-    count_trunc = iscale*(count/iscale)
-    count4 = count - count_trunc
- else
-    ! don't rely on compiler to truncate integer(8) to integer(4) on
-    ! overflow, do wrap around explicitly.
-    count4 = mod(kstep + mype + iseed_ca + 2147483648, 4294967296) - 2147483648
- endif
- call random_setseed(count4)
- 
- noise1D2 = 0.0
- call random_number(noise1D2)
-
- !Put on 2D:
- do j=1,nyc
-  do i=1,nxc
-     NOISE_B(i,j)=noise1D2(i+(j-1)*nxc)    
-  enddo
- enddo
 
  !Step 2: Initialize CA, if restart data exist (board,lives > 0) initialize from restart file, otherwise initialize at time-
  !step initialize_ca.
@@ -304,6 +280,21 @@ k_in=1
  !seed with new active cells each nseed time-step regardless of restart/cold start
 
   if(mod(kstep,nseed)==0. .and. (kstep >= initialize_ca .or. start_from_restart))then
+  nx_full=int(ncells,kind=8)*int(npx-1,kind=8)
+  ny_full=int(ncells,kind=8)*int(npy-1,kind=8)
+  allocate(noise1D(nx_full*ny_full))
+  allocate(noise2D(nx_full,ny_full))
+ call random_number(noise1D,rstate_sgs)
+ NOISE2D(:,:)=RESHAPE(noise1D,(/nx_full,ny_full/))
+ deallocate(noise1D)
+
+ !pick out points on my task
+ do j=1,nyc
+    do i=1,nxc
+        noise_b(i,j)=NOISE2D( ncells*isc-ncells+i,ncells*jsc-ncells+j)
+    enddo
+ enddo
+ deallocate(noise2D)
    do j=1,nyc
     do i=1,nxc
      if(board(i,j,nf) == 0 .and. NOISE_B(i,j)>0.90 )then
@@ -500,7 +491,6 @@ integer, intent(in) :: nlives, ncells, nseed, nspinup, nf,iscnx,iecnx,jscnx,jecn
 real, intent(in) :: nfracseed
 type(domain2D), intent(inout) :: domain_ncellx
 real, dimension(nlon,nlat) :: frac
-integer,allocatable,save :: board_g(:,:,:), lives_g(:,:,:)
 integer,allocatable :: V(:),L(:)
 integer :: inci, incj, i, j, k ,sub,spinup,it,halo,k_in,isize,jsize
 integer :: ih, jh, count4
@@ -544,12 +534,7 @@ k_in=1
  endif
  call random_setseed(count4)
 
- noise1D2 = 0.0
- call random_number(noise1D2)
- 
  !random numbers:
- noise1D2 = 0.0
-
  call random_number(noise1D2)
 
  !Put on 2D:
@@ -609,7 +594,7 @@ do it=1,spinup
 ! in order to have updated values in the halo region. 
 
  !--- copy board into the halo-augmented board_halo                                                                                                    
- board_halo(1+halo:nxc+halo,1+halo:nyc+halo,1) = real(board(1:nxc,1:nyc,1),kind=8)
+ board_halo(1+halo:nxc+halo,1+halo:nyc+halo,1) = real(board_g(1:nxc,1:nyc,1),kind=8)
  !write(1000+mpp_pe(),*) "board_halo pre: ",board_halo(:,:,1)                                                                                          
 
  !--- perform halo update                                                                                                                              
