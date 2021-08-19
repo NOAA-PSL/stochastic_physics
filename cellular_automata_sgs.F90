@@ -54,13 +54,14 @@ type(domain2D),       intent(inout) :: domain
 type(block_control_type)          :: Atm_block
 type(random_stat) :: rstate
 integer :: nlon, nlat, isize,jsize,nf,nn
-integer :: inci, incj, nxc, nyc, nxch, nych, nx, ny
+integer :: nyc, nxc, nxch, nych
+integer :: inci, incj, nx, ny
 integer :: nxncells, nyncells
 integer :: halo, k_in, i, j, k
 integer :: seed, ierr7,blk, ix, iix, count4,ih,jh
 integer :: blocksz,levs
-integer :: isdnx,iednx,jsdnx,jednx
-integer :: iscnx,iecnx,jscnx,jecnx
+integer,save :: isdnx,iednx,jsdnx,jednx
+integer,save :: iscnx,iecnx,jscnx,jecnx
 integer :: ncells,nlives
 integer, save :: initialize_ca
 integer(8) :: count, count_rate, count_max, count_trunc
@@ -71,7 +72,7 @@ real(kind=kind_phys), allocatable :: CA(:,:),condition(:,:),conditiongrid(:,:)
 real(kind=kind_phys), allocatable :: CA_DEEP(:,:)
 real(kind=kind_phys), allocatable :: noise1D(:),noise(:,:,:)
 real(kind=kind_phys) :: condmax,livesmax,factor,dx,pi,re
-type(domain2D)       :: domain_ncellx
+type(domain2D),save  :: domain_ncellx
 logical,save         :: block_message=.true.
 logical              :: nca_plumes
 logical,save         :: first_flag
@@ -140,6 +141,7 @@ endif
 
 !--- get params from domain_ncellx for building board and board_halo                                                                                
 
+ if(first_time_step)then 
   !Get CA domain                                                                                                                                       
   call define_ca_domain(domain,domain_ncellx,ncells,nxncells,nyncells)
   call mpp_get_data_domain    (domain_ncellx,isdnx,iednx,jsdnx,jednx)
@@ -147,13 +149,12 @@ endif
   !write(1000+mpp_pe(),*) "nxncells,nyncells: ",nxncells,nyncells
   !write(1000+mpp_pe(),*) "iscnx,iecnx,jscnx,jecnx: ",iscnx,iecnx,jscnx,jecnx
   !write(1000+mpp_pe(),*) "isdnx,iednx,jsdnx,jednx: ",isdnx,iednx,jsdnx,jednx
-
+ endif
   nxc = iecnx-iscnx+1
   nyc = jecnx-jscnx+1
   nxch = iednx-isdnx+1
   nych = jednx-jsdnx+1
-
-
+ 
 
  !Allocate fields:
 
