@@ -54,8 +54,7 @@ type(domain2D),       intent(inout) :: domain
 type(block_control_type)          :: Atm_block
 type(random_stat) :: rstate
 integer :: nlon, nlat, isize,jsize,nf,nn
-integer :: nyc, nxc, nxch, nych
-integer :: inci, incj, nx, ny
+integer :: inci, incj, nxc, nyc, nxch, nych, nx, ny
 integer :: nxncells, nyncells
 integer :: halo, k_in, i, j, k
 integer :: seed, ierr7,blk, ix, iix, count4,ih,jh
@@ -155,7 +154,6 @@ endif
   nxch = iednx-isdnx+1
   nych = jednx-jsdnx+1
  
-
  !Allocate fields:
 
  allocate(ssti(nlon,nlat))
