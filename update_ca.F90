@@ -609,7 +609,7 @@ do it=1,spinup
 ! in order to have updated values in the halo region. 
 
  !--- copy board into the halo-augmented board_halo                                                                                                    
- board_halo(1+halo:nxc+halo,1+halo:nyc+halo,1) = real(board(1:nxc,1:nyc,1),kind=8)
+ board_halo(1+halo:nxc+halo,1+halo:nyc+halo,1) = real(board_g(1:nxc,1:nyc,1),kind=8)
  !write(1000+mpp_pe(),*) "board_halo pre: ",board_halo(:,:,1)                                                                                          
 
  !--- perform halo update                                                                                                                              
