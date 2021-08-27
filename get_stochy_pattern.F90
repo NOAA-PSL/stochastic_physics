@@ -52,7 +52,7 @@ subroutine get_random_pattern_sfc(rpattern,npatterns,&
  do k=1,n_var_lndp
    kmsk0 = 0
    glolal = 0.
-   do n=1,npatterns
+   o n=1,npatterns
      call patterngenerator_advance(rpattern(n),k,.false.)
 !     if (is_rootpe()) print *, 'Random pattern for LNDP PERTS in get_random_pattern_fv3_sfc: k, min, max ',k,minval(rpattern_sfc(n)%spec_o(:,:,k)), maxval(rpattern_sfc(n)%spec_o(:,:,k))
      call scalarspect_to_gaugrid(rpattern(n),gis_stochy,wrk2d,k)

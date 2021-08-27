@@ -12,10 +12,12 @@ FMS_INC=${FMS_ROOT}/include_r8
 FMS_LIB=${FMS_ROOT}/lib
 INCS="-I. -I${FMS_INC} -I${NETCDF}/include"
 if [ $DEBUG == 'YES' ]; then
-   FLAGS=" -g -C -traceback -real-size 64 -qopenmp -c "$INCS
+   #FLAGS=" -g -C -traceback -real-size 64 -qopenmp -c "$INCS
+   FLAGS=" -O0 -g -check all -link_mpi=dbg_mt -traceback -real-size 64 -qopenmp -c "$INCS
 else
    FLAGS=" -traceback -real-size 64 -qopenmp -c "$INCS
 fi
+#FLAGS2=" -O0 -g -check all -link_mpi=dbg_mt -traceback -real-size 64 -qopenmp -c "$INCS
 FLAGS2=" -traceback -real-size 64 -qopenmp -c "$INCS
 cd ..
 if [ $compile_all -eq 1 ];then

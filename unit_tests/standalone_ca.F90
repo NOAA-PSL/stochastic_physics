@@ -2,6 +2,7 @@ program  standalone_ca_global
 
 use cellular_automata_global_mod, only : cellular_automata_global
 use cellular_automata_sgs_mod, only : cellular_automata_sgs
+use update_ca, only : write_ca_restart,read_ca_restart
 use atmosphere_stub_mod, only: Atm,atmosphere_init_stub
 !use mpp_domains
 use mpp_mod,             only: mpp_set_current_pelist,mpp_get_current_pelist,mpp_init,mpp_pe,mpp_npes ,mpp_declare_pelist,mpp_root_pe
@@ -17,7 +18,7 @@ implicit none
 integer                 :: ntasks,fid,ct,levs,ntiles
 integer                 :: ncid_in,varid,ncid,xt_dim_id,yt_dim_id,time_dim_id,xt_var_id,yt_var_id,time_var_id,ca_out_id
 integer                 :: ca1_id,ca2_id,ca3_id,ca_deep_id,ca_turb_id,ca_shal_id
-integer                 :: root_pe,comm
+integer                 :: root_pe,comm,dump_time
 real(kind=kind_phys)    :: dtf, nthresh
 character*2             :: strid
 character*1             :: tileid
@@ -29,7 +30,6 @@ real(kind=4) :: ts,undef
 integer     :: nblks,blksz,ierr,my_id,i,j,nx,ny,id,i1,i2
 integer     :: isc,iec,jsc,jec,nb,npts
 logical  :: first_time_step
-logical  :: is_a_restart
 integer  :: istart
 
 real(kind=4),allocatable,dimension(:,:) :: workg
@@ -57,6 +57,7 @@ integer              :: nsmooth         !< number of passes through smoother
 logical              :: ca_closure      !< logical switch for ca on closure
 logical              :: ca_entr         !< logical switch for ca on entrainment
 logical              :: ca_trigger      !< logical switch for ca on trigger
+logical              :: warm_start      !< logical switch for ca on trigger
 
 real(kind=kind_phys), dimension(:,:),   allocatable :: cond_in,condition, sst,lmsk,lake
 real(kind=kind_phys), dimension(:,:),   allocatable :: ca_deep_cpl, ca_turb_cpl, ca_shal_cpl
@@ -68,15 +69,16 @@ real(kind=kind_phys), dimension(:,:),   allocatable :: ca1_diag,ca2_diag,ca3_dia
 NAMELIST /gfs_physics_nml/ do_ca, ca_sgs, ca_global, nca, scells, tlives, nseed,       &
                           nfracseed, rcell, ca_trigger, ca_entr, ca_closure, nca_g,    &
                           ncells_g, nlives_g, nseed_g, ca_smooth, nspinup, iseed_ca,   &
-                          nsmooth, ca_amplitude
+                          nsmooth, ca_amplitude, warm_start
 ! get mpi info,
 
 first_time_step=.true.
-is_a_restart=.false.
+warm_start=.false.
 dtf=720/12.0
 ! default values
 levs=63
-nca            = 1
+nca            = 0
+nca_g          = 0
 ncells_g       = 1
 nlives_g       = 1
 nfracseed      = 0.5
@@ -96,9 +98,16 @@ read(565,gfs_physics_nml)
 close(565)
 ! define stuff
 undef=9.99e+20
+print*,'ca_sgs,ca_global',ca_sgs,ca_global
+if (.not. ca_sgs) then
+   nca=0
+endif
+if (.not. ca_global) then
+   nca_g=0
+endif
 
 ! initialize fms
-call fms_init()
+!call fms_init()
 call mpp_init()
 call fms_init
 root_pe=mpp_root_pe()
@@ -113,8 +122,6 @@ isc=Atm(1)%bd%isc
 iec=Atm(1)%bd%iec
 jsc=Atm(1)%bd%jsc
 jec=Atm(1)%bd%jec
-!nx=Atm(1)%npx-1
-!ny=Atm(1)%npy-1
 print*,'ATM npx,npy=',Atm(1)%npx,Atm(1)%npy
 
 nx=iec-isc+1
@@ -139,9 +146,13 @@ do i=1,ny
 enddo
 
 !setup GFS_coupling
-write(strid,'(I2.2)') my_id+1
+if ( ntasks .GT. 10) then
+   write(strid,'(I2.2)') my_id+1
+else
+   write(strid,'(I1.1)') my_id+1
+endif
 fid=30+my_id
-ierr=nf90_create('ca_out.tile'//strid//'.nc',cmode=NF90_CLOBBER,ncid=ncid)
+ierr=nf90_create('ca_out.tile'//trim(strid)//'.nc',cmode=NF90_CLOBBER,ncid=ncid)
 ierr=NF90_DEF_DIM(ncid,"grid_xt",nx,xt_dim_id)
 ierr=NF90_DEF_DIM(ncid,"grid_yt",ny,yt_dim_id)
 ierr=NF90_DEF_DIM(ncid,"time",NF90_UNLIMITED,time_dim_id)
@@ -279,39 +290,44 @@ if(ca_sgs)then
        endif
    end do
 endif
-if (is_a_restart) then
-   istart=11
+print*,'nca,nca_g',nca,nca_g
+dump_time=10
+if (warm_start) then
+   istart=dump_time+1
+   call read_ca_restart(Atm(1)%domain,scells,nca,nca_g)
 else
    istart=1
 endif
 ct=1
 do i=istart,601
    ts=i/4.0  ! hard coded to write out hourly based on a 900 second time-step
-   if (ca_global) then
-      call cellular_automata_global(i,first_time_step,ca1_cpl,ca2_cpl,ca3_cpl,ca1_diag,ca2_diag,ca3_diag,Atm(1)%domain_for_coupler, &
-           nblks,isc,iec,jsc,jec,Atm(1)%npx,Atm(1)%npy,levs,      &
-           nca_g,ncells_g,nlives_g,nfracseed,nseed_g,                         &
-           ca_global,ca_sgs,iseed_ca,ca_smooth,nspinup,blksz,    &
-           nsmooth,ca_amplitude,root_pe,comm)
-   endif
    if (ca_sgs) then
-         call cellular_automata_sgs(i,dtf,is_a_restart,first_time_step,                            &
+       call cellular_automata_sgs(i,dtf,warm_start,first_time_step,                            &
             sst,lmsk,lake,condition,ca_deep_cpl,ca_turb_cpl,ca_shal_cpl,ca_deep_diag,ca_turb_diag, &
             ca_shal_diag,Atm(1)%domain_for_coupler,nblks,                                          &
             isc,iec,jsc,jec,Atm(1)%npx,Atm(1)%npy, levs,                                           &
-            nthresh,rcell,Atm(1)%tile_of_mosaic,nca,scells,tlives,nfracseed,                       &
+            nthresh,rcell,Atm(1)%tile_of_mosaic,nca,scells,tlives,nfracseed,                       & ! for new random number
+!            nthresh,rcell,nca,scells,tlives,nfracseed,                                             &  ! for old random seeds
             nseed,ca_global,ca_sgs,iseed_ca,                                                       &
             ca_smooth,nspinup,ca_trigger,blksz,root_pe,comm)
    endif
+   if (ca_global) then
+      call cellular_automata_global(i,warm_start,first_time_step,ca1_cpl,ca2_cpl,ca3_cpl,ca1_diag,ca2_diag,ca3_diag,Atm(1)%domain_for_coupler, &
+           nblks,isc,iec,jsc,jec,Atm(1)%npx,Atm(1)%npy,levs,      &
+           nca_g,ncells_g,nlives_g,nfracseed,nseed_g,                         &
+           ca_global,ca_sgs,iseed_ca,Atm(1)%tile_of_mosaic, ca_smooth,nspinup,blksz,    &
+           nsmooth,ca_amplitude,root_pe,comm)
+   endif
+   if (i.EQ. dump_time) call write_ca_restart(Atm(1)%domain,scells,'mid_run')
    first_time_step=.false.
    !if (i.eq.1 .OR. i.eq.600) then
-   if (mod(i-1,24).eq.0) then
+   if (mod(i-1,30).eq.0) then
       if (ca_global) then
-         workg(:,:)=ca1_diag(:,:)   
+         workg(:,:)=TRANSPOSE(ca1_diag(:,:))
          ierr=NF90_PUT_VAR(ncid,ca1_id,workg,(/1,1,ct/))
-         workg(:,:)=ca2_diag(:,:)   
+         workg(:,:)=TRANSPOSE(ca2_diag(:,:))
          ierr=NF90_PUT_VAR(ncid,ca2_id,workg,(/1,1,ct/))
-         workg(:,:)=ca3_diag(:,:)   
+         workg(:,:)=TRANSPOSE(ca3_diag(:,:))
          ierr=NF90_PUT_VAR(ncid,ca3_id,workg,(/1,1,ct/))
       endif
       if (ca_sgs) then
@@ -325,14 +341,15 @@ do i=istart,601
       endif
       ierr=NF90_PUT_VAR(ncid,time_var_id,ts,(/ct/))
       ct=ct+1
-   !endif
+   endif
    if (ca_global) then
-      if (my_id.EQ.0) write(6,fmt='(a,i5,4f6.3)') 'ca=',i,ca1_cpl(1:4,5)
+      if (my_id.EQ.0) write(6,fmt='(a,i7,f8.3)') 'ca glob =',i,maxval(ca1_diag)
    endif
    if (ca_sgs) then
-      if (my_id.EQ.0) write(6,fmt='(a,i5,4f6.3)') 'ca=',i,ca_deep_cpl(1:4,5)
+      if (my_id.EQ.0) write(6,fmt='(a,i7,f8.3)') 'ca sgs=',i,maxval(ca_deep_diag)
    endif
 enddo
+call write_ca_restart(Atm(1)%domain,scells)
 !close(fid)
 ierr=NF90_CLOSE(ncid)
 end

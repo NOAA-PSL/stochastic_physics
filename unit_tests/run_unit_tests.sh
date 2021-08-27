@@ -22,7 +22,10 @@ fi
 sh compile_compare.sh
 
 # copy input directory
-cp -r /scratch2/BMC/gsienkf/Philip.Pegion/stochastic_physics_unit_tests/input_data INPUT
+if [ ! -d INPUT ]; then
+   cp -r /scratch2/BMC/gsienkf/Philip.Pegion/stochastic_physics_unit_tests/input_data INPUT
+fi
+mkdir -p RESTART
 
 # test 3 different domain decompositions and compare to baseline
 #layout 1x4

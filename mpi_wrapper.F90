@@ -59,6 +59,8 @@ module mpi_wrapper
      MODULE PROCEDURE mp_reduce_sum_r8_1d
      MODULE PROCEDURE mp_reduce_sum_r8_1darr
      MODULE PROCEDURE mp_reduce_sum_r8_2darr
+     MODULE PROCEDURE mp_reduce_sum_i
+     MODULE PROCEDURE mp_reduce_sum_i8
    END INTERFACE
 
    INTERFACE mp_alltoall
@@ -642,6 +644,53 @@ contains
 !
 ! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ! !
+
+!-------------------------------------------------------------------------------
+! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
+!
+!     mp_reduce_sum_i :: Call SPMD REDUCE_SUM 
+!
+      subroutine mp_reduce_sum_i(mysum)
+         integer, intent(INOUT)  :: mysum
+
+         integer :: gsum
+
+         call MPI_ALLREDUCE( mysum, gsum, 1, MPI_INTEGER, MPI_SUM, &
+                             comm, ierror )
+
+         mysum = gsum
+
+      end subroutine mp_reduce_sum_i
+!
+! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
+!-------------------------------------------------------------------------------
+
+
+
+!-------------------------------------------------------------------------------
+! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+
+!-------------------------------------------------------------------------------
+! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
+!
+!     mp_reduce_sum_i8 :: Call SPMD REDUCE_SUM 
+!
+      subroutine mp_reduce_sum_i8(mysum)
+         integer*8, intent(INOUT)  :: mysum
+
+         integer*8 :: gsum
+
+         call MPI_ALLREDUCE( mysum, gsum, 1, MPI_INTEGER8, MPI_SUM, &
+                             comm, ierror )
+
+         mysum = gsum
+
+      end subroutine mp_reduce_sum_i8
+!
+! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
+!-------------------------------------------------------------------------------
+
+
 
 !-------------------------------------------------------------------------------
 ! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv

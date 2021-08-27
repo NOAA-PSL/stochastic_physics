@@ -297,7 +297,7 @@ else
    istart=1
 endif
 tpt=1
-do i=istart,20
+do i=istart,201
    ts=i/4.0
    call run_stochastic_physics(nlevs, i-1, fhour, blksz, &
                                sppt_wts=sppt_wts, shum_wts=shum_wts, skebu_wts=skebu_wts, skebv_wts=skebv_wts, sfc_wts=sfc_wts, &

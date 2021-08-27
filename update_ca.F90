@@ -4,7 +4,7 @@ module update_ca
 !on the ncellsxncells CA grid
 
 use halo_exchange,    only: atmosphere_scalar_field_halo
-use mersenne_twister, only: random_setseed,random_gauss,random_stat,random_number
+use mersenne_twister, only: random_seed,random_stat,random_number
 use mpi_wrapper,      only: mype,mp_reduce_sum,mp_bcst,mp_reduce_min,mp_reduce_max
 use mpp_domains_mod
 use mpp_mod
@@ -40,7 +40,6 @@ integer :: nx, ny
 integer :: isc,iec,jsc,jec
 integer :: isd,ied,jsd,jed
 integer :: iscnx,iecnx,jscnx,jecnx
-integer :: isdnx,iednx,jsdnx,jednx
 integer :: nxc,nyc,nxch,nych
 
 !--- get params from fv domain mosaic for building domain_ncellx
@@ -78,40 +77,70 @@ implicit none
 type(domain2d),intent(inout) :: fv_domain
 type(domain2d) :: domain_ncellx
 integer,intent(in) :: scells
-character(len=32), optional, intent(in)    :: timestamp
+character(len=*), optional, intent(in)    :: timestamp
 character(len=32)  :: fn_phy = 'ca_data.nc'
 
 type(restart_file_type) :: CA_restart
+type(restart_file_type) :: CA_tile_restart
 real    :: pi,re,dx
 integer :: id_restart,ncells,nx,ny
-integer :: nxncells, nyncells
+integer :: nxncells, nyncells, isize
+integer,allocatable :: isave(:),isave_g(:)
 
 !Return if not allocated:
-if(.not. allocated(board) .or. .not. allocated(lives))return
+if(.not. allocated(board) .and. .not. allocated(lives) .and. .not.  allocated(board_g) .and. .not. allocated(lives_g))return
 
 call mpp_get_global_domain(fv_domain,xsize=nx,ysize=ny,position=CENTER)
-!Set time and length scales:                                                                                                                          
- pi=3.14159
- re=6371000.
- dx=0.5*pi*re/real(nx)
- ncells=int(dx/real(scells))
- ncells= MIN(ncells,10)
+if (allocated(board)) then
+   !Set length scale:                                                                                                                          
+    pi=3.14159
+    re=6371000.
+    dx=0.5*pi*re/real(nx)
+    ncells=int(dx/real(scells))
+    ncells= MIN(ncells,10)
+   
+   !Get CA domain
+   call define_ca_domain(fv_domain,domain_ncellx,ncells,nxncells, nyncells)
+   
+   !Register restart field
+   id_restart = register_restart_field (CA_tile_restart, fn_phy, "board", &
+        board(:,:,:), domain = domain_ncellx, mandatory=.true.)
+   
+   id_restart = register_restart_field (CA_tile_restart, fn_phy, "lives", &
+        lives(:,:,:), domain = domain_ncellx,  mandatory=.true.)
+   
+   call random_seed(size=isize) ! get seed size
+   allocate(isave(isize)) ! get seed
+   call random_seed(get=isave,stat=rstate_sgs) ! write seed
+   id_restart = register_restart_field (CA_tile_restart, fn_phy, "rstate_sgs", &
+!        isave       , no_domain = .true.,  mandatory=.true.)
+        isave       , domain = domain_ncellx, mandatory=.true.)
+endif
 
-!Get CA domain
-call define_ca_domain(fv_domain,domain_ncellx,ncells,nxncells, nyncells)
+if (allocated(board_g)) then
+   !Register restart field
+   id_restart = register_restart_field (CA_tile_restart, fn_phy, "board_g", &
+        board_g(:,:,:), domain = fv_domain, mandatory=.true.)
+   
+   id_restart = register_restart_field (CA_tile_restart, fn_phy, "lives_g", &
+        lives_g(:,:,:), domain = fv_domain,  mandatory=.true.)
+   
+   call random_seed(size=isize) ! get seed size
+   allocate(isave_g(isize)) ! get seed
+   call random_seed(get=isave_g,stat=rstate_global) ! write seed
+   id_restart = register_restart_field (CA_tile_restart, fn_phy, "rstate_global", &
+!        isave_g     , no_domain = .true. ,  mandatory=.true.)
+        isave_g     , domain = fv_domain, mandatory=.true.)
+endif
 
-!Register restart field
-id_restart = register_restart_field (CA_restart, fn_phy, "board", &
-     board(:,:,1), domain = domain_ncellx, mandatory=.false.)
-
-id_restart = register_restart_field (CA_restart, fn_phy, "lives", &
-     lives(:,:,1), domain = domain_ncellx,  mandatory=.false.)
-
-call save_restart(CA_restart, timestamp)
+!call save_restart(CA_restart, timestamp)
+call save_restart(CA_tile_restart, timestamp)
+if (allocated(isave)) deallocate(isave)
+if (allocated(isave_g)) deallocate(isave_g)
 
 end subroutine write_ca_restart
 
-subroutine read_ca_restart(fv_domain,scells)
+subroutine read_ca_restart(fv_domain,scells,nca,nca_g)
 !Read restart files
 use fms_io_mod,          only: restart_file_type, free_restart_type, &
                                register_restart_field,               &
@@ -123,20 +152,20 @@ use fms_mod,             only: file_exist, stdout
 implicit none
 type(domain2d) :: domain_ncellx
 type(restart_file_type) :: CA_restart
+type(restart_file_type) :: CA_tile_restart
 type(domain2D), intent(inout) :: fv_domain
-integer,intent(in) :: scells
+integer,intent(in) :: scells,nca,nca_g
 character(len=32)  :: fn_phy = 'ca_data.nc'
 
 character(len=64) :: fname
 integer :: id_restart
 integer :: nxncells, nyncells
-integer :: isdnx,iednx,jsdnx,jednx
 integer :: iscnx,iecnx,jscnx,jecnx
-integer :: nxc,nyc,nca
+integer :: nxc,nyc
 real    :: pi,re,dx
-integer :: ncells,nx,ny
+integer :: ncells,nx,ny,isize
+integer,allocatable :: isave(:),isave_g(:)
 
-nca=1
 
 call mpp_get_global_domain(fv_domain,xsize=nx,ysize=ny,position=CENTER)
 !Set time and length scales:                                                                                                                          
@@ -146,42 +175,81 @@ call mpp_get_global_domain(fv_domain,xsize=nx,ysize=ny,position=CENTER)
  ncells=int(dx/real(scells))
  ncells= MIN(ncells,10)
 
-!Get CA domain                                                                                                                                                                    
-call define_ca_domain(fv_domain,domain_ncellx,ncells,nxncells,nyncells)
-call mpp_get_data_domain    (domain_ncellx,isdnx,iednx,jsdnx,jednx)
-call mpp_get_compute_domain (domain_ncellx,iscnx,iecnx,jscnx,jecnx)
+! get seed info
+ call random_seed(size=isize) ! get seed size
+if (nca .gt. 0 ) then
+   !Get CA SGS domain                                                                                                                                                                    
+   call define_ca_domain(fv_domain,domain_ncellx,ncells,nxncells,nyncells)
+   call mpp_get_compute_domain (domain_ncellx,iscnx,iecnx,jscnx,jecnx)
 
-nxc = iecnx-iscnx+1
-nyc = jecnx-jscnx+1
+   nxc = iecnx-iscnx+1
+   nyc = jecnx-jscnx+1
+   if (.not. allocated(board))then
+      allocate(board(nxc,nyc,nca))
+   endif
+   if (.not. allocated(lives))then
+      allocate(lives(nxc,nyc,nca))
+   endif
+   allocate(isave(isize)) ! get seed
+   
+   !Read restart
+   id_restart = register_restart_field (CA_tile_restart, fn_phy, "board", &
+        board(:,:,1), domain = domain_ncellx, mandatory=.true.)
+   
+   id_restart = register_restart_field (CA_tile_restart, fn_phy, "lives", &
+        lives(:,:,1), domain = domain_ncellx,  mandatory=.true.)
 
-if (.not. allocated(board))then
-   allocate(board(nxc,nyc,nca))
+   !id_restart = register_restart_field (CA_restart, fn_phy, "rstate_sgs", &
+   !     isave       , no_domain = .true.,  mandatory=.true.)
+   id_restart = register_restart_field (CA_tile_restart, fn_phy, "rstate_sgs", &
+        isave       , domain = domain_ncellx, mandatory=.true.)
+
 endif
-if (.not. allocated(lives))then
-   allocate(lives(nxc,nyc,nca))
+
+if (nca_g .gt. 0 ) then
+   call mpp_get_compute_domain (fv_domain,iscnx,iecnx,jscnx,jecnx)
+   nxc = iecnx-iscnx+1
+   nyc = jecnx-jscnx+1
+   if (.not. allocated(board_g))then
+      allocate(board_g(nxc,nyc,nca_g))
+   endif
+   if (.not. allocated(lives_g))then
+      allocate(lives_g(nxc,nyc,nca_g))
+   endif
+   allocate(isave_g(isize)) ! get seed
+   
+   !Read restart
+   id_restart = register_restart_field (CA_tile_restart, fn_phy, "board_g", &
+        board_g(:,:,:), domain = fv_domain, mandatory=.true.)
+   
+   id_restart = register_restart_field (CA_tile_restart, fn_phy, "lives_g", &
+        lives_g(:,:,:), domain = fv_domain,  mandatory=.true.)
+
+   !id_restart = register_restart_field (CA_restart, fn_phy, "rstate_global", &
+   !     isave_g       , no_domain = .true.,  mandatory=.true.)
+   id_restart = register_restart_field (CA_tile_restart, fn_phy, "rstate_global", &
+        isave_g       , domain = fv_domain,  mandatory=.true.)
+
 endif
-
-!Read restart
-id_restart = register_restart_field (CA_restart, fn_phy, "board", &
-     board(:,:,1), domain = domain_ncellx, mandatory=.false.)
-
-id_restart = register_restart_field (CA_restart, fn_phy, "lives", &
-     lives(:,:,1), domain = domain_ncellx,  mandatory=.false.)
 
 fname = 'INPUT/'//trim(fn_phy)
-if (file_exist(fname)) then
-   !--- read the CA restart data
-   call mpp_error(NOTE,'reading CA restart data from INPUT/ca_data.tile*.nc')
-   call restore_state(CA_restart)
-else
-   call mpp_error(NOTE,'No CA restarts - cold starting CA')
-   return
+!--- read the CA restart data
+call mpp_error(NOTE,'reading CA restart data from INPUT/ca_data.tile*.nc')
+!call restore_state(CA_restart)
+call restore_state(CA_tile_restart)
+if (nca.GT.0) then 
+   call random_seed(put=isave,stat=rstate_sgs)
+   deallocate(isave)
+endif
+if (nca_g.GT.0) then
+   call random_seed(put=isave_g,stat=rstate_global)
+   deallocate(isave_g)
 endif
 
 end subroutine read_ca_restart
 
 subroutine update_cells_sgs(kstep,initialize_ca,first_flag,restart,first_time_step,iseed_ca,nca,nxc,nyc,nxch,nych,nlon,&
-                            nlat,nxncells,nyncells,isc,iec,jsc,jec, npx,npy,isdnx,iednx,jsdnx,jednx,   &
+                            nlat,nxncells,nyncells,isc,iec,jsc,jec, npx,npy,  &
                             iscnx,iecnx,jscnx,jecnx,domain_ncellx,CA,ca_plumes,iini,ilives_in,nlives,     &
                             nfracseed,nseed,nspinup,nf,nca_plumes,ncells)
 
@@ -189,7 +257,7 @@ implicit none
 
 integer, intent(in)  :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca,isc,iec,jsc,jec,npx,npy
 integer, intent(in)  :: iini(nxc,nyc,nca),iseed_ca,initialize_ca,ilives_in(nxc,nyc,nca)
-integer, intent(in)  :: nxncells,nyncells,isdnx,iednx,jsdnx,jednx,iscnx,iecnx,jscnx,jecnx
+integer, intent(in)  :: nxncells,nyncells,iscnx,iecnx,jscnx,jecnx
 real,    intent(out) :: CA(nlon,nlat)
 integer, intent(out) :: ca_plumes(nlon,nlat)
 integer, intent(in)  :: nlives,nseed, nspinup, nf,ncells
@@ -200,7 +268,7 @@ real,    dimension(nlon,nlat) :: frac
 integer, allocatable  :: V(:),L(:),B(:)
 integer, allocatable  :: AG(:,:)
 integer              :: inci, incj, i, j, k,sub,spinup,it,halo,k_in,isize,jsize
-integer              :: ih, jh,kend, count4,boardmax,livemax,ilivemax
+integer              :: ih, jh,kend, boardmax,livemax
 real,    allocatable :: board_halo(:,:,:)
 integer, dimension(nxc,nyc) :: neighbours, birth, newlives,thresh
 integer, dimension(nxc,nyc) :: neg, newcell, oldlives, newval,temp,newseed
@@ -227,9 +295,11 @@ k_in=1
  
   if (.not. allocated(board))then
      allocate(board(nxc,nyc,nca))
+     board(:,:,:)=0
   endif
   if (.not. allocated(lives))then
      allocate(lives(nxc,nyc,nca))
+     lives(:,:,:)=0
   endif
   if(.not. allocated(board_halo))then
      allocate(board_halo(nxch,nych,1))
@@ -242,24 +312,13 @@ k_in=1
  call mp_reduce_max(boardmax)
  livemax=maxval(lives)
  call mp_reduce_max(livemax)
- ilivemax=maxval(ilives_in)
- call mp_reduce_max(ilivemax)
-
+ print*,'boardmax=',boardmax,livemax
 
  if(restart .and. first_time_step .and. boardmax > 0 .and. livemax > 0)then
     !restart
     start_from_restart = .true.
     spinup = 1
  else
-
-   if(kstep < initialize_ca .and. .not. start_from_restart)then
-    do j=1,nyc
-     do i=1,nxc
-      board(i,j,nf) = 0
-      lives(i,j,nf) = 0
-     enddo
-    enddo
-   endif
 
   if(kstep == initialize_ca .and. .not. start_from_restart)then 
    do j=1,nyc
@@ -307,6 +366,7 @@ k_in=1
 
  
  !Step 3: Evolve CA
+ print*,'evolving',spinup
  do it = 1,spinup
  
  CA=0
@@ -323,7 +383,7 @@ k_in=1
  
  !--- copy board into the halo-augmented board_halo                                                         
  board_halo(1+halo:nxc+halo,1+halo:nyc+halo,1) = real(board(1:nxc,1:nyc,1),kind=8)
- !write(1000+mpp_pe(),*) "board_halo pre: ",board_halo(:,:,1)
+ write(1000+mpp_pe(),*) "board_halo pre: ",board_halo(20,1:50,1)
 
  !--- perform halo update
  call atmosphere_scalar_field_halo (board_halo, halo, nxch, nych, 1, &
@@ -331,7 +391,7 @@ k_in=1
                                      nxncells, nyncells, domain_ncellx)
 
  !--- output data to ensure proper update                                                                            
- !write(1000+mpp_pe(),*) "board_halo post: ",board_halo(:,:,1)
+ write(1000+mpp_pe(),*) "board_halo post: ",board_halo(20,1:50,1)
 
  !--- Count the neighbours
   do j=1,nyc
@@ -477,7 +537,7 @@ end subroutine update_cells_sgs
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine update_cells_global(kstep,first_time_step,iseed_ca,nca,nxc,nyc,nxch,nych,nlon,nlat,nxncells,nyncells,isc,iec,jsc,jec, &
+subroutine update_cells_global(kstep,first_time_step,restart,iseed_ca,nca,nxc,nyc,nxch,nych,nlon,nlat,nxncells,nyncells,isc,iec,jsc,jec, &
                         npx,npy,iscnx,iecnx,jscnx,jecnx,domain_ncellx,CA,iini_g,ilives_g,                &
                         nlives,ncells,nfracseed,nseed,nspinup,nf)
 
@@ -487,22 +547,24 @@ integer, intent(in) :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca,isc,iec,jsc,jec,npx
 integer, intent(in) :: iini_g(nxc,nyc,nca), ilives_g(nxc,nyc), iseed_ca,nxncells,nyncells
 real, intent(out) :: CA(nlon,nlat)
 logical, intent(in) :: first_time_step
+logical, intent(in) :: restart
 integer, intent(in) :: nlives, ncells, nseed, nspinup, nf,iscnx,iecnx,jscnx,jecnx
 real, intent(in) :: nfracseed
 type(domain2D), intent(inout) :: domain_ncellx
 real, dimension(nlon,nlat) :: frac
 integer,allocatable :: V(:),L(:)
 integer :: inci, incj, i, j, k ,sub,spinup,it,halo,k_in,isize,jsize
-integer :: ih, jh, count4
+integer :: ih, jh,kend
 real, allocatable :: board_halo(:,:,:)
 integer, dimension(nxc,nyc) :: neighbours, birth, newlives, thresh
 integer, dimension(nxc,nyc) :: neg, newcell, oldlives, newval,temp,newseed
 real, dimension(nxc,nyc) :: NOISE_B
-real, dimension(nxc*nyc) :: noise1D2
-integer(8) :: count, count_rate, count_max, count_trunc
+real, allocatable :: noise1D(:),noise2D(:,:)
+integer(8) :: count, count_rate, count_max, count_trunc,nx_full,ny_full
 integer(8) :: iscale = 10000000000
 
 !-------------------------------------------------------------------------------------------------
+
 halo=1
 isize=nlon+2*halo
 jsize=nlat+2*halo
@@ -510,42 +572,19 @@ k_in=1
 
  if (.not. allocated(board_g))then
  allocate(board_g(nxc,nyc,nca))
+ board_g(:,:,:)=0
  endif
  if (.not. allocated(lives_g))then
  allocate(lives_g(nxc,nyc,nca))
+ lives_g(:,:,:)=0
  endif
  if(.not. allocated(board_halo))then                                                                      
  allocate(board_halo(nxch,nych,1))   
  endif
 
- !Generate a new random number each time-step for "random seeding"
- !each nseed timestep
- if (iseed_ca == 0) then
-    ! generate a random seed from system clock and ens member number
-    call system_clock(count, count_rate, count_max)
-    ! iseed is elapsed time since unix epoch began (secs)
-    ! truncate to 4 byte integer
-    count_trunc = iscale*(count/iscale)
-    count4 = count - count_trunc
- else
-    ! don't rely on compiler to truncate integer(8) to integer(4) on
-    ! overflow, do wrap around explicitly.
-    count4 = mod(mype + iseed_ca + 2147483648, 4294967296) - 2147483648
- endif
- call random_setseed(count4)
-
- !random numbers:
- call random_number(noise1D2)
-
- !Put on 2D:
- do j=1,nyc
-  do i=1,nxc
-  NOISE_B(i,j)=noise1D2(i+(j-1)*nxc)
-  enddo
- enddo                        
 
 
-  if(first_time_step)then
+  if(first_time_step .and. .not. restart)then
    do j=1,nyc
     do i=1,nxc
      board_g(i,j,nf) = iini_g(i,j,nf)
@@ -557,19 +596,34 @@ k_in=1
 
  !Seed with new CA cells at each nseed step
   newseed=0
-
   if(mod(kstep,nseed) == 0)then
-   do j=1,nyc
-    do i=1,nxc
-     if(board_g(i,j,nf) == 0 .and. NOISE_B(i,j)>0.75 )then
-        newseed(i,j)=1
-     endif
-     board_g(i,j,nf) = board_g(i,j,nf) + newseed(i,j)
-    enddo
-   enddo
+     !random numbers:
+      nx_full=int(npx-1,kind=8)
+      ny_full=int(npy-1,kind=8)
+      allocate(noise1D(nx_full*ny_full))
+      allocate(noise2D(nx_full,ny_full))
+     call random_number(noise1D,rstate_global)
+     NOISE2D(:,:)=RESHAPE(noise1D,(/nx_full,ny_full/))
+     deallocate(noise1D)
+
+   !pick out points on my task
+     do j=1,nyc
+        do i=1,nxc
+           noise_b(i,j)=NOISE2D( ncells*isc-ncells+i,ncells*jsc-ncells+j)
+        enddo
+     enddo
+     deallocate(noise2D)
+     do j=1,nyc
+       do i=1,nxc
+        if(board_g(i,j,nf) == 0 .and. NOISE_B(i,j)>0.75 )then
+           newseed(i,j)=1
+        endif
+        board_g(i,j,nf) = board_g(i,j,nf) + newseed(i,j)
+       enddo
+      enddo
   endif
 
-  if(first_time_step)then
+  if(first_time_step .and. .not. restart)then
   spinup=nspinup
   else
   spinup = 1
@@ -674,7 +728,7 @@ enddo !spinup
   sub=ncells-1
   DO j=1,nlat
      DO i=1,nlon
-        CA(i,j)=(SUM(lives_g(inci-sub:inci,incj-sub:incj,nf)))/(ncells*ncells)
+        CA(i,j)=(SUM(lives_g(inci-sub:inci,incj-sub:incj,nf)))/real(ncells*ncells)
         inci=inci+ncells
      ENDDO
      inci=ncells
