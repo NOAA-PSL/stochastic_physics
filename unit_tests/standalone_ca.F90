@@ -20,7 +20,7 @@ integer                 :: ncid_in,varid,ncid,xt_dim_id,yt_dim_id,time_dim_id,xt
 integer                 :: ca1_id,ca2_id,ca3_id,ca_deep_id,ca_turb_id,ca_shal_id
 integer                 :: root_pe,comm,dump_time
 real(kind=kind_phys)    :: dtf, nthresh
-character*2             :: strid
+character*3             :: strid
 character*1             :: tileid
 !type(GFS_statein_type),allocatable :: Statein(:)
 include 'mpif.h'
@@ -49,7 +49,7 @@ logical              :: do_ca           !< cellular automata main switch
 logical              :: ca_sgs          !< switch for sgs ca
 logical              :: ca_global       !< switch for global ca
 logical              :: ca_smooth       !< switch for gaussian spatial filter
-integer              :: iseed_ca        !< seed for random number generation in ca scheme
+integer*8            :: iseed_ca        !< seed for random number generation in ca scheme
 integer              :: nspinup         !< number of iterations to spin up the ca
 real(kind=kind_phys) :: rcell           !< threshold used for CA scheme
 real                 :: ca_amplitude    !< amplitude of ca trigger perturbation
@@ -58,6 +58,7 @@ logical              :: ca_closure      !< logical switch for ca on closure
 logical              :: ca_entr         !< logical switch for ca on entrainment
 logical              :: ca_trigger      !< logical switch for ca on trigger
 logical              :: warm_start      !< logical switch for ca on trigger
+integer              :: noise_option    !< 0: Lisa-s way, 1: My 1st attemp
 
 real(kind=kind_phys), dimension(:,:),   allocatable :: cond_in,condition, sst,lmsk,lake
 real(kind=kind_phys), dimension(:,:),   allocatable :: ca_deep_cpl, ca_turb_cpl, ca_shal_cpl
@@ -69,7 +70,7 @@ real(kind=kind_phys), dimension(:,:),   allocatable :: ca1_diag,ca2_diag,ca3_dia
 NAMELIST /gfs_physics_nml/ do_ca, ca_sgs, ca_global, nca, scells, tlives, nseed,       &
                           nfracseed, rcell, ca_trigger, ca_entr, ca_closure, nca_g,    &
                           ncells_g, nlives_g, nseed_g, ca_smooth, nspinup, iseed_ca,   &
-                          nsmooth, ca_amplitude, warm_start
+                          nsmooth, ca_amplitude, warm_start,noise_option
 ! get mpi info,
 
 first_time_step=.true.
@@ -91,6 +92,7 @@ ca_global      = .false.
 ca_smooth      = .false.
 ca_amplitude   = 500.
 rcell          = 0.0
+noise_option   = 0
 
 ! open namelist file
 open (unit=565, file='input.nml', READONLY, status='OLD', iostat=ierr)
@@ -146,7 +148,9 @@ do i=1,ny
 enddo
 
 !setup GFS_coupling
-if ( ntasks .GT. 10) then
+if ( ntasks .GT. 100) then
+   write(strid,'(I3.3)') my_id+1
+else if ( ntasks .GT. 10) then
    write(strid,'(I2.2)') my_id+1
 else
    write(strid,'(I1.1)') my_id+1
@@ -248,22 +252,42 @@ if(ca_sgs)then
    lake(:,:)=0
 ! read in condtion
    write(tileid,'(I1)') Atm(1)%tile_of_mosaic
-   ierr=NF90_OPEN('INPUT/ca_condition.tile'//tileid//'.nc',NF90_NOWRITE,ncid_in)
-   if (ierr.NE.0) then
-       print*,'error INPUT/ca_condition.tile'//tileid//'.nc'
-       call MPI_ABORT(ierr)
+   print*,'reading in condition',size(condition,1),size(condition,2)
+   if (Atm(1)%npx.EQ.97) then
+      ierr=NF90_OPEN('INPUT/ca_condition.tile'//tileid//'.nc',NF90_NOWRITE,ncid_in)
+      if (ierr.NE.0) then
+          print*,'error INPUT/ca_condition.tile'//tileid//'.nc'
+          call MPI_ABORT(ierr)
+      endif
+      ierr=NF90_INQ_VARID(ncid_in,'ca_condition',varid)
+      if (ierr.NE.0) then
+          print*,'error gettinv varid for ca_condition'
+          call MPI_ABORT(ierr)
+      endif
+      ierr=NF90_GET_VAR(ncid_in,varid,cond_in,start=(/isc,jsc,1/),count=(/nx,ny,1/))
+      if (ierr.NE.0) then
+          print*,'error getting var',isc,jsc,nx,ny
+          call MPI_ABORT(ierr)
+      endif
+      ierr=NF90_CLOSE(ncid_in)
+   else
+      ierr=NF90_OPEN('INPUT/C768_ca_condition.tile'//tileid//'.nc',NF90_NOWRITE,ncid_in)
+      if (ierr.NE.0) then
+          print*,'error INPUT/C768_ca_condition.tile'//tileid//'.nc'
+          call MPI_ABORT(ierr)
+      endif
+      ierr=NF90_INQ_VARID(ncid_in,'phy_f3d_02',varid)
+      if (ierr.NE.0) then
+          print*,'error gettinv varid for ca_condition'
+          call MPI_ABORT(ierr)
+      endif
+      ierr=NF90_GET_VAR(ncid_in,varid,cond_in,start=(/isc,jsc/),count=(/nx,ny/))
+      if (ierr.NE.0) then
+          print*,'error getting var',isc,jsc,nx,ny
+          call MPI_ABORT(ierr)
+      endif
+      ierr=NF90_CLOSE(ncid_in)
    endif
-   ierr=NF90_INQ_VARID(ncid_in,'ca_condition',varid)
-   if (ierr.NE.0) then
-       print*,'error gettinv varid for ca_condition'
-       call MPI_ABORT(ierr)
-   endif
-   ierr=NF90_GET_VAR(ncid_in,varid,cond_in,start=(/isc,jsc,1/),count=(/nx,ny,1/))
-   if (ierr.NE.0) then
-       print*,'error getting var',isc,jsc,nx,ny
-       call MPI_ABORT(ierr)
-   endif
-   ierr=NF90_CLOSE(ncid_in)
    if (ierr.NE.0) then
        print*,'error closing INPUT/ca_condition.tile.'//tileid//'.nc'
        call MPI_ABORT(ierr)
@@ -299,7 +323,8 @@ else
    istart=1
 endif
 ct=1
-do i=istart,601
+print*,'about to start loop',noise_option
+do i=istart,101
    ts=i/4.0  ! hard coded to write out hourly based on a 900 second time-step
    if (ca_sgs) then
        call cellular_automata_sgs(i,dtf,warm_start,first_time_step,                            &
@@ -307,21 +332,19 @@ do i=istart,601
             ca_shal_diag,Atm(1)%domain_for_coupler,nblks,                                          &
             isc,iec,jsc,jec,Atm(1)%npx,Atm(1)%npy, levs,                                           &
             nthresh,rcell,Atm(1)%tile_of_mosaic,nca,scells,tlives,nfracseed,                       & ! for new random number
-!            nthresh,rcell,nca,scells,tlives,nfracseed,                                             &  ! for old random seeds
-            nseed,ca_global,ca_sgs,iseed_ca,                                                       &
-            ca_smooth,nspinup,ca_trigger,blksz,root_pe,comm)
+            nseed,iseed_ca ,nspinup,ca_trigger,blksz,root_pe,comm,noise_option)
    endif
    if (ca_global) then
       call cellular_automata_global(i,warm_start,first_time_step,ca1_cpl,ca2_cpl,ca3_cpl,ca1_diag,ca2_diag,ca3_diag,Atm(1)%domain_for_coupler, &
            nblks,isc,iec,jsc,jec,Atm(1)%npx,Atm(1)%npy,levs,      &
            nca_g,ncells_g,nlives_g,nfracseed,nseed_g,                         &
-           ca_global,ca_sgs,iseed_ca,Atm(1)%tile_of_mosaic, ca_smooth,nspinup,blksz,    &
-           nsmooth,ca_amplitude,root_pe,comm)
+           iseed_ca,Atm(1)%tile_of_mosaic, ca_smooth,nspinup,blksz,    &
+           nsmooth,ca_amplitude,root_pe,comm,noise_option)
    endif
    if (i.EQ. dump_time) call write_ca_restart(Atm(1)%domain,scells,'mid_run')
    first_time_step=.false.
    !if (i.eq.1 .OR. i.eq.600) then
-   if (mod(i-1,30).eq.0) then
+   if (mod(i-1,20).eq.0) then
       if (ca_global) then
          workg(:,:)=TRANSPOSE(ca1_diag(:,:))
          ierr=NF90_PUT_VAR(ncid,ca1_id,workg,(/1,1,ct/))

@@ -9,11 +9,11 @@ contains
 subroutine cellular_automata_sgs(kstep,dtf,restart,first_time_step,sst,lsmsk,lake,condition_cpl, &
             ca_deep_cpl,ca_turb_cpl,ca_shal_cpl,ca_deep_diag,ca_turb_diag,ca_shal_diag,domain, &
             nblks,isc,iec,jsc,jec,npx,npy,nlev,nthresh,rcell, mytile, &
-            nca,scells,tlives,nfracseed,nseed,ca_global,ca_sgs,iseed_ca, &
-            ca_smooth,nspinup,ca_trigger,blocksize,mpiroot,mpicomm)
+            nca,scells,tlives,nfracseed,nseed,iseed_ca, &
+            nspinup,ca_trigger,blocksize,mpiroot,mpicomm,noise_option)
 
 use kinddef,           only: kind_phys
-use update_ca,         only: update_cells_sgs, update_cells_global, define_ca_domain
+use update_ca,         only: update_cells_sgs, define_ca_domain
 use mersenne_twister,  only: random_setseed,random_gauss,random_stat,random_number
 use mpp_domains_mod,   only: domain2D,mpp_get_global_domain,CENTER, mpp_get_data_domain, mpp_get_compute_domain
 use block_control_mod, only: block_control_type, define_blocks_packed
@@ -37,10 +37,10 @@ implicit none
 !CA_DEEP can be either number of plumes in a cluster (nca_plumes=true) or updraft 
 !area fraction (nca_plumes=false)
 
-integer,intent(in) :: kstep,scells,nca,tlives,nseed,nspinup,mpiroot,mpicomm,mytile
+integer,intent(in) :: kstep,scells,nca,tlives,nseed,nspinup,mpiroot,mpicomm,mytile,noise_option
 integer*8,            intent(in)    :: iseed_ca
 real(kind=kind_phys), intent(in)    :: nfracseed,dtf,rcell
-logical,intent(in) :: ca_global, ca_sgs, ca_smooth, restart,ca_trigger,first_time_step
+logical,intent(in) :: restart,ca_trigger,first_time_step
 integer, intent(in) :: nblks,isc,iec,jsc,jec,npx,npy,nlev,blocksize
 real  , intent(out) :: nthresh
 real(kind=kind_phys), intent(in)    :: sst(:,:),lsmsk(:,:),lake(:,:)
@@ -76,16 +76,14 @@ type(domain2D),save  :: domain_ncellx
 logical,save         :: block_message=.true.
 logical              :: nca_plumes
 logical,save         :: first_flag
+integer*8            :: i1,j1
 
 !nca         :: switch for number of cellular automata to be used.
-!            :: for the moment only 1 CA can be used if ca_sgs = true
-!ca_global   :: switch for global cellular automata
-!ca_sgs      :: switch for cellular automata for deep convection
+!            :: for the moment only 1 CA can be used 
 !nfracseed   :: switch for number of random cells initially seeded
 !tlives      :: switch for time scale (s)
 !nspinup     :: switch for number of itterations to spin up the ca
 !scells      :: switch for CA cell size (m)
-!ca_smooth   :: switch to smooth the cellular automata
 !nca_plumes   :: compute number of CA-cells ("plumes") within a NWP gridbox.
 
 if (nca .LT. 1) return
@@ -174,8 +172,14 @@ endif
  allocate(ca_plumes(nlon,nlat))
  allocate(CA_DEEP(nlon,nlat))
  allocate(noise(nxc,nyc,nca))
- allocate(noise1D(nx_full*ny_full))
- allocate(noise2D(nx_full,ny_full))
+if (noise_option.eq.0) then
+   allocate(noise1D(nxc*nyc))
+else
+   allocate(noise1D(nx_full*ny_full))
+   if (noise_option.eq.1) then
+     allocate(noise2D(nx_full,ny_full))
+   endif
+endif
 
  !Initialize:
  condition(:,:)=0.
@@ -183,7 +187,9 @@ endif
  ca_plumes(:,:) = 0
  noise(:,:,:) = 0.0
  noise1D(:) = 0.0
+if (noise_option.eq.1) then
  noise2D(:,:) = 0.0
+endif
  iini(:,:,:) = 0
  ilives_in(:,:,:) = 0
  CA_DEEP(:,:) = 0.
@@ -208,7 +214,6 @@ endif
  enddo
 
 !Initialize the CA when the condition field is populated
-
   do j=1,nyc
    do i=1,nxc
      condition(i,j)=conditiongrid(inci/ncells,incj/ncells)
@@ -255,30 +260,70 @@ endif
 !Generate random number, following stochastic physics code:
 if (.not. restart) then
    if(kstep == initialize_ca) then
-      if (iseed_ca == 0) then
-       ! generate a random seed from system clock and ens member number
-       call system_clock(count, count_rate, count_max)
-       ! iseed is elapsed time since unix epoch began (secs)
-       ! truncate to 4 byte integer
-       count_trunc = iscale*(count/iscale)
-       count4 = count - count_trunc
-     else
-       ! don't rely on compiler to truncate integer(8) to integer(4) on
-       ! overflow, do wrap around explicitly.
-       count4 = mod(mytile + iseed_ca + 2147483648, 4294967296) - 2147483648
-     endif
-     call random_setseed(count4,rstate_sgs)
-   
-     do nf=1,nca
-       call random_number(noise1D,rstate_sgs)
-       noise2D(:,:)=RESHAPE(noise1D,(/nx_full,ny_full/))
-       !pick out points on this task
-       do j=1,nyc
-         do i=1,nxc
-           noise(i,j,nf)=noise2D( ncells*isc-ncells+i,ncells*jsc-ncells+j)
+      print*,'initialize sgs noise_option',noise_option
+      if (noise_option.EQ.0) then
+        if (iseed_ca <= 0) then
+          ! generate a random seed from system clock and ens member number
+          call system_clock(count, count_rate, count_max)
+          ! iseed is elapsed time since unix epoch began (secs)
+          ! truncate to 4 byte integer
+          count_trunc = iscale*(count/iscale)
+          count4 = count - count_trunc
+        else
+          ! don't rely on compiler to truncate integer(8) to integer(4) on
+          ! overflow, do wrap around explicitly.
+          count4 = mod(mype + iseed_ca + 2147483648, 4294967296) - 2147483648
+        endif
+      
+        call random_setseed(count4,rstate_sgs)
+        do nf=1,nca
+        !Set seed (to be different) on all tasks. Save random state.
+          call random_number(noise1D,rstate_sgs)
+        !Put on 2D:
+          do j=1,nyc
+            do i=1,nxc
+              noise(i,j,nf)=noise1D(i+(j-1)*nxc)
+            enddo
+          enddo
          enddo
-       enddo
-      enddo
+      else
+         if (iseed_ca <= 0) then
+          ! generate a random seed from system clock and ens member number
+          call system_clock(count, count_rate, count_max)
+          ! iseed is elapsed time since unix epoch began (secs)
+          ! truncate to 4 byte integer
+          count_trunc = iscale*(count/iscale)
+          count4 = count - count_trunc
+        else
+          ! don't rely on compiler to truncate integer(8) to integer(4) on
+          ! overflow, do wrap around explicitly.
+          count4 = mod(mytile + iseed_ca + 2147483648, 4294967296) - 2147483648
+        endif
+        call random_setseed(count4,rstate_sgs)
+      
+        do nf=1,nca
+          call random_number(noise1D,rstate_sgs)
+          if (noise_option .EQ. 1) then
+             noise2D(:,:)=RESHAPE(noise1D,(/nx_full,ny_full/))
+             !pick out points on this task
+             do j=1,nyc
+               do i=1,nxc
+                 noise(i,j,nf)=noise2D( ncells*isc-ncells+i,ncells*jsc-ncells+j)
+               enddo
+             enddo
+           else
+              !pick out points on my task
+              do j=1,nyc
+                 j1=j-1+isc*ncells
+                 do i=1,nxc
+                     i1=i-1+isc*ncells
+                     noise(i,j)=NOISE1D( i1+nx_full*j1)
+                 enddo
+              enddo
+              deallocate(noise1D)
+           endif
+        enddo
+     endif
    
    !Initiate the cellular automaton with random numbers larger than nfracseed
       do nf=1,nca
@@ -298,10 +343,10 @@ endif !  restart
 
 !Calculate neighbours and update the automata
  do nf=1,nca
-  call update_cells_sgs(kstep,initialize_ca,first_flag,restart,first_time_step,iseed_ca,nca,nxc,nyc, &
+  call update_cells_sgs(kstep,initialize_ca,first_flag,restart,first_time_step,nca,nxc,nyc, &
                         nxch,nych,nlon,nlat,nxncells,nyncells,isc,iec,jsc,jec, &
                         npx,npy,iscnx,iecnx,jscnx,jecnx,domain_ncellx,CA,ca_plumes,iini,ilives_in,        &
-                        nlives,nfracseed,nseed,nspinup,nf,nca_plumes,ncells)
+                        nlives,nfracseed,nseed,nspinup,nf,nca_plumes,ncells,noise_option)
 
     if(nca_plumes)then
     do j=1,nlat
@@ -355,7 +400,9 @@ enddo
  deallocate(CA_DEEP)
  deallocate(noise)
  deallocate(noise1D)
- deallocate(noise2D)
+ if (noise_option.eq.1) then
+   deallocate(noise2D)
+ endif
 
 end subroutine cellular_automata_sgs
 

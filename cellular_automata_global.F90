@@ -7,8 +7,8 @@ contains
 
 subroutine cellular_automata_global(kstep,restart,first_time_step,ca1_cpl,ca2_cpl,ca3_cpl,ca1_diag,ca2_diag,ca3_diag, &
             domain_for_coupler,nblks,isc,iec,jsc,jec,npx,npy,nlev, &
-            nca,ncells,nlives,nfracseed,nseed,ca_global,ca_sgs,iseed_ca, mytile, &
-            ca_smooth,nspinup,blocksize,nsmooth,ca_amplitude,mpiroot,mpicomm)
+            nca,ncells,nlives,nfracseed,nseed,iseed_ca, mytile, &
+            ca_smooth,nspinup,blocksize,nsmooth,ca_amplitude,mpiroot,mpicomm,noise_option)
 
 use kinddef,           only: kind_phys
 use update_ca,         only: update_cells_global,define_ca_domain
@@ -17,26 +17,26 @@ use mersenne_twister,  only: random_setseed,random_gauss,random_stat,random_numb
 use mpp_domains_mod,   only: domain2D,mpp_get_global_domain,CENTER, mpp_get_data_domain, mpp_get_compute_domain
 use block_control_mod, only: block_control_type, define_blocks_packed
 use mpi_wrapper,       only: mp_reduce_sum,mp_bcst,mp_reduce_max,mp_reduce_min, &
-                             mpi_wrapper_initialize
+                             mpi_wrapper_initialize,mype
 use mpp_mod
 
 implicit none
 
 !L.Bengtsson, 2017-06
 
-!This program evolves a cellular automaton uniform over the globe given
-!the flag ca_global
+!This program evolves a cellular automaton uniform over the globe 
 
 integer,              intent(in)    :: kstep,ncells,nca,nlives,nseed,nspinup,nsmooth,mpiroot,mpicomm
 integer*8,            intent(in)    :: iseed_ca
 integer,              intent(in)    :: mytile
 real(kind=kind_phys), intent(in)    :: nfracseed,ca_amplitude
-logical,              intent(in)    :: ca_global, ca_sgs, ca_smooth,first_time_step, restart
+logical,              intent(in)    :: ca_smooth,first_time_step, restart
 integer,              intent(in)    :: nblks,isc,iec,jsc,jec,npx,npy,nlev,blocksize
 real(kind=kind_phys), intent(out)   :: ca1_cpl(:,:),ca2_cpl(:,:),ca3_cpl(:,:)
 real(kind=kind_phys), intent(out)   :: ca1_diag(:,:),ca2_diag(:,:),ca3_diag(:,:)
 type(domain2D),       intent(inout) :: domain_for_coupler
 type(domain2D),save                 :: domain_ncellx    
+integer,              intent(in)    :: noise_option
 type(block_control_type) :: Atm_block
 integer :: nlon, nlat, isize,jsize,nf,nn
 integer :: inci, incj, nxc, nyc, nxch, nych
@@ -57,11 +57,10 @@ real*8               :: Detmax,Detmin
 integer*8            :: csum
 logical,save         :: block_message=.true.
 logical              :: global_rescale=.true.
+integer*8            :: i1,j1
 
 
 !nca         :: switch for number of cellular automata to be used.
-!ca_global   :: switch for global cellular automata
-!ca_sgs      :: switch for cellular automata conditioned on physics.
 !nfracseed   :: switch for number of random cells initially seeded
 !nlives      :: switch for maximum number of lives a cell can have
 !nspinup     :: switch for number of itterations to spin up the ca
@@ -89,15 +88,6 @@ k_in=1
  stop
  endif
 
-! if(ca_global == .true. .and. ca_sgs == .true.)then
-! write(0,*)'Namelist options ca_global and ca_sgs cannot both be true - exiting'
-! stop
-! endif
-
-! if(ca_sgs == .true. .and. ca_smooth == .true.)then
-! write(0,*)'Currently ca_smooth does not work with ca_sgs - exiting'
-! stop
-! endif
 
  nlon=iec-isc+1
  nlat=jec-jsc+1
@@ -135,14 +125,20 @@ k_in=1
  allocate(noise(nxc,nyc,nca))
  nx_full=int(npx-1,kind=8)
  ny_full=int(npy-1,kind=8)
- allocate(noise1D(nx_full*ny_full))
- allocate(noise2D(nx_full,ny_full))
+if (noise_option.eq.0) then
+    allocate(noise1D(nxc*nyc))
+else
+    allocate(noise1D(nx_full*ny_full))
+    allocate(noise2D(nx_full,ny_full))
+endif
 
  !Initialize:
 
  noise(:,:,:) = 0.0
  noise1D(:) = 0.0
+if (noise_option.eq.1) then
  noise2D(:,:) = 0.0
+endif
  iini_g(:,:,:) = 0
  ilives_g(:,:) = 0
  CA1(:,:) = 0.0
@@ -159,32 +155,72 @@ k_in=1
 
 if(first_time_step.and. .not.restart)then
 !Generate random number, following stochastic physics code:
+      print*,'initialize sgs noise_option',noise_option
+  if (noise_option .EQ. 0) then
 
-  if (iseed_ca == 0) then
-    ! generate a random seed from system clock and ens member number
-    call system_clock(count, count_rate, count_max)
-    ! iseed is elapsed time since unix epoch began (secs)
-    ! truncate to 4 byte integer
-    count_trunc = iscale*(count/iscale)
-    count4 = count - count_trunc
-  else if (iseed_ca > 0) then
-    ! don't rely on compiler to truncate integer(8) to integer(4) on
-    ! overflow, do wrap around explicitly.
-    count4 = mod(mytile + iseed_ca + 2147483648, 4294967296) - 2147483648
-  endif
-
-  call random_setseed(count4,rstate_global)
-  do nf=1,nca
-  !Set seed (to be different) on all tasks. Save random state.
-    call random_number(noise1D,rstate_global)
-    noise2D(:,:)=RESHAPE(noise1D,(/nx_full,ny_full/))
-    !pick out points on this task
-    do j=1,nyc
-      do i=1,nxc
-        noise(i,j,nf)=noise2D( ncells*isc-ncells+i,ncells*jsc-ncells+j)
+     if (iseed_ca == 0) then
+       ! generate a random seed from system clock and ens member number
+       call system_clock(count, count_rate, count_max)
+       ! iseed is elapsed time since unix epoch began (secs)
+       ! truncate to 4 byte integer
+       count_trunc = iscale*(count/iscale)
+       count4 = count - count_trunc
+     else if (iseed_ca > 0) then
+       ! don't rely on compiler to truncate integer(8) to integer(4) on
+       ! overflow, do wrap around explicitly.
+       count4 = mod(mype + iseed_ca +1+ 2147483648, 4294967296) - 2147483648
+     endif
+   
+     call random_setseed(count4,rstate_global)
+     do nf=1,nca
+     !Set seed (to be different) on all tasks. Save random state.
+       call random_number(noise1D,rstate_global)
+     !Put on 2D:
+       do j=1,nyc
+         do i=1,nxc
+           noise(i,j,nf)=noise1D(i+(j-1)*nxc)
+         enddo
+       enddo
       enddo
-    enddo
-   enddo
+  else
+     if (iseed_ca == 0) then
+       ! generate a random seed from system clock and ens member number
+       call system_clock(count, count_rate, count_max)
+       ! iseed is elapsed time since unix epoch began (secs)
+       ! truncate to 4 byte integer
+       count_trunc = iscale*(count/iscale)
+       count4 = count - count_trunc
+     else if (iseed_ca > 0) then
+       ! don't rely on compiler to truncate integer(8) to integer(4) on
+       ! overflow, do wrap around explicitly.
+       count4 = mod(mytile + iseed_ca+1 + 2147483648, 4294967296) - 2147483648
+     endif
+   
+     call random_setseed(count4,rstate_global)
+     do nf=1,nca
+     !Set seed (to be different) on all tasks. Save random state.
+       call random_number(noise1D,rstate_global)
+     if (noise_option .EQ. 1) then
+       noise2D(:,:)=RESHAPE(noise1D,(/nx_full,ny_full/))
+       !pick out points on this task
+       do j=1,nyc
+         do i=1,nxc
+           noise(i,j,nf)=noise2D( ncells*isc-ncells+i,ncells*jsc-ncells+j)
+         enddo
+       enddo
+      enddo
+      else
+         !pick out points on my task
+         do j=1,nyc
+            j1=j-1+isc*ncells
+            do i=1,nxc
+                i1=i-1+isc*ncells
+                noise(i,j)=NOISE1D( i1+nx_full*j1)
+            enddo
+         enddo
+         deallocate(noise1D)
+       endif
+  endif
 
 !Initiate the cellular automaton with random numbers larger than nfracseed
 
@@ -222,9 +258,9 @@ endif !
 
   CA(:,:)=0.
 
-  call update_cells_global(kstep,first_time_step,restart,iseed_ca,nca,nxc,nyc,nxch,nych,nlon,nlat,nxncells,nyncells,isc,iec,jsc,jec, &
+  call update_cells_global(kstep,first_time_step,restart,nca,nxc,nyc,nxch,nych,nlon,nlat,nxncells,nyncells,isc,iec,jsc,jec, &
                            npx,npy,iscnx,iecnx,jscnx,jecnx,domain_ncellx,CA,iini_g,ilives_g,         &
-                           nlives,ncells,nfracseed,nseed,nspinup,nf)
+                           nlives,ncells,nfracseed,nseed,nspinup,nf,noise_option)
 
 
 if (ca_smooth) then
@@ -232,7 +268,7 @@ if (ca_smooth) then
    do nn=1,nsmooth !number of iterations for the smoothing.
 
       field_out=0.
-      field_out(1+halo:nlon+halo,1+halo:nlat+halo,nf) = real(CA(1:nlon,1:nlat),kind=8)
+      field_out(1+halo:nlon+halo,1+halo:nlat+halo,1) = real(CA(1:nlon,1:nlat),kind=8)
 
       call atmosphere_scalar_field_halo(field_out,halo,isize,jsize,k_in,isc,iec,jsc,jec,npx,npy,domain_for_coupler)
 
@@ -332,7 +368,9 @@ enddo !nf
  deallocate(CA3)
  deallocate(noise)
  deallocate(noise1D)
+if (noise_option.eq.1) then
  deallocate(noise2D)
+endif
 
 end subroutine cellular_automata_global
 

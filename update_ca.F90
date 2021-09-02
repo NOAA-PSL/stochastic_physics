@@ -248,15 +248,15 @@ endif
 
 end subroutine read_ca_restart
 
-subroutine update_cells_sgs(kstep,initialize_ca,first_flag,restart,first_time_step,iseed_ca,nca,nxc,nyc,nxch,nych,nlon,&
+subroutine update_cells_sgs(kstep,initialize_ca,first_flag,restart,first_time_step,nca,nxc,nyc,nxch,nych,nlon,&
                             nlat,nxncells,nyncells,isc,iec,jsc,jec, npx,npy,  &
                             iscnx,iecnx,jscnx,jecnx,domain_ncellx,CA,ca_plumes,iini,ilives_in,nlives,     &
-                            nfracseed,nseed,nspinup,nf,nca_plumes,ncells)
+                            nfracseed,nseed,nspinup,nf,nca_plumes,ncells,noise_option)
 
 implicit none
 
-integer, intent(in)  :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca,isc,iec,jsc,jec,npx,npy
-integer, intent(in)  :: iini(nxc,nyc,nca),iseed_ca,initialize_ca,ilives_in(nxc,nyc,nca)
+integer, intent(in)  :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca,isc,iec,jsc,jec,npx,npy,noise_option
+integer, intent(in)  :: iini(nxc,nyc,nca),initialize_ca,ilives_in(nxc,nyc,nca)
 integer, intent(in)  :: nxncells,nyncells,iscnx,iecnx,jscnx,jecnx
 real,    intent(out) :: CA(nlon,nlat)
 integer, intent(out) :: ca_plumes(nlon,nlat)
@@ -273,12 +273,13 @@ real,    allocatable :: board_halo(:,:,:)
 integer, dimension(nxc,nyc) :: neighbours, birth, newlives,thresh
 integer, dimension(nxc,nyc) :: neg, newcell, oldlives, newval,temp,newseed
 integer, dimension(ncells,ncells) :: onegrid
-integer(8)           :: count, count_rate, count_max, count_trunc,nx_full,ny_full
+integer(8)           :: nx_full,ny_full
 integer(8)           :: iscale = 10000000000
 logical, save        :: start_from_restart
 
 real, dimension(nxc,nyc) :: NOISE_B
 real, allocatable :: noise1D(:),noise2D(:,:)
+integer*8            :: i1,j1
 
 
 !------------------------------------------------------------------------------------------------
@@ -312,7 +313,6 @@ k_in=1
  call mp_reduce_max(boardmax)
  livemax=maxval(lives)
  call mp_reduce_max(livemax)
- print*,'boardmax=',boardmax,livemax
 
  if(restart .and. first_time_step .and. boardmax > 0 .and. livemax > 0)then
     !restart
@@ -339,34 +339,57 @@ k_in=1
  !seed with new active cells each nseed time-step regardless of restart/cold start
 
   if(mod(kstep,nseed)==0. .and. (kstep >= initialize_ca .or. start_from_restart))then
-  nx_full=int(ncells,kind=8)*int(npx-1,kind=8)
-  ny_full=int(ncells,kind=8)*int(npy-1,kind=8)
-  allocate(noise1D(nx_full*ny_full))
-  allocate(noise2D(nx_full,ny_full))
- call random_number(noise1D,rstate_sgs)
- NOISE2D(:,:)=RESHAPE(noise1D,(/nx_full,ny_full/))
- deallocate(noise1D)
-
- !pick out points on my task
- do j=1,nyc
-    do i=1,nxc
-        noise_b(i,j)=NOISE2D( ncells*isc-ncells+i,ncells*jsc-ncells+j)
-    enddo
- enddo
- deallocate(noise2D)
-   do j=1,nyc
-    do i=1,nxc
-     if(board(i,j,nf) == 0 .and. NOISE_B(i,j)>0.90 )then
-       newseed(i,j) = 1
+     if (noise_option .EQ. 0) then
+       allocate(noise1D(nxc*nyc))
+       noise1D = 0.0
+       call random_number(noise1D,rstate_global)
+       !Put on 2D:
+       do j=1,nyc
+        do i=1,nxc
+           noise_b(i,j)=noise1D(i+(j-1)*nxc)    
+        enddo
+       enddo
+     else
+       nx_full=int(ncells,kind=8)*int(npx-1,kind=8)
+       ny_full=int(ncells,kind=8)*int(npy-1,kind=8)
+       allocate(noise1D(nx_full*ny_full))
+      call random_number(noise1D,rstate_sgs)
+      if (noise_option .EQ. 1) then
+         allocate(noise2D(nx_full,ny_full))
+         NOISE2D(:,:)=RESHAPE(noise1D,(/nx_full,ny_full/))
+         deallocate(noise1D)
+   
+         !pick out points on my task
+         do j=1,nyc
+            do i=1,nxc
+                noise_b(i,j)=NOISE2D( ncells*isc-ncells+i,ncells*jsc-ncells+j)
+            enddo
+         enddo
+         deallocate(noise2D)
+       else
+         !pick out points on my task
+         do j=1,nyc
+            j1=j-1+isc*ncells
+            do i=1,nxc
+                i1=i-1+isc*ncells
+                noise_b(i,j)=NOISE1D( i1+nx_full*j1)
+            enddo
+         enddo
+         deallocate(noise1D)
+       endif
      endif
-     board(i,j,nf) = board(i,j,nf) + newseed(i,j)
-    enddo
-   enddo
+     do j=1,nyc
+      do i=1,nxc
+       if(board(i,j,nf) == 0 .and. NOISE_B(i,j)>0.90 )then
+         newseed(i,j) = 1
+       endif
+       board(i,j,nf) = board(i,j,nf) + newseed(i,j)
+      enddo
+     enddo
   endif
 
  
  !Step 3: Evolve CA
- print*,'evolving',spinup
  do it = 1,spinup
  
  CA=0
@@ -383,7 +406,7 @@ k_in=1
  
  !--- copy board into the halo-augmented board_halo                                                         
  board_halo(1+halo:nxc+halo,1+halo:nyc+halo,1) = real(board(1:nxc,1:nyc,1),kind=8)
- write(1000+mpp_pe(),*) "board_halo pre: ",board_halo(20,1:50,1)
+! write(1000+mpp_pe(),*) "board_halo pre: ",board_halo(20,1:50,1)
 
  !--- perform halo update
  call atmosphere_scalar_field_halo (board_halo, halo, nxch, nych, 1, &
@@ -391,7 +414,7 @@ k_in=1
                                      nxncells, nyncells, domain_ncellx)
 
  !--- output data to ensure proper update                                                                            
- write(1000+mpp_pe(),*) "board_halo post: ",board_halo(20,1:50,1)
+ !write(1000+mpp_pe(),*) "board_halo post: ",board_halo(20,1:50,1)
 
  !--- Count the neighbours
   do j=1,nyc
@@ -537,19 +560,20 @@ end subroutine update_cells_sgs
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine update_cells_global(kstep,first_time_step,restart,iseed_ca,nca,nxc,nyc,nxch,nych,nlon,nlat,nxncells,nyncells,isc,iec,jsc,jec, &
+subroutine update_cells_global(kstep,first_time_step,restart,nca,nxc,nyc,nxch,nych,nlon,nlat,nxncells,nyncells,isc,iec,jsc,jec, &
                         npx,npy,iscnx,iecnx,jscnx,jecnx,domain_ncellx,CA,iini_g,ilives_g,                &
-                        nlives,ncells,nfracseed,nseed,nspinup,nf)
+                        nlives,ncells,nfracseed,nseed,nspinup,nf,noise_option)
 
 implicit none
 
 integer, intent(in) :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca,isc,iec,jsc,jec,npx,npy
-integer, intent(in) :: iini_g(nxc,nyc,nca), ilives_g(nxc,nyc), iseed_ca,nxncells,nyncells
+integer, intent(in) :: iini_g(nxc,nyc,nca), ilives_g(nxc,nyc), nxncells,nyncells
 real, intent(out) :: CA(nlon,nlat)
 logical, intent(in) :: first_time_step
 logical, intent(in) :: restart
 integer, intent(in) :: nlives, ncells, nseed, nspinup, nf,iscnx,iecnx,jscnx,jecnx
 real, intent(in) :: nfracseed
+integer, intent(in) :: noise_option
 type(domain2D), intent(inout) :: domain_ncellx
 real, dimension(nlon,nlat) :: frac
 integer,allocatable :: V(:),L(:)
@@ -560,8 +584,9 @@ integer, dimension(nxc,nyc) :: neighbours, birth, newlives, thresh
 integer, dimension(nxc,nyc) :: neg, newcell, oldlives, newval,temp,newseed
 real, dimension(nxc,nyc) :: NOISE_B
 real, allocatable :: noise1D(:),noise2D(:,:)
-integer(8) :: count, count_rate, count_max, count_trunc,nx_full,ny_full
+integer(8) :: nx_full,ny_full
 integer(8) :: iscale = 10000000000
+integer*8            :: i1,j1
 
 !-------------------------------------------------------------------------------------------------
 
@@ -598,21 +623,49 @@ k_in=1
   newseed=0
   if(mod(kstep,nseed) == 0)then
      !random numbers:
-      nx_full=int(npx-1,kind=8)
-      ny_full=int(npy-1,kind=8)
-      allocate(noise1D(nx_full*ny_full))
-      allocate(noise2D(nx_full,ny_full))
-     call random_number(noise1D,rstate_global)
-     NOISE2D(:,:)=RESHAPE(noise1D,(/nx_full,ny_full/))
-     deallocate(noise1D)
-
-   !pick out points on my task
-     do j=1,nyc
+     if (noise_option .EQ. 0) then
+    
+        allocate(noise1D(nxc*nyc))
+        noise1D = 0.0
+        call random_number(noise1D,rstate_global)
+       !Put on 2D:
+       do j=1,nyc
         do i=1,nxc
-           noise_b(i,j)=NOISE2D( ncells*isc-ncells+i,ncells*jsc-ncells+j)
+           noise_b(i,j)=noise1D(i+(j-1)*nxc)    
         enddo
-     enddo
-     deallocate(noise2D)
+       enddo
+        deallocate(noise1D)
+     
+      else
+      
+           nx_full=int(npx-1,kind=8)
+           ny_full=int(npy-1,kind=8)
+           allocate(noise1D(nx_full*ny_full))
+          call random_number(noise1D,rstate_global)
+        if (noise_option .EQ. 1) then
+           allocate(noise2D(nx_full,ny_full))
+           NOISE2D(:,:)=RESHAPE(noise1D,(/nx_full,ny_full/))
+           deallocate(noise1D)
+     
+        !pick out points on my task
+          do j=1,nyc
+             do i=1,nxc
+                noise_b(i,j)=NOISE2D( ncells*isc-ncells+i,ncells*jsc-ncells+j)
+             enddo
+          enddo
+          deallocate(noise2D)
+       else
+         !pick out points on my task
+         do j=1,nyc
+            j1=j-1+isc*ncells
+            do i=1,nxc
+                i1=i-1+isc*ncells
+                noise_b(i,j)=NOISE1D( i1+nx_full*j1)
+            enddo
+         enddo
+         deallocate(noise1D)
+       endif
+     endif
      do j=1,nyc
        do i=1,nxc
         if(board_g(i,j,nf) == 0 .and. NOISE_B(i,j)>0.75 )then
