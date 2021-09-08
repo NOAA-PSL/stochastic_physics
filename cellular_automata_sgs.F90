@@ -1,6 +1,6 @@
 module cellular_automata_sgs_mod
 
-use update_ca, only : rstate_sgs,domain_sgs,iscnx,iecnx,jscnx,jecnx,isdnx,iednx,jsdnx,jednx,nxncells,nyncells
+use update_ca, only : domain_sgs,iscnx,iecnx,jscnx,jecnx,isdnx,iednx,jsdnx,jednx,nxncells,nyncells
 implicit none
 
 
@@ -10,11 +10,10 @@ subroutine cellular_automata_sgs(kstep,dtf,restart,first_time_step,sst,lsmsk,lak
             ca_deep_cpl,ca_turb_cpl,ca_shal_cpl,ca_deep_diag,ca_turb_diag,ca_shal_diag,domain, &
             nblks,isc,iec,jsc,jec,npx,npy,nlev,nthresh,rcell, mytile, &
             nca,scells,tlives,nfracseed,nseed,iseed_ca, &
-            nspinup,ca_trigger,blocksize,mpiroot,mpicomm,noise_option)
+            nspinup,ca_trigger,blocksize,mpiroot,mpicomm)
 
 use kinddef,           only: kind_phys
 use update_ca,         only: update_cells_sgs, define_ca_domain
-use mersenne_twister,  only: random_setseed,random_gauss,random_stat,random_number
 use random_numbers,    only: random_01_CB
 use mpp_domains_mod,   only: domain2D,mpp_get_global_domain,CENTER, mpp_get_data_domain, mpp_get_compute_domain
 use block_control_mod, only: block_control_type, define_blocks_packed
@@ -38,7 +37,7 @@ implicit none
 !CA_DEEP can be either number of plumes in a cluster (nca_plumes=true) or updraft 
 !area fraction (nca_plumes=false)
 
-integer,intent(in) :: kstep,scells,nca,tlives,nseed,nspinup,mpiroot,mpicomm,mytile,noise_option
+integer,intent(in) :: kstep,scells,nca,tlives,nseed,nspinup,mpiroot,mpicomm,mytile
 integer*8,            intent(in)    :: iseed_ca
 real(kind=kind_phys), intent(in)    :: nfracseed,dtf,rcell
 logical,intent(in) :: restart,ca_trigger,first_time_step
@@ -62,14 +61,14 @@ integer :: seed, ierr7,blk, ix, iix, count4,ih,jh
 integer :: blocksz,levs
 integer :: ncells,nlives
 integer, save :: initialize_ca
-integer(8) :: count, count_rate, count_max, count_trunc,nx_full,ny_full
+integer(8) :: count, count_rate, count_max, count_trunc,nx_full
 integer(8) :: iscale = 10000000000
 integer, allocatable :: iini(:,:,:),ilives_in(:,:,:),ca_plumes(:,:)
 real(kind=kind_phys), allocatable :: ssti(:,:),lsmski(:,:),lakei(:,:)
 real(kind=kind_phys), allocatable :: CA(:,:),condition(:,:),conditiongrid(:,:)
 real(kind=kind_phys), allocatable :: CA_DEEP(:,:)
-real*8              , allocatable :: noise1D(:),noise(:,:,:)
-real(kind=kind_phys) :: condmax,livesmax,factor,dx,pi,re
+real*8              , allocatable :: noise(:,:,:)
+real(kind=kind_phys) :: condmax,condmaxinv,livesmax,livesmaxinv,factor,dx,pi,re
 logical,save         :: block_message=.true.
 logical              :: nca_plumes
 logical,save         :: first_flag
@@ -211,12 +210,13 @@ endif
         initialize_ca = kstep
      endif
   endif
+  condmaxinv=1.0/condmax
 
 if(kstep >=initialize_ca)then
   do nf=1,nca
      do j = 1,nyc
         do i = 1,nxc
-           ilives_in(i,j,nf)=int(real(nlives)*(condition(i,j)/condmax))
+           ilives_in(i,j,nf)=int(real(nlives)*(condition(i,j)*condmaxinv))
         enddo
      enddo
   enddo
@@ -237,118 +237,32 @@ endif
 if (.not. restart) then
    if(kstep == initialize_ca) then
       nx_full=int(ncells,kind=8)*int(npx-1,kind=8)
-      ny_full=int(ncells,kind=8)*int(npy-1,kind=8)
       allocate(noise(nxc,nyc,nca))
-      if (noise_option.eq.0) then
-         allocate(noise1D(nxc*nyc))
-      else if (noise_option.eq.1) then
-         allocate(noise1D(nx_full*ny_full))
-      else if (noise_option.eq.2) then
-         allocate(noise1D(nca))
-      endif
-      print*,'initialize sgs noise_option',noise_option
-      if (noise_option.EQ.0) then
-        if (iseed_ca <= 0) then
-          ! generate a random seed from system clock and ens member number
-          call system_clock(count, count_rate, count_max)
-          ! iseed is elapsed time since unix epoch began (secs)
-          ! truncate to 4 byte integer
-          count_trunc = iscale*(count/iscale)
-          count4 = count - count_trunc
-        else
-          ! don't rely on compiler to truncate integer(8) to integer(4) on
-          ! overflow, do wrap around explicitly.
-          count4 = mod(mype + iseed_ca + 2147483648, 4294967296) - 2147483648
-        endif
-      
-        call random_setseed(count4,rstate_sgs)
-        do nf=1,nca
-        !Set seed (to be different) on all tasks. Save random state.
-          call random_number(noise1D,rstate_sgs)
-        !Put on 2D:
-          do j=1,nyc
-            do i=1,nxc
-              noise(i,j,nf)=noise1D(i+(j-1)*nxc)
+      do j=1,nyc
+         j1=j+(jsc-1)*ncells
+         do i=1,nxc
+            i1=i+(isc-1)*ncells
+            if (iseed_ca <= 0) then
+               ! generate a random seed from system clock and ens member number
+               call system_clock(count, count_rate, count_max)
+               ! iseed is elapsed time since unix epoch began (secs)
+               ! truncate to 4 byte integer
+               count_trunc = iscale*(count/iscale)
+               count4 = count - count_trunc + mytile *( i1+nx_full*(j1-1)) ! no need to multply by 7 since time will be different in sgs
+            else
+               ! don't rely on compiler to truncate integer(8) to integer(4) on
+               ! overflow, do wrap around explicitly.
+               count4 = mod((iseed_ca+mytile)*(i1+nx_full*(j1-1))+ 2147483648, 4294967296) - 2147483648
+            endif
+            ct=1
+            do nf=1,nca
+               noise(i,j,nf)=real(random_01_CB(ct,count4),kind=8)
+               ct=ct+1
             enddo
-          enddo
          enddo
-      else if (noise_option .EQ. 2) then
-        do j=1,nyc
-          j1=j+(jsc-1)*ncells
-          do i=1,nxc
-             i1=i+(isc-1)*ncells
-             if (iseed_ca <= 0) then
-                ! generate a random seed from system clock and ens member number
-                call system_clock(count, count_rate, count_max)
-                ! iseed is elapsed time since unix epoch began (secs)
-                ! truncate to 4 byte integer
-                count_trunc = iscale*(count/iscale)
-                count4 = count - count_trunc + mytile *( i1+nx_full*(j1-1)) ! no need to multply by 7 since time will be different in sgs
-             else
-                ! don't rely on compiler to truncate integer(8) to integer(4) on
-                ! overflow, do wrap around explicitly.
-                count4 = mod((iseed_ca+mytile)*(i1+nx_full*(j1-1))+ 2147483648, 4294967296) - 2147483648
-             endif
-             call random_setseed(count4,rstate_sgs)
-             do nf=1,nca
-                call random_number(noise1D,rstate_sgs)
-                noise(i,j,nf)=noise1D(nf)
-             enddo
-          enddo
-        enddo
-      else if (noise_option .EQ. 3) then
-        do j=1,nyc
-          j1=j+(jsc-1)*ncells
-          do i=1,nxc
-             i1=i+(isc-1)*ncells
-             if (iseed_ca <= 0) then
-                ! generate a random seed from system clock and ens member number
-                call system_clock(count, count_rate, count_max)
-                ! iseed is elapsed time since unix epoch began (secs)
-                ! truncate to 4 byte integer
-                count_trunc = iscale*(count/iscale)
-                count4 = count - count_trunc + mytile *( i1+nx_full*(j1-1)) ! no need to multply by 7 since time will be different in sgs
-             else
-                ! don't rely on compiler to truncate integer(8) to integer(4) on
-                ! overflow, do wrap around explicitly.
-                count4 = mod((iseed_ca+mytile)*(i1+nx_full*(j1-1))+ 2147483648, 4294967296) - 2147483648
-             endif
-             ct=1
-             do nf=1,nca
-                noise(i,j,nf)=real(random_01_CB(ct,count4),kind=8)
-                ct=ct+1
-             enddo
-          enddo
-        enddo
-      else
-          if (iseed_ca <= 0) then
-           ! generate a random seed from system clock and ens member number
-           call system_clock(count, count_rate, count_max)
-           ! iseed is elapsed time since unix epoch began (secs)
-           ! truncate to 4 byte integer
-           count_trunc = iscale*(count/iscale)
-           count4 = count - count_trunc
-        else
-           ! don't rely on compiler to truncate integer(8) to integer(4) on
-           ! overflow, do wrap around explicitly.
-           count4 = mod( iseed_ca + 2147483648, 4294967296) - 2147483648
-        endif
-        call random_setseed(count4+mytile,rstate_sgs)
-      
-        do nf=1,nca
-           call random_number(noise1D,rstate_sgs)
-           !pick out points on my task
-           do j=1,nyc
-              j1=j+(jsc-1)*ncells
-              do i=1,nxc
-                  i1=i+(isc-1)*ncells
-                  noise(i,j,nf)=NOISE1D( i1+nx_full*(j1-1))
-              enddo
-           enddo
-        enddo
-     endif
+      enddo
    
-   !Initiate the cellular automaton with random numbers larger than nfracseed
+      !Initiate the cellular automaton with random numbers larger than nfracseed
       do nf=1,nca
        do j = 1,nyc
          do i = 1,nxc
@@ -361,7 +275,6 @@ if (.not. restart) then
        enddo
      enddo !nf
    
-   if (noise_option.NE.3)deallocate(noise1D)
    deallocate(noise)
    endif ! 
 endif !  restart
@@ -371,7 +284,7 @@ endif !  restart
   call update_cells_sgs(kstep,initialize_ca,iseed_ca,first_flag,restart,first_time_step,nca,nxc,nyc, &
                         nxch,nych,nlon,nlat,isc,iec,jsc,jec, &
                         npx,npy,CA,ca_plumes,iini,ilives_in,        &
-                        nlives,nfracseed,nseed,nspinup,nf,nca_plumes,ncells,mytile,noise_option)
+                        nlives,nfracseed,nseed,nspinup,nf,nca_plumes,ncells,mytile)
 
     if(nca_plumes)then
     do j=1,nlat
@@ -382,9 +295,10 @@ endif !  restart
     else
     livesmax=maxval(ilives_in)
     call mp_reduce_max(livesmax)
+    livesmaxinv=1.0/livesmax 
     do j=1,nlat
        do i=1,nlon
-          CA_DEEP(i,j)=CA(i,j)/livesmax
+          CA_DEEP(i,j)=CA(i,j)*livesmaxinv
        enddo
     enddo
     endif
@@ -404,14 +318,14 @@ enddo
 !Put back into blocks 1D array to be passed to physics
 !or diagnostics output
 
-  do blk = 1, Atm_block%nblks
-  do ix = 1,Atm_block%blksz(blk)
-     i = Atm_block%index(blk)%ii(ix) - isc + 1
-     j = Atm_block%index(blk)%jj(ix) - jsc + 1
-     ca_deep_diag(blk,ix)=CA_DEEP(i,j)
-     ca_deep_cpl(blk,ix)=CA_DEEP(i,j) 
-  enddo
-  enddo
+ do blk = 1, Atm_block%nblks
+    do ix = 1,Atm_block%blksz(blk)
+       i = Atm_block%index(blk)%ii(ix) - isc + 1
+       j = Atm_block%index(blk)%jj(ix) - jsc + 1
+       ca_deep_diag(blk,ix)=CA_DEEP(i,j)
+       ca_deep_cpl(blk,ix)=CA_DEEP(i,j) 
+    enddo
+ enddo
 
  deallocate(conditiongrid)
  deallocate(ssti)

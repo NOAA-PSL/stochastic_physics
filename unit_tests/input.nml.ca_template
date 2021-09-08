@@ -68,6 +68,5 @@
   iseed_ca       = 22345
   nsmooth        = 100
   ca_amplitude   = 0.35
-  noise_option   = NOISE
   warm_start     = WARM_START
 /

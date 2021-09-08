@@ -4,7 +4,6 @@ module update_ca
 !on the ncellsxncells CA grid
 
 use halo_exchange,    only: atmosphere_scalar_field_halo
-use mersenne_twister, only: random_seed,random_stat,random_number,random_setseed
 use random_numbers,   only: random_01_CB
 use mpi_wrapper,      only: mype,mp_reduce_sum,mp_bcst,mp_reduce_min,mp_reduce_max
 use mpp_domains_mod
@@ -19,7 +18,6 @@ public  update_cells_global
 
 integer,allocatable,save :: board(:,:,:), lives(:,:,:)
 integer,allocatable,save :: board_g(:,:,:), lives_g(:,:,:)
-type(random_stat),public :: rstate_sgs,rstate_global
 integer,public :: isdnx,iednx,jsdnx,jednx,nxncells,nyncells
 integer,public :: iscnx,iecnx,jscnx,jecnx,nxncells_g,nyncells_g
 integer,public :: isdnx_g,iednx_g,jsdnx_g,jednx_g
@@ -70,7 +68,7 @@ integer :: isc,iec,jsc,jec
 end subroutine define_ca_domain
 !---------------------------------------------------------------------------------------------
 
-subroutine write_ca_restart(noise_option,timestamp)
+subroutine write_ca_restart(timestamp)
 !Write restart files 
 
 use fms_io_mod,          only: restart_file_type, &
@@ -78,15 +76,13 @@ use fms_io_mod,          only: restart_file_type, &
                                restore_state, save_restart
 
 implicit none
-integer,                    intent(in)    :: noise_option
 character(len=*), optional, intent(in)    :: timestamp
 character(len=32)  :: fn_phy = 'ca_data.nc'
 
 type(restart_file_type) :: CA_restart
 type(restart_file_type) :: CA_tile_restart
 integer :: id_restart,ncells,nx,ny
-integer :: nxncells, nyncells, isize
-integer,allocatable :: isave(:),isave_g(:)
+integer :: nxncells, nyncells
 
 !Return if not allocated:
 if(.not. allocated(board) .and. .not. allocated(lives) .and. .not.  allocated(board_g) .and. .not. allocated(lives_g))return
@@ -98,13 +94,6 @@ if (allocated(board)) then
    
    id_restart = register_restart_field (CA_tile_restart, fn_phy, "lives", &
         lives(:,:,:), domain = domain_sgs,  mandatory=.true.)
-   if (noise_option .NE. 3 ) then 
-      call random_seed(size=isize) ! get seed size
-      allocate(isave(isize)) ! get seed
-      call random_seed(get=isave,stat=rstate_sgs) ! write seed
-      id_restart = register_restart_field (CA_tile_restart, fn_phy, "rstate_sgs", &
-           isave       , domain = domain_sgs, mandatory=.true.)
-   endif
 endif
 
 if (allocated(board_g)) then
@@ -115,22 +104,13 @@ if (allocated(board_g)) then
    id_restart = register_restart_field (CA_tile_restart, fn_phy, "lives_g", &
         lives_g(:,:,:), domain = domain_global,  mandatory=.true.)
    
-   if (noise_option .NE. 3 ) then 
-      call random_seed(size=isize) ! get seed size
-      allocate(isave_g(isize)) ! get seed
-      call random_seed(get=isave_g,stat=rstate_global) ! write seed
-      id_restart = register_restart_field (CA_tile_restart, fn_phy, "rstate_global", &
-           isave_g     , domain = domain_global, mandatory=.true.)
-   endif
 endif
 
 call save_restart(CA_tile_restart, timestamp)
-if (allocated(isave)) deallocate(isave)
-if (allocated(isave_g)) deallocate(isave_g)
 
 end subroutine write_ca_restart
 
-subroutine read_ca_restart(domain_in,scells,nca,ncells_g,nca_g,noise_option)
+subroutine read_ca_restart(domain_in,scells,nca,ncells_g,nca_g)
 !Read restart files
 use fms_io_mod,          only: restart_file_type, &
                                register_restart_field,               &
@@ -143,15 +123,14 @@ implicit none
 type(restart_file_type) :: CA_restart
 type(restart_file_type) :: CA_tile_restart
 type(domain2D), intent(inout) :: domain_in
-integer,intent(in) :: scells,nca,nca_g,ncells_g,noise_option
+integer,intent(in) :: scells,nca,nca_g,ncells_g
 character(len=32)  :: fn_phy = 'ca_data.nc'
 
 character(len=64) :: fname
 integer :: id_restart
 integer :: nxc,nyc
 real    :: pi,re,dx
-integer :: ncells,nx,ny,isize
-integer,allocatable :: isave(:),isave_g(:)
+integer :: ncells,nx,ny
 
 
 call mpp_get_global_domain(domain_in,xsize=nx,ysize=ny,position=CENTER)
@@ -164,7 +143,6 @@ call mpp_get_global_domain(domain_in,xsize=nx,ysize=ny,position=CENTER)
  ncells= MIN(ncells,10)
 
 ! get seed info
- call random_seed(size=isize) ! get seed size
 if (nca .gt. 0 ) then
    !Get CA SGS domain                                                                                                                                                                    
    call define_ca_domain(domain_in,domain_sgs,ncells,nxncells,nyncells)
@@ -178,7 +156,6 @@ if (nca .gt. 0 ) then
    if (.not. allocated(lives))then
       allocate(lives(nxc,nyc,nca))
    endif
-   allocate(isave(isize)) ! get seed
    
    !Read restart
    id_restart = register_restart_field (CA_tile_restart, fn_phy, "board", &
@@ -186,11 +163,6 @@ if (nca .gt. 0 ) then
    
    id_restart = register_restart_field (CA_tile_restart, fn_phy, "lives", &
         lives(:,:,1), domain = domain_sgs,  mandatory=.true.)
-
-   if (noise_option .NE. 3 ) then 
-      id_restart = register_restart_field (CA_tile_restart, fn_phy, "rstate_sgs", &
-           isave       , domain = domain_sgs, mandatory=.true.)
-   endif
 
 endif
 
@@ -205,7 +177,6 @@ if (nca_g .gt. 0 ) then
    if (.not. allocated(lives_g))then
       allocate(lives_g(nxc,nyc,nca_g))
    endif
-   allocate(isave_g(isize)) ! get seed
    
    !Read restart
    id_restart = register_restart_field (CA_tile_restart, fn_phy, "board_g", &
@@ -214,36 +185,23 @@ if (nca_g .gt. 0 ) then
    id_restart = register_restart_field (CA_tile_restart, fn_phy, "lives_g", &
         lives_g(:,:,:), domain = domain_global,  mandatory=.true.)
 
-   if (noise_option .NE. 3 ) then 
-      id_restart = register_restart_field (CA_tile_restart, fn_phy, "rstate_global", &
-           isave_g       , domain = domain_global,  mandatory=.true.)
-   endif
-
 endif
 
 fname = 'INPUT/'//trim(fn_phy)
 !--- read the CA restart data
 call mpp_error(NOTE,'reading CA restart data from INPUT/ca_data.tile*.nc')
 call restore_state(CA_tile_restart)
-if (nca.GT.0) then 
-   call random_seed(put=isave,stat=rstate_sgs)
-   deallocate(isave)
-endif
-if (nca_g.GT.0) then
-   call random_seed(put=isave_g,stat=rstate_global)
-   deallocate(isave_g)
-endif
 
 end subroutine read_ca_restart
 
 subroutine update_cells_sgs(kstep,initialize_ca,iseed_ca,first_flag,restart,first_time_step,nca,nxc,nyc,nxch,nych,nlon,&
                             nlat,isc,iec,jsc,jec, npx,npy,  &
                             CA,ca_plumes,iini,ilives_in,nlives,     &
-                            nfracseed,nseed,nspinup,nf,nca_plumes,ncells,mytile,noise_option)
+                            nfracseed,nseed,nspinup,nf,nca_plumes,ncells,mytile)
 
 implicit none
 
-integer, intent(in)  :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca,isc,iec,jsc,jec,npx,npy,noise_option
+integer, intent(in)  :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca,isc,iec,jsc,jec,npx,npy
 integer*8, intent(in) :: iseed_ca
 integer, intent(in)  :: iini(nxc,nyc,nca),initialize_ca,ilives_in(nxc,nyc,nca)
 integer, intent(in)  :: mytile
@@ -264,11 +222,11 @@ integer(8)           :: nx_full,ny_full
 integer(8)           :: iscale = 10000000000
 logical, save        :: start_from_restart
 
-real, dimension(nxc,nyc) :: NOISE_B
-real, allocatable :: noise1D(:)
+real, dimension(nxc,nyc) :: noise_b
 integer(8) :: count, count_rate, count_max, count_trunc
 integer    :: count4
 integer*8            :: i1,j1
+real                 :: ncells2inv
 
 
 !------------------------------------------------------------------------------------------------
@@ -285,11 +243,9 @@ k_in=1
  
   if (.not. allocated(board))then
      allocate(board(nxc,nyc,nca))
-     !board(:,:,:)=0
   endif
   if (.not. allocated(lives))then
      allocate(lives(nxc,nyc,nca))
-     !lives(:,:,:)=0
   endif
   if(.not. allocated(board_halo))then
      allocate(board_halo(nxch,nych,1))
@@ -330,65 +286,23 @@ k_in=1
 nx_full=int(ncells,kind=8)*int(npx-1,kind=8)
 ny_full=int(ncells,kind=8)*int(npy-1,kind=8)
 if(mod(kstep,nseed)==0. .and. (kstep >= initialize_ca .or. start_from_restart))then
-   if (noise_option .EQ. 0) then
-      allocate(noise1D(nxc*nyc))
-      noise1D = 0.0
-      call random_number(noise1D,rstate_sgs)
-      !Put on 2D:
-      do j=1,nyc
-         do i=1,nxc
-            noise_b(i,j)=noise1D(i+(j-1)*nxc)    
-         enddo
+   do j=1,nyc
+      j1=j+(jsc-1)*ncells
+      do i=1,nxc
+         i1=i+(isc-1)*ncells
+         if (iseed_ca <= 0) then
+            call system_clock(count, count_rate, count_max)
+            count_trunc = iscale*(count/iscale)
+            count4 = count - count_trunc + mytile *( i1+nx_full*(j1-1)) ! no need to multply by 7 since time will be different in sgs
+         else
+            count4 = mod((iseed_ca*nf+mytile)*(i1+nx_full*(j1-1))+ 2147483648, 4294967296) - 2147483648
+         endif
+         noise_b(i,j)=real(random_01_CB(kstep,count4),kind=8)
       enddo
-   else if (noise_option .EQ. 2) then
-      allocate(noise1D(1))
-      do j=1,nyc
-         j1=j+(jsc-1)*ncells
-         do i=1,nxc
-            i1=i+(isc-1)*ncells
-            if (iseed_ca <= 0) then
-               call system_clock(count, count_rate, count_max)
-               count_trunc = iscale*(count/iscale)
-               count4 = count - count_trunc + mytile *( i1+nx_full*(j1-1)) ! no need to multply by 7 since time will be different in sgs
-            else
-               count4 = mod(iseed_ca*nf+(kstep*mytile)*(i1+nx_full*(j1-1))+ 2147483648, 4294967296) - 2147483648
-            endif
-            call random_setseed(count4,rstate_sgs)
-            call random_number(noise1D,rstate_sgs)
-            noise_b(i,j)=noise1D(1)
-         enddo
-      enddo
-   else if (noise_option .EQ. 3) then
-      do j=1,nyc
-         j1=j+(jsc-1)*ncells
-         do i=1,nxc
-            i1=i+(isc-1)*ncells
-            if (iseed_ca <= 0) then
-               call system_clock(count, count_rate, count_max)
-               count_trunc = iscale*(count/iscale)
-               count4 = count - count_trunc + mytile *( i1+nx_full*(j1-1)) ! no need to multply by 7 since time will be different in sgs
-            else
-               count4 = mod((iseed_ca*nf+mytile)*(i1+nx_full*(j1-1))+ 2147483648, 4294967296) - 2147483648
-            endif
-            noise_b(i,j)=real(random_01_CB(kstep,count4),kind=8)
-         enddo
-      enddo
-   else
-      allocate(noise1D(nx_full*ny_full))
-      call random_number(noise1D,rstate_sgs)
-      !pick out points on my task
-      do j=1,nyc
-         j1=j+(jsc-1)*ncells
-         do i=1,nxc
-             i1=i+(isc-1)*ncells
-             noise_b(i,j)=NOISE1D( i1+nx_full*(j1-1))
-         enddo
-      enddo
-      if (noise_option .NE. 3) deallocate(noise1D)
-   endif
+   enddo
    do j=1,nyc
       do i=1,nxc
-         if(board(i,j,nf) == 0 .and. NOISE_B(i,j)>0.90 )then
+         if(board(i,j,nf) == 0 .and. noise_b(i,j)>0.90 )then
             newseed(i,j) = 1
          endif
          board(i,j,nf) = board(i,j,nf) + newseed(i,j)
@@ -404,7 +318,6 @@ endif
  neighbours=0
  birth=0
  newcell=0
- !board_halo=0
 
  
  !--- copy board into the halo-augmented board_halo                                                         
@@ -492,9 +405,10 @@ endif
   inci=ncells
   incj=ncells
   sub=ncells-1
+  ncells2inv=real(1.0/(ncells*ncells))
   DO j=1,nlat
      DO i=1,nlon
-        CA(i,j)=(SUM(lives(inci-sub:inci,incj-sub:incj,nf)))/real(ncells*ncells)
+        CA(i,j)=(SUM(lives(inci-sub:inci,incj-sub:incj,nf)))*ncells2inv
         inci=inci+ncells
      ENDDO
      inci=ncells
@@ -565,7 +479,7 @@ end subroutine update_cells_sgs
 
 subroutine update_cells_global(kstep,first_time_step,iseed_ca,restart,nca,nxc,nyc,nxch,nych,nlon,nlat,isc,iec,jsc,jec, &
                         npx,npy,CA,iini_g,ilives_g,                &
-                        nlives,ncells,nfracseed,nseed,nspinup,nf,mytile,noise_option)
+                        nlives,ncells,nfracseed,nseed,nspinup,nf,mytile)
 
 implicit none
 
@@ -577,15 +491,14 @@ logical, intent(in) :: first_time_step
 logical, intent(in) :: restart
 integer, intent(in) :: nlives, ncells, nseed, nspinup, nf
 real, intent(in) :: nfracseed
-integer, intent(in) :: mytile,noise_option
+integer, intent(in) :: mytile
 integer,allocatable :: V(:),L(:)
 integer :: inci, incj, i, j, k ,sub,spinup,it,halo,k_in,isize,jsize
 integer :: ih, jh,kend
 real, allocatable :: board_halo(:,:,:)
 integer, dimension(nxc,nyc) :: neighbours, birth, thresh
 integer, dimension(nxc,nyc) :: newcell, temp,newseed
-real, dimension(nxc,nyc) :: NOISE_B
-real, allocatable :: noise1D(:)
+real, dimension(nxc,nyc) :: noise_b
 integer(8) :: count, count_rate, count_max, count_trunc
 integer    :: count4
 integer(8) :: nx_full,ny_full
@@ -619,67 +532,24 @@ if(mod(kstep,nseed) == 0)then
    nx_full=int(npx-1,kind=8)
    ny_full=int(npy-1,kind=8)
    !random numbers:
-   if (noise_option .EQ. 0) then
-      allocate(noise1D(nxc*nyc))
-      call random_number(noise1D,rstate_global)
-      !Put on 2D:
-      do j=1,nyc
-        do i=1,nxc
-           noise_b(i,j)=noise1D(i+(j-1)*nxc)    
-        enddo
+   do j=1,nyc
+      j1=j+(jsc-1)*ncells
+      do i=1,nxc
+         i1=i+(isc-1)*ncells
+         if (iseed_ca <= 0) then
+            call system_clock(count, count_rate, count_max)
+            count_trunc = iscale*(count/iscale)
+            count4 = count - count_trunc + mytile *( i1+nx_full*(j1-1)) ! no need to multply by 7 since time will be different in sgs
+         else
+            count4 = mod(iseed_ca*nf+(7*mytile)*(i1+nx_full*(j1-1))+ 2147483648, 4294967296) - 2147483648
+         endif
+         noise_b(i,j)=real(random_01_CB(kstep,count4),kind=8)
       enddo
-      deallocate(noise1D)
-   else if (noise_option .EQ. 2) then
-      allocate(noise1D(1))
-      do j=1,nyc
-         j1=j+(jsc-1)*ncells
-         do i=1,nxc
-            i1=i+(isc-1)*ncells
-            if (iseed_ca <= 0) then
-               call system_clock(count, count_rate, count_max)
-               count_trunc = iscale*(count/iscale)
-               count4 = count - count_trunc + mytile *( i1+nx_full*(j1-1)) ! no need to multply by 7 since time will be different in sgs
-            else
-               count4 = mod(iseed_ca*nf+(kstep*7*mytile)*(i1+nx_full*(j1-1))+ 2147483648, 4294967296) - 2147483648
-            endif
-            call random_setseed(count4,rstate_global)
-            call random_number(noise1D,rstate_global)
-            noise_b(i,j)=noise1D(1)
-         enddo
-      enddo
-   else if (noise_option .EQ. 3) then
-      do j=1,nyc
-         j1=j+(jsc-1)*ncells
-         do i=1,nxc
-            i1=i+(isc-1)*ncells
-            if (iseed_ca <= 0) then
-               call system_clock(count, count_rate, count_max)
-               count_trunc = iscale*(count/iscale)
-               count4 = count - count_trunc + mytile *( i1+nx_full*(j1-1)) ! no need to multply by 7 since time will be different in sgs
-            else
-               count4 = mod(iseed_ca*nf+(7*mytile)*(i1+nx_full*(j1-1))+ 2147483648, 4294967296) - 2147483648
-            endif
-            noise_b(i,j)=real(random_01_CB(kstep,count4),kind=8)
-         enddo
-      enddo
-   else
-      
-      allocate(noise1D(nx_full*ny_full))
-      call random_number(noise1D,rstate_global)
-      !pick out points on my task
-      do j=1,nyc
-         j1=j+(jsc-1)*ncells
-         do i=1,nxc
-            i1=i+(isc-1)*ncells
-            noise_b(i,j)=NOISE1D( i1+nx_full*(j1-1))
-         enddo
-      enddo
-      if (noise_option.NE.3) deallocate(noise1D)
-   endif
+   enddo
 
    do j=1,nyc
       do i=1,nxc
-         if(board_g(i,j,nf) == 0 .and. NOISE_B(i,j)>0.75 )then
+         if(board_g(i,j,nf) == 0 .and. noise_b(i,j)>0.75 )then
             newseed(i,j)=1
          endif
          board_g(i,j,nf) = board_g(i,j,nf) + newseed(i,j)

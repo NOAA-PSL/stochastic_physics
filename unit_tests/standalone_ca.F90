@@ -59,7 +59,6 @@ logical              :: ca_closure      !< logical switch for ca on closure
 logical              :: ca_entr         !< logical switch for ca on entrainment
 logical              :: ca_trigger      !< logical switch for ca on trigger
 logical              :: warm_start      !< logical switch for ca on trigger
-integer              :: noise_option    !< 0: Lisa-s way, 1: My 1st attemp
 
 real(kind=kind_phys), dimension(:,:),   allocatable :: cond_in,condition, sst,lmsk,lake
 real(kind=kind_phys), dimension(:,:),   allocatable :: ca_deep_cpl, ca_turb_cpl, ca_shal_cpl
@@ -71,7 +70,7 @@ real(kind=kind_phys), dimension(:,:),   allocatable :: ca1_diag,ca2_diag,ca3_dia
 NAMELIST /gfs_physics_nml/ do_ca, ca_sgs, ca_global, nca, scells, tlives, nseed,       &
                           nfracseed, rcell, ca_trigger, ca_entr, ca_closure, nca_g,    &
                           ncells_g, nlives_g, nseed_g, ca_smooth, nspinup, iseed_ca,   &
-                          nsmooth, ca_amplitude, warm_start,noise_option
+                          nsmooth, ca_amplitude, warm_start
 ! get mpi info,
 
 first_time_step=.true.
@@ -93,7 +92,6 @@ ca_global      = .false.
 ca_smooth      = .false.
 ca_amplitude   = 500.
 rcell          = 0.0
-noise_option   = 0
 
 ! open namelist file
 open (unit=565, file='input.nml', READONLY, status='OLD', iostat=ierr)
@@ -296,16 +294,15 @@ if(ca_sgs)then
    end do
 endif
 
-dump_time=50
+dump_time=1500
 if (warm_start) then
    istart=dump_time+1
-   call read_ca_restart(Atm(1)%domain,scells,nca,ncells_g,nca_g,noise_option)
+   call read_ca_restart(Atm(1)%domain,scells,nca,ncells_g,nca_g)
 else
    istart=1
 endif
 ct=1
-print*,'about to start loop',noise_option
-do i=istart,151
+do i=istart,2001
    ts=i/4.0  ! hard coded to write out hourly based on a 900 second time-step
    if (ca_sgs) then
        call cellular_automata_sgs(i,dtf,warm_start,first_time_step,                            &
@@ -313,16 +310,16 @@ do i=istart,151
             ca_shal_diag,Atm(1)%domain_for_coupler,nblks,                                          &
             isc,iec,jsc,jec,Atm(1)%npx,Atm(1)%npy, levs,                                           &
             nthresh,rcell,Atm(1)%tile_of_mosaic,nca,scells,tlives,nfracseed,                       & ! for new random number
-            nseed,iseed_ca ,nspinup,ca_trigger,blksz,root_pe,comm,noise_option)
+            nseed,iseed_ca ,nspinup,ca_trigger,blksz,root_pe,comm)
    endif
    if (ca_global) then
       call cellular_automata_global(i,warm_start,first_time_step,ca1_cpl,ca2_cpl,ca3_cpl,ca1_diag,ca2_diag,ca3_diag,Atm(1)%domain_for_coupler, &
            nblks,isc,iec,jsc,jec,Atm(1)%npx,Atm(1)%npy,levs,      &
            nca_g,ncells_g,nlives_g,nfracseed,nseed_g,                         &
            iseed_ca,Atm(1)%tile_of_mosaic, ca_smooth,nspinup,blksz,    &
-           nsmooth,ca_amplitude,root_pe,comm,noise_option)
+           nsmooth,ca_amplitude,root_pe,comm)
    endif
-   if (i.EQ. dump_time) call write_ca_restart(noise_option,'mid_run')
+   if (i.EQ. dump_time) call write_ca_restart('mid_run')
    first_time_step=.false.
    !if (mod(i-1,10).eq.0) then
       if (ca_global) then
@@ -352,7 +349,7 @@ do i=istart,151
       if (my_id.EQ.0) write(6,fmt='(a,i7,f8.3)') 'ca sgs=',i,maxval(ca_deep_diag)
    endif
 enddo
-call write_ca_restart(noise_option)
+call write_ca_restart()
 !close(fid)
 ierr=NF90_CLOSE(ncid)
 end
