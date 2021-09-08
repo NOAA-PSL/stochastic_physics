@@ -37,7 +37,7 @@ module fv_control_stub_mod
    use mpp_mod,             only: FATAL, mpp_error, mpp_pe, stdlog, &
                                   mpp_npes, mpp_get_current_pelist, &
                                   input_nml_file, get_unit, WARNING, &
-                                  read_ascii_file
+                                  read_ascii_file, INPUT_STR_LENGTH
    use mpp_domains_mod,     only: mpp_get_data_domain, mpp_get_compute_domain, mpp_get_tile_id
    use tracer_manager_mod,  only: tm_get_number_tracers => get_number_tracers, &
                                   tm_get_tracer_index   => get_tracer_index,   &
@@ -48,7 +48,7 @@ module fv_control_stub_mod
                                   tm_register_tracers   => register_tracers
 
    use fv_mp_stub_mod,      only: mp_start, domain_decomp, mp_assign_gid
-   use fv_mp_stub_mod,      only: broadcast_domains, mp_barrier, setup_master, grids_master_procs
+   use fv_mp_stub_mod,      only: broadcast_domains, setup_master, grids_master_procs
    use fv_mp_stub_mod,      only: MAX_NNEST, MAX_NTILE,fill_corners,XDir,YDir,ng
    use mpp_domains_mod,     only: domain2D
    use mpp_domains_mod,     only: mpp_get_global_domain
@@ -145,6 +145,7 @@ module fv_control_stub_mod
 
      ngrids = 1
      allocate(Atm(ngrids))
+      Atm(1)%gridstruct%bounded_domain=.false.
      npes = mpp_npes() ! now on global pelist
 
      allocate(global_pelist(npes))
@@ -281,7 +282,6 @@ module fv_control_stub_mod
      enddo
      call init_grid(Atm(this_grid), Atm(this_grid)%flagstruct%grid_name, Atm(this_grid)%flagstruct%grid_file, &
           Atm(this_grid)%flagstruct%npx, Atm(this_grid)%flagstruct%npy, Atm(this_grid)%flagstruct%ndims, Atm(this_grid)%flagstruct%ntiles, ng)
-    print*,'in fv_control_ini',minval(Atm(1)%gridstruct%agrid(Atm(1)%bd%isc:Atm(1)%bd%iec, Atm(1)%bd%jsc:Atm(1)%bd%jec,1)),maxval(Atm(1)%gridstruct%agrid(Atm(1)%bd%isc:Atm(1)%bd%iec, Atm(1)%bd%jsc:Atm(1)%bd%jec,1))
 
 
    contains
@@ -362,7 +362,6 @@ module fv_control_stub_mod
        else
           ntiles=6
        endif
-       print*,'namelist read',npx,npx,ntiles
 
 
 197    format(A,l7)

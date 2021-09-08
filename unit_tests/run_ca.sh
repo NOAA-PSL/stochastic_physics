@@ -2,16 +2,16 @@
 #SBATCH -e err
 #SBATCH -o out
 #SBATCH --account=gsienkf
-#SBATCH --qos=batch
-#SBATCH --nodes=1
+#SBATCH --qos=debug
+#SBATCH --nodes=10
 #SBATCH --ntasks-per-node=40
 #SBATCH --time=20
 #SBATCH --job-name="stoch_unit_tests"
 
-#source ./module-setup.sh
-#module purge
-#module use $( pwd -P )
-#module load modules.orion.intel
+source ./module-setup.sh
+module purge
+module use $( pwd -P )
+module load modules.hera.intel
 EXEC=standalone_ca.x
 
 ulimit -s unlimited
@@ -40,16 +40,17 @@ sed -i -e "s/NOISE/2/g" input.nml
 echo "option 2 run 1"
 sleep 5
 time srun --label -n 384 $EXEC  >& stdout_option_2
-mkdir option_1
-mv ca_out* option_1
+mkdir option_2
+mv ca_out* option_2
+exit
 
 cp input.nml.noise input.nml
 sed -i -e "s/NOISE/2/g" input.nml
 echo "option 2 run 2"
 sleep 5
 time srun --label -n 384 $EXEC  >& stdout_option_2b
-mkdir option_1b
-mv ca_out* option_1b
+mkdir option_2b
+mv ca_out* option_2b
 
 cp input.nml.noise input.nml
 sed -i -e "s/NOISE/1/g" input.nml

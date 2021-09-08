@@ -17,11 +17,12 @@ use kinddef,             only : kind_dbl_prec,kind_phys
 implicit none
 integer                 :: ntasks,fid,ct,levs,ntiles
 integer                 :: ncid_in,varid,ncid,xt_dim_id,yt_dim_id,time_dim_id,xt_var_id,yt_var_id,time_var_id,ca_out_id
-integer                 :: ca1_id,ca2_id,ca3_id,ca_deep_id,ca_turb_id,ca_shal_id
+integer                 :: ca1_id,ca2_id,ca3_id,ca_deep_id!,ca_turb_id,ca_shal_id
 integer                 :: root_pe,comm,dump_time
 real(kind=kind_phys)    :: dtf, nthresh
-character*3             :: strid
+character*4             :: strid
 character*1             :: tileid
+character*4             :: CRES
 !type(GFS_statein_type),allocatable :: Statein(:)
 include 'mpif.h'
 include 'netcdf.inc'
@@ -124,6 +125,7 @@ isc=Atm(1)%bd%isc
 iec=Atm(1)%bd%iec
 jsc=Atm(1)%bd%jsc
 jec=Atm(1)%bd%jec
+write(CRES,'(I4)') Atm(1)%npx-1
 print*,'ATM npx,npy=',Atm(1)%npx,Atm(1)%npy
 
 nx=iec-isc+1
@@ -148,7 +150,9 @@ do i=1,ny
 enddo
 
 !setup GFS_coupling
-if ( ntasks .GT. 100) then
+if ( ntasks .GT. 1000) then
+   write(strid,'(I4.4)') my_id+1
+else if ( ntasks .GT. 100) then
    write(strid,'(I3.3)') my_id+1
 else if ( ntasks .GT. 10) then
    write(strid,'(I2.2)') my_id+1
@@ -208,19 +212,19 @@ if (ca_sgs) then
    ierr=NF90_PUT_ATT(ncid,ca_deep_id,"missing_value",undef)
    ierr=NF90_PUT_ATT(ncid,ca_deep_id,"_FillValue",undef)
    ierr=NF90_PUT_ATT(ncid,ca_deep_id,"cell_methods","time: point")
-   ierr=NF90_DEF_VAR(ncid,"ca_turb",NF90_FLOAT,(/xt_dim_id, yt_dim_id ,time_dim_id/), ca_turb_id)
-   ierr=NF90_PUT_ATT(ncid,ca_turb_id,"long_name","CA field for PBL")
-   ierr=NF90_PUT_ATT(ncid,ca_turb_id,"long_name","random pattern")
-   ierr=NF90_PUT_ATT(ncid,ca_turb_id,"units","None")
-   ierr=NF90_PUT_ATT(ncid,ca_turb_id,"missing_value",undef)
-   ierr=NF90_PUT_ATT(ncid,ca_turb_id,"_FillValue",undef)
-   ierr=NF90_PUT_ATT(ncid,ca_turb_id,"cell_methods","time: point")
-   ierr=NF90_DEF_VAR(ncid,"ca_shal",NF90_FLOAT,(/xt_dim_id, yt_dim_id ,time_dim_id/), ca_shal_id)
-   ierr=NF90_PUT_ATT(ncid,ca_shal_id,"long_name","CA field for shallow convection")
-   ierr=NF90_PUT_ATT(ncid,ca_shal_id,"units","None")
-   ierr=NF90_PUT_ATT(ncid,ca_shal_id,"missing_value",undef)
-   ierr=NF90_PUT_ATT(ncid,ca_shal_id,"_FillValue",undef)
-   ierr=NF90_PUT_ATT(ncid,ca_shal_id,"cell_methods","time: point")
+   !ierr=NF90_DEF_VAR(ncid,"ca_turb",NF90_FLOAT,(/xt_dim_id, yt_dim_id ,time_dim_id/), ca_turb_id)
+   !ierr=NF90_PUT_ATT(ncid,ca_turb_id,"long_name","CA field for PBL")
+   !ierr=NF90_PUT_ATT(ncid,ca_turb_id,"long_name","random pattern")
+   !ierr=NF90_PUT_ATT(ncid,ca_turb_id,"units","None")
+   !ierr=NF90_PUT_ATT(ncid,ca_turb_id,"missing_value",undef)
+   !ierr=NF90_PUT_ATT(ncid,ca_turb_id,"_FillValue",undef)
+   !ierr=NF90_PUT_ATT(ncid,ca_turb_id,"cell_methods","time: point")
+   !ierr=NF90_DEF_VAR(ncid,"ca_shal",NF90_FLOAT,(/xt_dim_id, yt_dim_id ,time_dim_id/), ca_shal_id)
+   !ierr=NF90_PUT_ATT(ncid,ca_shal_id,"long_name","CA field for shallow convection")
+   !ierr=NF90_PUT_ATT(ncid,ca_shal_id,"units","None")
+   !ierr=NF90_PUT_ATT(ncid,ca_shal_id,"missing_value",undef)
+   !ierr=NF90_PUT_ATT(ncid,ca_shal_id,"_FillValue",undef)
+   !ierr=NF90_PUT_ATT(ncid,ca_shal_id,"cell_methods","time: point")
 endif
 ierr=NF90_ENDDEF(ncid)
 ierr=NF90_PUT_VAR(ncid,xt_var_id,grid_xt)
@@ -252,46 +256,23 @@ if(ca_sgs)then
    lake(:,:)=0
 ! read in condtion
    write(tileid,'(I1)') Atm(1)%tile_of_mosaic
-   print*,'reading in condition',size(condition,1),size(condition,2)
-   if (Atm(1)%npx.EQ.97) then
-      ierr=NF90_OPEN('INPUT/ca_condition.tile'//tileid//'.nc',NF90_NOWRITE,ncid_in)
-      if (ierr.NE.0) then
-          print*,'error INPUT/ca_condition.tile'//tileid//'.nc'
-          call MPI_ABORT(ierr)
-      endif
-      ierr=NF90_INQ_VARID(ncid_in,'ca_condition',varid)
-      if (ierr.NE.0) then
-          print*,'error gettinv varid for ca_condition'
-          call MPI_ABORT(ierr)
-      endif
-      ierr=NF90_GET_VAR(ncid_in,varid,cond_in,start=(/isc,jsc,1/),count=(/nx,ny,1/))
-      if (ierr.NE.0) then
-          print*,'error getting var',isc,jsc,nx,ny
-          call MPI_ABORT(ierr)
-      endif
-      ierr=NF90_CLOSE(ncid_in)
-   else
-      ierr=NF90_OPEN('INPUT/C768_ca_condition.tile'//tileid//'.nc',NF90_NOWRITE,ncid_in)
-      if (ierr.NE.0) then
-          print*,'error INPUT/C768_ca_condition.tile'//tileid//'.nc'
-          call MPI_ABORT(ierr)
-      endif
-      ierr=NF90_INQ_VARID(ncid_in,'phy_f3d_02',varid)
-      if (ierr.NE.0) then
-          print*,'error gettinv varid for ca_condition'
-          call MPI_ABORT(ierr)
-      endif
-      ierr=NF90_GET_VAR(ncid_in,varid,cond_in,start=(/isc,jsc/),count=(/nx,ny/))
-      if (ierr.NE.0) then
-          print*,'error getting var',isc,jsc,nx,ny
-          call MPI_ABORT(ierr)
-      endif
-      ierr=NF90_CLOSE(ncid_in)
-   endif
+   ierr=NF90_OPEN('INPUT/C'//trim(adjustl(CRES))//'_ca_condition.tile'//tileid//'.nc',NF90_NOWRITE,ncid_in)
    if (ierr.NE.0) then
-       print*,'error closing INPUT/ca_condition.tile.'//tileid//'.nc'
+       print*,'error INPUT/C'//trim(adjustl(CRES))//'_ca_condition.tile'//tileid//'.nc'
        call MPI_ABORT(ierr)
    endif
+   ierr=NF90_INQ_VARID(ncid_in,'ca_condition',varid)
+   if (ierr.NE.0) then
+       print*,'error gettinv varid for ca_condition'
+       call MPI_ABORT(ierr)
+   endif
+   ierr=NF90_GET_VAR(ncid_in,varid,cond_in,start=(/isc,jsc,1/),count=(/nx,ny,1/))
+   if (ierr.NE.0) then
+       print*,'error getting var',isc,jsc,nx,ny
+       call MPI_ABORT(ierr)
+   endif
+   ierr=NF90_CLOSE(ncid_in)
+   
    i1=isc
    j=jsc
    do nb=1,nblks
@@ -314,17 +295,17 @@ if(ca_sgs)then
        endif
    end do
 endif
-print*,'nca,nca_g',nca,nca_g
-dump_time=10
+
+dump_time=50
 if (warm_start) then
    istart=dump_time+1
-   call read_ca_restart(Atm(1)%domain,scells,nca,nca_g)
+   call read_ca_restart(Atm(1)%domain,scells,nca,ncells_g,nca_g,noise_option)
 else
    istart=1
 endif
 ct=1
 print*,'about to start loop',noise_option
-do i=istart,101
+do i=istart,151
    ts=i/4.0  ! hard coded to write out hourly based on a 900 second time-step
    if (ca_sgs) then
        call cellular_automata_sgs(i,dtf,warm_start,first_time_step,                            &
@@ -341,10 +322,9 @@ do i=istart,101
            iseed_ca,Atm(1)%tile_of_mosaic, ca_smooth,nspinup,blksz,    &
            nsmooth,ca_amplitude,root_pe,comm,noise_option)
    endif
-   if (i.EQ. dump_time) call write_ca_restart(Atm(1)%domain,scells,'mid_run')
+   if (i.EQ. dump_time) call write_ca_restart(noise_option,'mid_run')
    first_time_step=.false.
-   !if (i.eq.1 .OR. i.eq.600) then
-   if (mod(i-1,20).eq.0) then
+   !if (mod(i-1,10).eq.0) then
       if (ca_global) then
          workg(:,:)=TRANSPOSE(ca1_diag(:,:))
          ierr=NF90_PUT_VAR(ncid,ca1_id,workg,(/1,1,ct/))
@@ -356,15 +336,15 @@ do i=istart,101
       if (ca_sgs) then
          workg(:,:)=TRANSPOSE(ca_deep_diag(:,:))
          ierr=NF90_PUT_VAR(ncid,ca_deep_id,workg,(/1,1,ct/))
-         workg(:,:)=TRANSPOSE(ca_turb_diag(:,:))
-         ierr=NF90_PUT_VAR(ncid,ca_turb_id,workg,(/1,1,ct/))
+         !workg(:,:)=TRANSPOSE(ca_turb_diag(:,:))
+         !ierr=NF90_PUT_VAR(ncid,ca_turb_id,workg,(/1,1,ct/))
          !workg(:,:)=ca_shal_diag(:,:)   
-         workg(:,:)=cond_in(:,:)   
-         ierr=NF90_PUT_VAR(ncid,ca_shal_id,workg,(/1,1,ct/))
+         !workg(:,:)=cond_in(:,:)   
+         !ierr=NF90_PUT_VAR(ncid,ca_shal_id,workg,(/1,1,ct/))
       endif
       ierr=NF90_PUT_VAR(ncid,time_var_id,ts,(/ct/))
       ct=ct+1
-   endif
+   !endif
    if (ca_global) then
       if (my_id.EQ.0) write(6,fmt='(a,i7,f8.3)') 'ca glob =',i,maxval(ca1_diag)
    endif
@@ -372,7 +352,7 @@ do i=istart,101
       if (my_id.EQ.0) write(6,fmt='(a,i7,f8.3)') 'ca sgs=',i,maxval(ca_deep_diag)
    endif
 enddo
-call write_ca_restart(Atm(1)%domain,scells)
+call write_ca_restart(noise_option)
 !close(fid)
 ierr=NF90_CLOSE(ncid)
 end

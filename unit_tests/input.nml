@@ -29,26 +29,26 @@
 
 &fms_nml
        clock_grain = 'ROUTINE',
-       domains_stack_size = 3000000,
+       domains_stack_size = 40000000,
        print_memory_usage = .false.
 /
 
 &fv_grid_nml
-       grid_file = 'INPUT/C768_grid_spec.nc'
+       grid_file = 'INPUT/C96_grid_spec.nc'
 /
 
 &fv_core_nml
-       layout   = 8,8
+       layout   = 1,4
        io_layout = 1,1
-       npx      = 769,
-       npy      = 769,
+       npx      = 97,
+       npy      = 97,
        ntiles   = 6,
        grid_type = -1
 /
 
 &gfs_physics_nml
   do_ca          = .true.
-  ca_sgs         = .true.
+  ca_sgs         = .true. 
   ca_global      = .true.
   nca            = 1
   scells         = 2600
@@ -63,10 +63,11 @@
   ncells_g       = 1
   nlives_g       = 100
   nseed_g        = 100
-  ca_smooth      = .True.
+  ca_smooth      = .true.
   nspinup        = 100
-  iseed_ca       = 12345
+  iseed_ca       = 22345
   nsmooth        = 100
   ca_amplitude   = 0.35
-  noise_option   = 0
+  noise_option   = 3
+  warm_start     = .false.
 /
