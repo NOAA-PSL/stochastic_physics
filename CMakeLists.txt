@@ -13,6 +13,7 @@ list(APPEND _stoch_phys_srcs
   halo_exchange.fv3.F90
   plumes.F90
   mersenne_twister.F90
+  random_numbers.F90
   stochy_namelist_def.F90
   compns_stochy.F90
   stochy_internal_state_mod.F90
