@@ -33,6 +33,10 @@ implicit none
 !Setting control variables as a function of dx and dt
 !for scale adaptation. 
 
+!P.Pegion, 2021-09
+! swtich to new random number generator and improve computational efficiency
+! and remove unsued code
+
 !This routine produces an output field CA_DEEP for coupling to convection (saSAS).
 !CA_DEEP can be either number of plumes in a cluster (nca_plumes=true) or updraft 
 !area fraction (nca_plumes=false)
@@ -137,8 +141,8 @@ endif
 
 !--- get params from domain_sgs for building board and board_halo                                                                                
 
-  !Get CA domain                                                                                                                                       
  if(first_time_step)then 
+  !Get CA domain                                                                                                                                       
   if (.not.restart) call define_ca_domain(domain,domain_sgs,ncells,nxncells,nyncells)
   call mpp_get_data_domain    (domain_sgs,isdnx,iednx,jsdnx,jednx)
   call mpp_get_compute_domain (domain_sgs,iscnx,iecnx,jscnx,jecnx)
@@ -151,9 +155,7 @@ endif
   nyc = jecnx-jscnx+1
   nxch = iednx-isdnx+1
   nych = jednx-jsdnx+1
-
-
-
+ 
  !Allocate fields:
 
  allocate(ssti(nlon,nlat))

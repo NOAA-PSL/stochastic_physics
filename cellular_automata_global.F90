@@ -24,6 +24,9 @@ use mpp_mod
 implicit none
 
 !L.Bengtsson, 2017-06
+!P.Pegion, 2021-09
+! swtich to new random number generator and improve computational efficiency
+! and remove unsued code. Also add restart capability ca_global
 
 !This program evolves a cellular automaton uniform over the globe 
 
