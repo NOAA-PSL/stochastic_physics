@@ -38,7 +38,7 @@
 /
 
 &fv_core_nml
-       layout   = 1,4
+       layout   = 1,1
        io_layout = 1,1
        npx      = 97,
        npy      = 97,
@@ -68,5 +68,5 @@
   iseed_ca       = 22345
   nsmooth        = 100
   ca_amplitude   = 0.35
-  warm_start     = .false.
+  warm_start     = .true.
 /

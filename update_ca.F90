@@ -5,7 +5,7 @@ module update_ca
 
 use halo_exchange,    only: atmosphere_scalar_field_halo
 use random_numbers,   only: random_01_CB
-use mpi_wrapper,      only: mype,mp_reduce_sum,mp_bcst,mp_reduce_min,mp_reduce_max
+use mpi_wrapper,      only: mype,mp_reduce_min,mp_reduce_max
 use mpp_domains_mod
 use mpp_mod
 
@@ -16,12 +16,13 @@ public  read_ca_restart
 public  update_cells_sgs
 public  update_cells_global
 
-integer,allocatable,save :: board(:,:,:), lives(:,:,:)
-integer,allocatable,save :: board_g(:,:,:), lives_g(:,:,:)
+integer,allocatable :: board(:,:,:), lives(:,:,:)
+integer,allocatable :: board_g(:,:,:), lives_g(:,:,:)
 integer,public :: isdnx,iednx,jsdnx,jednx,nxncells,nyncells
 integer,public :: iscnx,iecnx,jscnx,jecnx,nxncells_g,nyncells_g
 integer,public :: isdnx_g,iednx_g,jsdnx_g,jednx_g
 integer,public :: iscnx_g,iecnx_g,jscnx_g,jecnx_g
+integer*8, public :: csum
 type(domain2D),public :: domain_sgs,domain_global
 
 
@@ -167,7 +168,8 @@ if (nca .gt. 0 ) then
 endif
 
 if (nca_g .gt. 0 ) then
-   call define_ca_domain(domain_in,domain_global,ncells_g,nxncells_g,nyncells_g)
+   domain_global=domain_in
+   !call define_ca_domain(domain_in,domain_global,ncells_g,nxncells_g,nyncells_g)
    call mpp_get_compute_domain (domain_global,iscnx_g,iecnx_g,jscnx_g,jecnx_g)
    nxc = iecnx_g-iscnx_g+1
    nyc = jecnx_g-jscnx_g+1
@@ -264,6 +266,15 @@ k_in=1
     start_from_restart = .true.
     spinup = 1
  else
+
+   if(kstep < initialize_ca .and. .not. start_from_restart)then
+    do j=1,nyc
+     do i=1,nxc
+      board(i,j,nf) = 0
+      lives(i,j,nf) = 0
+     enddo
+    enddo
+   endif
 
   if(kstep == initialize_ca .and. .not. start_from_restart)then 
    do j=1,nyc
@@ -570,7 +581,10 @@ do it=1,spinup
  neighbours=0
  birth=0
  newcell=0
- !board_halo=0
+ 
+ CA=0
+ newcell=0
+ board_halo=0
 
 !The input to scalar_field_halo needs to be 1D.
 !take the updated board_g fields and extract the halo

@@ -1,12 +1,12 @@
 module cellular_automata_global_mod
 
 use update_ca, only : domain_global,iscnx_g,iecnx_g,jscnx_g,jecnx_g,isdnx_g,iednx_g,jsdnx_g,jednx_g, &
-                      nxncells_g,nyncells_g
+                      nxncells_g,nyncells_g,csum
 implicit none
 
 contains
 
-subroutine cellular_automata_global(kstep,restart,first_time_step,ca1_cpl,ca2_cpl,ca3_cpl,ca1_diag,ca2_diag,ca3_diag, &
+subroutine cellular_automata_global(kstep,restart,first_time_step,ca1_cpl,ca2_cpl,ca3_cpl, &
             domain_in,nblks,isc,iec,jsc,jec,npx,npy,nlev, &
             nca,ncells,nlives,nfracseed,nseed,iseed_ca, mytile, &
             ca_smooth,nspinup,blocksize,nsmooth,ca_amplitude,mpiroot,mpicomm)
@@ -37,7 +37,6 @@ real(kind=kind_phys), intent(in)    :: nfracseed,ca_amplitude
 logical,              intent(in)    :: ca_smooth,first_time_step, restart
 integer,              intent(in)    :: nblks,isc,iec,jsc,jec,npx,npy,nlev,blocksize
 real(kind=kind_phys), intent(out)   :: ca1_cpl(:,:),ca2_cpl(:,:),ca3_cpl(:,:)
-real(kind=kind_phys), intent(out)   :: ca1_diag(:,:),ca2_diag(:,:),ca3_diag(:,:)
 type(domain2D),       intent(inout) :: domain_in
 type(block_control_type) :: Atm_block
 integer :: nlon, nlat, isize,jsize,nf,nn
@@ -56,7 +55,6 @@ real(kind=kind_phys), allocatable :: CA(:,:),CA1(:,:),CA2(:,:),CA3(:,:)
 real*8              , allocatable :: noise(:,:,:)
 real*8               :: psum,CAmean,sq_diff,CAstdv,inv9
 real*8               :: Detmax,Detmin
-integer*8            :: csum
 logical,save         :: block_message=.true.
 integer*8            :: i1,j1
 integer              :: ct
@@ -104,7 +102,8 @@ k_in=1
  !Get CA domain
 
  if(first_time_step)then 
-    if (.not. restart) call define_ca_domain(domain_in,domain_global,ncells,nxncells_g,nyncells_g)
+!    if (.not. restart) call define_ca_domain(domain_in,domain_global,ncells,nxncells_g,nyncells_g)
+     domain_global=domain_in
     call mpp_get_data_domain    (domain_global,isdnx_g,iednx_g,jsdnx_g,jednx_g)
     call mpp_get_compute_domain (domain_global,iscnx_g,iecnx_g,jscnx_g,jecnx_g)
  endif
@@ -114,6 +113,7 @@ k_in=1
  nxch = iednx_g-isdnx_g+1
  nych = jednx_g-jsdnx_g+1
  inv9=1.0/9.0
+ if(first_time_step) csum=int(nxc,kind=8)*int(nyc,kind=8)
 
 
  !Allocate fields:
@@ -130,8 +130,12 @@ k_in=1
 
  !Initialize:
 
+ noise(:,:,:) = 0.0
  iini_g(:,:,:) = 0
  ilives_g(:,:) = 0
+ CA1(:,:) = 0.0
+ CA2(:,:) = 0.0
+ CA3(:,:) = 0.0
 
  !Put the blocks of model fields into a 2d array - can't use nlev and blocksize directly,
  !because the arguments to define_blocks_packed are intent(inout) and not intent(in).
@@ -196,6 +200,7 @@ k_in=1
 !If ca-global is used, then nca independent CAs are called and weighted together to create one field; CA
 
 
+    CA(:,:)=0.
 
     call update_cells_global(kstep,first_time_step,iseed_ca,restart,nca,nxc,nyc,nxch,nych,nlon,nlat,isc,iec,jsc,jec, &
                             npx,npy,CA,iini_g,ilives_g,         &
@@ -203,6 +208,7 @@ k_in=1
 
     if (ca_smooth) then
 
+       field_out=0.
        field_out(1+halo:nlon+halo,1+halo:nlat+halo,1) = real(CA(1:nlon,1:nlat),kind=8)
        do nn=1,nsmooth !number of iterations for the smoothing.
 
@@ -227,18 +233,15 @@ k_in=1
           enddo
        enddo
     endif !smooth
-
     !mean:
-    psum=SUM(CA)
-    csum=int(nlon,kind=8)*int(nlat,kind=8)
-
+    !psum=SUM(CA)
     call mp_reduce_sum(psum)
-    call mp_reduce_sum(csum)
 
-    CAmean=psum/csum
+    !call mp_reduce_sum(psum)
+    !psum= mpp_global_sum (domain_global, CA, flags=BITWISE_EXACT_SUM)
+    CAmean=real(psum,kind=4)/real(csum,kind=4)
 
     !std:
-    !CAstdv=0.
     sq_diff = 0.
     do j=1,nlat
        do i=1,nlon
@@ -246,9 +249,10 @@ k_in=1
        enddo
     enddo
     
+    !sq_diff= mpp_global_sum (domain_global, CA**2, flags=BITWISE_EXACT_SUM)
     call mp_reduce_sum(sq_diff)
 
-    CAstdv = sqrt(sq_diff/csum)
+    CAstdv = sqrt(real(sq_diff,kind=4)/csum)
 
     !Transform to mean of 1 and ca_amplitude standard deviation
 
@@ -257,7 +261,6 @@ k_in=1
           CA(i,j)=1.0 + (CA(i,j)-CAmean)*(ca_amplitude/CAstdv)
        enddo
     enddo
-
     do j=1,nlat
        do i=1,nlon
            CA(i,j)=min(max(CA(i,j),0.),2.0)
@@ -278,17 +281,16 @@ k_in=1
  enddo !nf
 
  do blk = 1, Atm_block%nblks
+    print*,'in ca_global',Atm_block%nblks,Atm_block%blksz(blk)
     do ix = 1,Atm_block%blksz(blk)
        i = Atm_block%index(blk)%ii(ix) - isc + 1
        j = Atm_block%index(blk)%jj(ix) - jsc + 1
-       ca1_diag(blk,ix)=CA1(i,j)
-       ca2_diag(blk,ix)=CA2(i,j)
-       ca3_diag(blk,ix)=CA3(i,j)
        ca1_cpl(blk,ix)=CA1(i,j)
        ca2_cpl(blk,ix)=CA2(i,j)
        ca3_cpl(blk,ix)=CA3(i,j)
     enddo
  enddo
+
 
 
  deallocate(field_out)

@@ -33,7 +33,7 @@ integer     :: isc,iec,jsc,jec,nb,npts
 logical  :: first_time_step
 integer  :: istart
 
-real(kind=4),allocatable,dimension(:,:) :: workg
+real,allocatable,dimension(:,:) :: workg
 real(kind=4),allocatable,dimension(:) :: grid_xt,grid_yt
 type(grid_box_type)           :: grid_box
 !---cellular automata control parameters
@@ -184,40 +184,64 @@ ierr=NF90_PUT_ATT(ncid,time_var_id,"calendar","JULIAN")
 !ierr=NF90_PUT_ATT(ncid,ca_out_id,"_FillValue",undef)
 !ierr=NF90_PUT_ATT(ncid,ca_out_id,"cell_methods","time: point")
 if (ca_global) then
-   ierr=NF90_DEF_VAR(ncid,"ca1",NF90_FLOAT,(/xt_dim_id, yt_dim_id ,time_dim_id/), ca1_id)
+   ierr=NF90_DEF_VAR(ncid,"ca1",NF90_DOUBLE,(/xt_dim_id, yt_dim_id ,time_dim_id/), ca1_id)
+   print*,'nc 1',ierr
    ierr=NF90_PUT_ATT(ncid,ca1_id,"long_name","random pattern")
+   print*,'nc 2',ierr
    ierr=NF90_PUT_ATT(ncid,ca1_id,"units","None")
+   print*,'nc 3',ierr
    ierr=NF90_PUT_ATT(ncid,ca1_id,"missing_value",undef)
+   print*,'nc 4',ierr
    ierr=NF90_PUT_ATT(ncid,ca1_id,"_FillValue",undef)
+   print*,'nc 5',ierr
    ierr=NF90_PUT_ATT(ncid,ca1_id,"cell_methods","time: point")
-   ierr=NF90_DEF_VAR(ncid,"ca2",NF90_FLOAT,(/xt_dim_id, yt_dim_id ,time_dim_id/), ca2_id)
+   print*,'nc 6',ierr
+   ierr=NF90_DEF_VAR(ncid,"ca2",NF90_DOUBLE,(/xt_dim_id, yt_dim_id ,time_dim_id/), ca2_id)
+   print*,'nc 7',ierr
    ierr=NF90_PUT_ATT(ncid,ca2_id,"long_name","random pattern")
+   print*,'nc 8',ierr
    ierr=NF90_PUT_ATT(ncid,ca2_id,"units","None")
+   print*,'nc 9',ierr
    ierr=NF90_PUT_ATT(ncid,ca2_id,"missing_value",undef)
+   print*,'nc10',ierr
    ierr=NF90_PUT_ATT(ncid,ca2_id,"_FillValue",undef)
+   print*,'nc11',ierr
    ierr=NF90_PUT_ATT(ncid,ca2_id,"cell_methods","time: point")
-   ierr=NF90_DEF_VAR(ncid,"ca3",NF90_FLOAT,(/xt_dim_id, yt_dim_id ,time_dim_id/), ca3_id)
+   print*,'nc12',ierr
+   ierr=NF90_DEF_VAR(ncid,"ca3",NF90_DOUBLE,(/xt_dim_id, yt_dim_id ,time_dim_id/), ca3_id)
+   print*,'nc13',ierr
    ierr=NF90_PUT_ATT(ncid,ca3_id,"long_name","random pattern")
+   print*,'nc14',ierr
    ierr=NF90_PUT_ATT(ncid,ca3_id,"units","None")
+   print*,'nc15',ierr
    ierr=NF90_PUT_ATT(ncid,ca3_id,"missing_value",undef)
+   print*,'nc16',ierr
    ierr=NF90_PUT_ATT(ncid,ca3_id,"_FillValue",undef)
+   print*,'nc17',ierr
    ierr=NF90_PUT_ATT(ncid,ca3_id,"cell_methods","time: point")
+   print*,'nc18',ierr
 endif
 if (ca_sgs) then
-   ierr=NF90_DEF_VAR(ncid,"ca_deep",NF90_FLOAT,(/xt_dim_id, yt_dim_id ,time_dim_id/), ca_deep_id)
+   ierr=NF90_DEF_VAR(ncid,"ca_deep",NF90_DOUBLE,(/xt_dim_id, yt_dim_id ,time_dim_id/), ca_deep_id)
+   print*,'ca_deep',ierr
    ierr=NF90_PUT_ATT(ncid,ca_deep_id,"long_name","CA field for deep convection")
+   print*,'nc18',ierr
    ierr=NF90_PUT_ATT(ncid,ca_deep_id,"units","None")
+   print*,'nc19',ierr
    ierr=NF90_PUT_ATT(ncid,ca_deep_id,"missing_value",undef)
+   print*,'nc20',ierr
    ierr=NF90_PUT_ATT(ncid,ca_deep_id,"_FillValue",undef)
+   print*,'nc21',ierr
    ierr=NF90_PUT_ATT(ncid,ca_deep_id,"cell_methods","time: point")
-   !ierr=NF90_DEF_VAR(ncid,"ca_turb",NF90_FLOAT,(/xt_dim_id, yt_dim_id ,time_dim_id/), ca_turb_id)
+   print*,'nc22',ierr
+   !ierr=NF90_DEF_VAR(ncid,"ca_turb",NF90_DOUBLE,(/xt_dim_id, yt_dim_id ,time_dim_id/), ca_turb_id)
    !ierr=NF90_PUT_ATT(ncid,ca_turb_id,"long_name","CA field for PBL")
    !ierr=NF90_PUT_ATT(ncid,ca_turb_id,"long_name","random pattern")
    !ierr=NF90_PUT_ATT(ncid,ca_turb_id,"units","None")
    !ierr=NF90_PUT_ATT(ncid,ca_turb_id,"missing_value",undef)
    !ierr=NF90_PUT_ATT(ncid,ca_turb_id,"_FillValue",undef)
    !ierr=NF90_PUT_ATT(ncid,ca_turb_id,"cell_methods","time: point")
-   !ierr=NF90_DEF_VAR(ncid,"ca_shal",NF90_FLOAT,(/xt_dim_id, yt_dim_id ,time_dim_id/), ca_shal_id)
+   !ierr=NF90_DEF_VAR(ncid,"ca_shal",NF90_DOUBLE,(/xt_dim_id, yt_dim_id ,time_dim_id/), ca_shal_id)
    !ierr=NF90_PUT_ATT(ncid,ca_shal_id,"long_name","CA field for shallow convection")
    !ierr=NF90_PUT_ATT(ncid,ca_shal_id,"units","None")
    !ierr=NF90_PUT_ATT(ncid,ca_shal_id,"missing_value",undef)
@@ -225,8 +249,11 @@ if (ca_sgs) then
    !ierr=NF90_PUT_ATT(ncid,ca_shal_id,"cell_methods","time: point")
 endif
 ierr=NF90_ENDDEF(ncid)
+   print*,'nc23',ierr
 ierr=NF90_PUT_VAR(ncid,xt_var_id,grid_xt)
+   print*,'nc24',ierr
 ierr=NF90_PUT_VAR(ncid,yt_var_id,grid_yt)
+   print*,'nc25',ierr
 ! allocate diagnostics
 if(ca_global)then
    allocate(ca1_cpl (nblks,blksz))
@@ -302,7 +329,7 @@ else
    istart=1
 endif
 ct=1
-do i=istart,2001
+do i=istart,101
    ts=i/4.0  ! hard coded to write out hourly based on a 900 second time-step
    if (ca_sgs) then
        call cellular_automata_sgs(i,dtf,warm_start,first_time_step,                            &
@@ -321,10 +348,11 @@ do i=istart,2001
    endif
    if (i.EQ. dump_time) call write_ca_restart('mid_run')
    first_time_step=.false.
-   !if (mod(i-1,10).eq.0) then
+   if (mod(i-1,5).eq.0) then
       if (ca_global) then
          workg(:,:)=TRANSPOSE(ca1_diag(:,:))
          ierr=NF90_PUT_VAR(ncid,ca1_id,workg,(/1,1,ct/))
+         print*,'put ca 1',ierr
          workg(:,:)=TRANSPOSE(ca2_diag(:,:))
          ierr=NF90_PUT_VAR(ncid,ca2_id,workg,(/1,1,ct/))
          workg(:,:)=TRANSPOSE(ca3_diag(:,:))
@@ -333,6 +361,7 @@ do i=istart,2001
       if (ca_sgs) then
          workg(:,:)=TRANSPOSE(ca_deep_diag(:,:))
          ierr=NF90_PUT_VAR(ncid,ca_deep_id,workg,(/1,1,ct/))
+         print*,'put ca_deep',ierr
          !workg(:,:)=TRANSPOSE(ca_turb_diag(:,:))
          !ierr=NF90_PUT_VAR(ncid,ca_turb_id,workg,(/1,1,ct/))
          !workg(:,:)=ca_shal_diag(:,:)   
@@ -341,7 +370,7 @@ do i=istart,2001
       endif
       ierr=NF90_PUT_VAR(ncid,time_var_id,ts,(/ct/))
       ct=ct+1
-   !endif
+   endif
    if (ca_global) then
       if (my_id.EQ.0) write(6,fmt='(a,i7,f8.3)') 'ca glob =',i,maxval(ca1_diag)
    endif

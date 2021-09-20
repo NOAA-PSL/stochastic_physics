@@ -7,7 +7,7 @@ implicit none
 contains
 
 subroutine cellular_automata_sgs(kstep,dtf,restart,first_time_step,sst,lsmsk,lake,condition_cpl, &
-            ca_deep_cpl,ca_turb_cpl,ca_shal_cpl,ca_deep_diag,ca_turb_diag,ca_shal_diag,domain, &
+            ca_deep_cpl,ca_turb_cpl,ca_shal_cpl,domain, &
             nblks,isc,iec,jsc,jec,npx,npy,nlev,nthresh,rcell, mytile, &
             nca,scells,tlives,nfracseed,nseed,iseed_ca, &
             nspinup,ca_trigger,blocksize,mpiroot,mpicomm)
@@ -18,8 +18,8 @@ use random_numbers,    only: random_01_CB
 use mpp_domains_mod,   only: domain2D,mpp_get_global_domain,CENTER, mpp_get_data_domain, mpp_get_compute_domain
 use block_control_mod, only: block_control_type, define_blocks_packed
 use time_manager_mod, only: time_type
-use mpi_wrapper,       only: mype,mp_reduce_sum,mp_reduce_max,mp_reduce_min, &
-                             mpi_wrapper_initialize,is_rootpe,mp_bcst
+use mpi_wrapper,       only: mype,mp_reduce_max, &
+                             mpi_wrapper_initialize
 use mpp_mod
 
 
@@ -52,9 +52,6 @@ real(kind=kind_phys), intent(inout) :: condition_cpl(:,:)
 real(kind=kind_phys), intent(inout) :: ca_deep_cpl(:,:)
 real(kind=kind_phys), intent(inout) :: ca_turb_cpl(:,:)
 real(kind=kind_phys), intent(inout) :: ca_shal_cpl(:,:)
-real(kind=kind_phys), intent(out)   :: ca_deep_diag(:,:)
-real(kind=kind_phys), intent(out)   :: ca_turb_diag(:,:)
-real(kind=kind_phys), intent(out)   :: ca_shal_diag(:,:)
 type(domain2D),       intent(inout) :: domain
 
 type(block_control_type)          :: Atm_block
@@ -205,14 +202,15 @@ endif
   enddo
 
   condmax=maxval(condition)
+  condmaxinv=0.0
   call mp_reduce_max(condmax)
   if(condmax > 0.)then
      if(.not. first_flag)then
         first_flag = .true.
         initialize_ca = kstep
      endif
+     condmaxinv=1.0/condmax
   endif
-  condmaxinv=1.0/condmax
 
 if(kstep >=initialize_ca)then
   do nf=1,nca
@@ -297,7 +295,7 @@ endif !  restart
     else
     livesmax=maxval(ilives_in)
     call mp_reduce_max(livesmax)
-    livesmaxinv=1.0/livesmax 
+    livesmaxinv=1.0/real(livesmax,kind=4)
     do j=1,nlat
        do i=1,nlon
           CA_DEEP(i,j)=CA(i,j)*livesmaxinv
@@ -324,7 +322,6 @@ enddo
     do ix = 1,Atm_block%blksz(blk)
        i = Atm_block%index(blk)%ii(ix) - isc + 1
        j = Atm_block%index(blk)%jj(ix) - jsc + 1
-       ca_deep_diag(blk,ix)=CA_DEEP(i,j)
        ca_deep_cpl(blk,ix)=CA_DEEP(i,j) 
     enddo
  enddo
