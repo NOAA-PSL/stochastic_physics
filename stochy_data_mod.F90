@@ -31,7 +31,8 @@ module stochy_data_mod
  real*8, public,allocatable :: sl(:)
 
  real(kind=kind_dbl_prec),public, allocatable :: vfact_sppt(:),vfact_shum(:),vfact_skeb(:)
- real(kind=kind_dbl_prec),public, allocatable :: skeb_vwts(:,:),skeb_vpts(:,:)
+ real(kind=kind_dbl_prec),public, allocatable :: skeb_vwts(:,:)
+ integer                 ,public, allocatable :: skeb_vpts(:,:)
  real(kind=kind_dbl_prec),public, allocatable :: gg_lats(:),gg_lons(:)
  real(kind=kind_dbl_prec),public :: wlon,rnlat,rad2deg
  real(kind=kind_dbl_prec),public, allocatable :: skebu_save(:,:,:),skebv_save(:,:,:)

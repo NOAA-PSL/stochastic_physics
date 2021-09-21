@@ -6,8 +6,10 @@ module update_ca
 use halo_exchange,    only: atmosphere_scalar_field_halo
 use random_numbers,   only: random_01_CB
 use mpi_wrapper,      only: mype,mp_reduce_min,mp_reduce_max
-use mpp_domains_mod
-use mpp_mod
+use mpp_domains_mod,  only: domain2D,mpp_get_global_domain,CENTER, mpp_get_data_domain, mpp_get_compute_domain,mpp_get_ntile_count,&
+                            mpp_define_mosaic,mpp_get_layout
+use mpp_mod,          only: mpp_error,  mpp_pe, mpp_root_pe, &
+                            NOTE,   FATAL
 
 implicit none
 
@@ -116,8 +118,6 @@ subroutine read_ca_restart(domain_in,scells,nca,ncells_g,nca_g)
 use fms_io_mod,          only: restart_file_type, &
                                register_restart_field,               &
                                restore_state
-use mpp_mod,             only: mpp_error,  mpp_pe, mpp_root_pe, &
-                               mpp_chksum, NOTE,   FATAL
 use fms_mod,             only: file_exist, stdout
 
 implicit none
@@ -302,7 +302,7 @@ if(mod(kstep,nseed)==0. .and. (kstep >= initialize_ca .or. start_from_restart))t
       do i=1,nxc
          i1=i+(isc-1)*ncells
          if (iseed_ca <= 0) then
-            call system_clock(count, count_rate, count_max)
+            !call system_clock(count, count_rate, count_max)
             count_trunc = iscale*(count/iscale)
             count4 = count - count_trunc + mytile *( i1+nx_full*(j1-1)) ! no need to multply by 7 since time will be different in sgs
          else
@@ -548,7 +548,7 @@ if(mod(kstep,nseed) == 0)then
       do i=1,nxc
          i1=i+(isc-1)*ncells
          if (iseed_ca <= 0) then
-            call system_clock(count, count_rate, count_max)
+            !call system_clock(count, count_rate, count_max)
             count_trunc = iscale*(count/iscale)
             count4 = count - count_trunc + mytile *( i1+nx_full*(j1-1)) ! no need to multply by 7 since time will be different in sgs
          else

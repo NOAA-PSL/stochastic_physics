@@ -1,5 +1,6 @@
   module fv_arrays_stub_mod   
 
+#include <fms_platform.h>
   use mpp_domains_mod,       only: domain2d
   use fms_io_mod,            only: restart_file_type
   use time_manager_mod,      only: time_type

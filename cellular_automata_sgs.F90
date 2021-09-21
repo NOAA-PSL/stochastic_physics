@@ -20,7 +20,6 @@ use block_control_mod, only: block_control_type, define_blocks_packed
 use time_manager_mod, only: time_type
 use mpi_wrapper,       only: mype,mp_reduce_max, &
                              mpi_wrapper_initialize
-use mpp_mod
 
 
 

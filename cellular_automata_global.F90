@@ -15,11 +15,11 @@ use kinddef,           only: kind_phys
 use update_ca,         only: update_cells_global,define_ca_domain
 use halo_exchange,     only: atmosphere_scalar_field_halo
 use random_numbers,    only: random_01_CB
-use mpp_domains_mod,   only: domain2D,mpp_get_global_domain,CENTER, mpp_get_data_domain, mpp_get_compute_domain
+use mpp_domains_mod,   only: domain2D,mpp_get_global_domain,CENTER, mpp_get_data_domain, mpp_get_compute_domain,mpp_global_sum, &
+                             BITWISE_EFP_SUM, BITWISE_EXACT_SUM
 use block_control_mod, only: block_control_type, define_blocks_packed
-use mpi_wrapper,       only: mp_reduce_sum,mp_bcst,mp_reduce_max,mp_reduce_min, &
+use mpi_wrapper,       only: mp_reduce_sum,mp_reduce_max,mp_reduce_min, &
                              mpi_wrapper_initialize,mype,is_rootpe
-use mpp_mod
 
 implicit none
 
@@ -51,7 +51,7 @@ integer(8) :: count, count_rate, count_max, count_trunc,nx_full
 integer(8) :: iscale = 10000000000
 integer, allocatable :: iini_g(:,:,:),ilives_g(:,:)
 real(kind=kind_phys), allocatable :: field_out(:,:,:), field_smooth(:,:)
-real(kind=kind_phys), allocatable :: CA(:,:),CA1(:,:),CA2(:,:),CA3(:,:)
+real(kind=kind_phys), allocatable :: CA(:,:),CA1(:,:),CA2(:,:),CA3(:,:),CAprime(:,:)
 real*8              , allocatable :: noise(:,:,:)
 real*8               :: psum,CAmean,sq_diff,CAstdv,inv9
 real*8               :: Detmax,Detmin
@@ -113,7 +113,7 @@ k_in=1
  nxch = iednx_g-isdnx_g+1
  nych = jednx_g-jsdnx_g+1
  inv9=1.0/9.0
- if(first_time_step) csum=int(nxc,kind=8)*int(nyc,kind=8)
+ if(first_time_step) csum=int(6*(npx-1),kind=8)*int((npx-1),kind=8)
 
 
  !Allocate fields:
@@ -122,6 +122,7 @@ k_in=1
  allocate(iini_g(nxc,nyc,nca))
  allocate(ilives_g(nxc,nyc))
  allocate(CA(nlon,nlat))
+ allocate(CAprime(nlon,nlat))
  allocate(CA1(nlon,nlat))
  allocate(CA2(nlon,nlat))
  allocate(CA3(nlon,nlat))
@@ -235,24 +236,24 @@ k_in=1
     endif !smooth
     !mean:
     !psum=SUM(CA)
-    call mp_reduce_sum(psum)
-
     !call mp_reduce_sum(psum)
-    !psum= mpp_global_sum (domain_global, CA, flags=BITWISE_EXACT_SUM)
-    CAmean=real(psum,kind=4)/real(csum,kind=4)
+
+    psum= mpp_global_sum (domain_global, CA, flags=BITWISE_EXACT_SUM)
+    CAmean=psum/csum
 
     !std:
-    sq_diff = 0.
+    !sq_diff = 0.
     do j=1,nlat
        do i=1,nlon
-          sq_diff = sq_diff + (CA(i,j)-CAmean)**2.0
+         CAprime(i,j) = (CA(i,j)-CAmean)**2.0
        enddo
     enddo
     
-    !sq_diff= mpp_global_sum (domain_global, CA**2, flags=BITWISE_EXACT_SUM)
-    call mp_reduce_sum(sq_diff)
+    !call mp_reduce_sum(sq_diff)
+    sq_diff= mpp_global_sum (domain_global, CAprime, flags=BITWISE_EXACT_SUM)
 
-    CAstdv = sqrt(real(sq_diff,kind=4)/csum)
+    CAstdv = sqrt(sq_diff/csum)
+    print*,'in rescale',psum,sq_diff,csum
 
     !Transform to mean of 1 and ca_amplitude standard deviation
 
@@ -298,6 +299,7 @@ k_in=1
  deallocate(iini_g)
  deallocate(ilives_g)
  deallocate(CA)
+ deallocate(CAprime)
  deallocate(CA1)
  deallocate(CA2)
  deallocate(CA3)

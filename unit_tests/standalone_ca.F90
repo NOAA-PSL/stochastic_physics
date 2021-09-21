@@ -61,11 +61,9 @@ logical              :: ca_trigger      !< logical switch for ca on trigger
 logical              :: warm_start      !< logical switch for ca on trigger
 
 real(kind=kind_phys), dimension(:,:),   allocatable :: cond_in,condition, sst,lmsk,lake
-real(kind=kind_phys), dimension(:,:),   allocatable :: ca_deep_cpl, ca_turb_cpl, ca_shal_cpl
-real(kind=kind_phys), dimension(:,:),   allocatable :: ca_deep_diag,ca_turb_diag,ca_shal_diag
+real(kind=kind_phys), dimension(:,:),   allocatable :: ca_deep, ca_turb, ca_shal
 
-real(kind=kind_phys), dimension(:,:),   allocatable :: ca1_cpl, ca2_cpl, ca3_cpl
-real(kind=kind_phys), dimension(:,:),   allocatable :: ca1_diag,ca2_diag,ca3_diag
+real(kind=kind_phys), dimension(:,:),   allocatable :: ca1, ca2, ca3
 
 NAMELIST /gfs_physics_nml/ do_ca, ca_sgs, ca_global, nca, scells, tlives, nseed,       &
                           nfracseed, rcell, ca_trigger, ca_entr, ca_closure, nca_g,    &
@@ -256,21 +254,15 @@ ierr=NF90_PUT_VAR(ncid,yt_var_id,grid_yt)
    print*,'nc25',ierr
 ! allocate diagnostics
 if(ca_global)then
-   allocate(ca1_cpl (nblks,blksz))
-   allocate(ca2_cpl (nblks,blksz))
-   allocate(ca3_cpl (nblks,blksz))
-   allocate(ca1_diag(nblks,blksz))
-   allocate(ca2_diag(nblks,blksz))
-   allocate(ca3_diag(nblks,blksz))
+   allocate(ca1 (nblks,blksz))
+   allocate(ca2 (nblks,blksz))
+   allocate(ca3 (nblks,blksz))
 endif
 
 if(ca_sgs)then
-   allocate(ca_deep_diag(nblks,blksz))
-   allocate(ca_turb_diag(nblks,blksz))
-   allocate(ca_shal_diag(nblks,blksz))
-   allocate(ca_deep_cpl (nblks,blksz))
-   allocate(ca_turb_cpl (nblks,blksz))
-   allocate(ca_shal_cpl (nblks,blksz))
+   allocate(ca_deep (nblks,blksz))
+   allocate(ca_turb (nblks,blksz))
+   allocate(ca_shal (nblks,blksz))
    allocate(condition   (nblks,blksz))
    allocate(cond_in     (isc:iec,jsc:jec))
    allocate(sst         (nblks,blksz))
@@ -333,14 +325,14 @@ do i=istart,101
    ts=i/4.0  ! hard coded to write out hourly based on a 900 second time-step
    if (ca_sgs) then
        call cellular_automata_sgs(i,dtf,warm_start,first_time_step,                            &
-            sst,lmsk,lake,condition,ca_deep_cpl,ca_turb_cpl,ca_shal_cpl,ca_deep_diag,ca_turb_diag, &
-            ca_shal_diag,Atm(1)%domain_for_coupler,nblks,                                          &
+            sst,lmsk,lake,condition,ca_deep,ca_turb,ca_shal, &
+            Atm(1)%domain_for_coupler,nblks,                                          &
             isc,iec,jsc,jec,Atm(1)%npx,Atm(1)%npy, levs,                                           &
             nthresh,rcell,Atm(1)%tile_of_mosaic,nca,scells,tlives,nfracseed,                       & ! for new random number
             nseed,iseed_ca ,nspinup,ca_trigger,blksz,root_pe,comm)
    endif
    if (ca_global) then
-      call cellular_automata_global(i,warm_start,first_time_step,ca1_cpl,ca2_cpl,ca3_cpl,ca1_diag,ca2_diag,ca3_diag,Atm(1)%domain_for_coupler, &
+      call cellular_automata_global(i,warm_start,first_time_step,ca1,ca2,ca3,Atm(1)%domain_for_coupler, &
            nblks,isc,iec,jsc,jec,Atm(1)%npx,Atm(1)%npy,levs,      &
            nca_g,ncells_g,nlives_g,nfracseed,nseed_g,                         &
            iseed_ca,Atm(1)%tile_of_mosaic, ca_smooth,nspinup,blksz,    &
@@ -350,21 +342,21 @@ do i=istart,101
    first_time_step=.false.
    if (mod(i-1,5).eq.0) then
       if (ca_global) then
-         workg(:,:)=TRANSPOSE(ca1_diag(:,:))
+         workg(:,:)=TRANSPOSE(ca1(:,:))
          ierr=NF90_PUT_VAR(ncid,ca1_id,workg,(/1,1,ct/))
          print*,'put ca 1',ierr
-         workg(:,:)=TRANSPOSE(ca2_diag(:,:))
+         workg(:,:)=TRANSPOSE(ca2(:,:))
          ierr=NF90_PUT_VAR(ncid,ca2_id,workg,(/1,1,ct/))
-         workg(:,:)=TRANSPOSE(ca3_diag(:,:))
+         workg(:,:)=TRANSPOSE(ca3(:,:))
          ierr=NF90_PUT_VAR(ncid,ca3_id,workg,(/1,1,ct/))
       endif
       if (ca_sgs) then
-         workg(:,:)=TRANSPOSE(ca_deep_diag(:,:))
+         workg(:,:)=TRANSPOSE(ca_deep(:,:))
          ierr=NF90_PUT_VAR(ncid,ca_deep_id,workg,(/1,1,ct/))
          print*,'put ca_deep',ierr
-         !workg(:,:)=TRANSPOSE(ca_turb_diag(:,:))
+         !workg(:,:)=TRANSPOSE(ca_turb(:,:))
          !ierr=NF90_PUT_VAR(ncid,ca_turb_id,workg,(/1,1,ct/))
-         !workg(:,:)=ca_shal_diag(:,:)   
+         !workg(:,:)=ca_shal(:,:)   
          !workg(:,:)=cond_in(:,:)   
          !ierr=NF90_PUT_VAR(ncid,ca_shal_id,workg,(/1,1,ct/))
       endif
@@ -372,10 +364,10 @@ do i=istart,101
       ct=ct+1
    endif
    if (ca_global) then
-      if (my_id.EQ.0) write(6,fmt='(a,i7,f8.3)') 'ca glob =',i,maxval(ca1_diag)
+      if (my_id.EQ.0) write(6,fmt='(a,i7,f8.3)') 'ca glob =',i,maxval(ca1)
    endif
    if (ca_sgs) then
-      if (my_id.EQ.0) write(6,fmt='(a,i7,f8.3)') 'ca sgs=',i,maxval(ca_deep_diag)
+      if (my_id.EQ.0) write(6,fmt='(a,i7,f8.3)') 'ca sgs=',i,maxval(ca_deep)
    endif
 enddo
 call write_ca_restart()
