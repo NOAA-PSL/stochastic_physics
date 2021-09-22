@@ -36,9 +36,6 @@ if [ $compile_all -eq 1 ];then
    $FC ${FLAGS} cellular_automata_global.F90
    ar rv libcellular_automata.a *.o
 fi
-   #$FC ${FLAGS} update_ca.F90
-   #$FC ${FLAGS} cellular_automata_global.F90
-#   ar rv libcellular_automata.a *.o
 if [ $DEBUG == 'YES' ]; then
    $FC -traceback -g -C -real-size 64 -qopenmp -o unit_tests/standalone_ca.x unit_tests/standalone_ca.F90 ${INCS} -I${NETCDF}/include -L. -lcellular_automata -L${FMS_LIB} -lfms_r8 -L${ESMF_LIB} -Wl,-rpath,${ESMF_LIB} -lesmf -L${NETCDF}/lib -lnetcdff -lnetcdf -L${HDF5_LIBRARIES} -lhdf5_hl -lhdf5 \
 -L${ZLIB_LIBRARIES} -lz

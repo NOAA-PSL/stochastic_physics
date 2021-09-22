@@ -1,5 +1,5 @@
 #!/bin/sh
-compile_all=1
+compile_all=0
 DEBUG=YES
 #DEBUG=NO
 source ./module-setup.sh
@@ -41,6 +41,8 @@ if [ $compile_all -eq 1 ];then
    $FC ${FLAGS} cellular_automata_global.F90
    ar rv libcellular_automata.a *.o
 fi
+   $FC ${FLAGS} update_ca.F90
+exit
 if [ $DEBUG == 'YES' ]; then
    $FC -fdec -ggdb -fbacktrace -cpp -fcray-pointer -ffree-line-length-none -fno-range-check -fdefault-real-8 -fdefault-double-8 -g -O0 -fno-unsafe-math-optimizations -frounding-math -fsignaling-nans -ffpe-trap=invalid,zero,overflow -fbounds-check -I. -fopenmp -o unit_tests/standalone_ca.x unit_tests/standalone_ca.F90 ${INCS} -I${NETCDF}/include -L. -lcellular_automata -L${FMS_LIB} -lfms_r4 -L${ESMF_LIB} -Wl,-rpath,${ESMF_LIB} -lesmf -L${NETCDF}/lib -lnetcdff -lnetcdf -L${HDF5_LIBRARIES} -lhdf5_hl -lhdf5 \
 -L${ZLIB_LIBRARIES} -lz -ldl

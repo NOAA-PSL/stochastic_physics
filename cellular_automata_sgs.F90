@@ -1,13 +1,13 @@
 module cellular_automata_sgs_mod
 
-use update_ca, only : domain_sgs,iscnx,iecnx,jscnx,jecnx,isdnx,iednx,jsdnx,jednx,nxncells,nyncells
+use update_ca, only : domain_global,domain_sgs,iscnx,iecnx,jscnx,jecnx,isdnx,iednx,jsdnx,jednx,nxncells,nyncells
 implicit none
 
 
 contains
 
 subroutine cellular_automata_sgs(kstep,dtf,restart,first_time_step,sst,lsmsk,lake,condition_cpl, &
-            ca_deep_cpl,ca_turb_cpl,ca_shal_cpl,domain, &
+            ca_deep_cpl,ca_turb_cpl,ca_shal_cpl,domain_in, &
             nblks,isc,iec,jsc,jec,npx,npy,nlev,nthresh,rcell, mytile, &
             nca,scells,tlives,nfracseed,nseed,iseed_ca, &
             nspinup,ca_trigger,blocksize,mpiroot,mpicomm)
@@ -15,7 +15,8 @@ subroutine cellular_automata_sgs(kstep,dtf,restart,first_time_step,sst,lsmsk,lak
 use kinddef,           only: kind_phys
 use update_ca,         only: update_cells_sgs, define_ca_domain
 use random_numbers,    only: random_01_CB
-use mpp_domains_mod,   only: domain2D,mpp_get_global_domain,CENTER, mpp_get_data_domain, mpp_get_compute_domain
+use mpp_domains_mod,   only: domain2D,mpp_get_global_domain,CENTER, mpp_get_data_domain, mpp_get_compute_domain,&
+                             mpp_define_io_domain,mpp_get_io_domain_layout
 use block_control_mod, only: block_control_type, define_blocks_packed
 use time_manager_mod, only: time_type
 use mpi_wrapper,       only: mype,mp_reduce_max, &
@@ -51,7 +52,7 @@ real(kind=kind_phys), intent(inout) :: condition_cpl(:,:)
 real(kind=kind_phys), intent(inout) :: ca_deep_cpl(:,:)
 real(kind=kind_phys), intent(inout) :: ca_turb_cpl(:,:)
 real(kind=kind_phys), intent(inout) :: ca_shal_cpl(:,:)
-type(domain2D),       intent(inout) :: domain
+type(domain2D),       intent(inout) :: domain_in
 
 type(block_control_type)          :: Atm_block
 integer :: nlon, nlat, isize,jsize,nf,nn
@@ -63,7 +64,7 @@ integer :: ncells,nlives
 integer, save :: initialize_ca
 integer(8) :: count, count_rate, count_max, count_trunc,nx_full
 integer(8) :: iscale = 10000000000
-integer, allocatable :: iini(:,:,:),ilives_in(:,:,:),ca_plumes(:,:)
+integer, allocatable :: iini(:,:,:),ilives_in(:,:,:),ca_plumes(:,:),io_layout(:)
 real(kind=kind_phys), allocatable :: ssti(:,:),lsmski(:,:),lakei(:,:)
 real(kind=kind_phys), allocatable :: CA(:,:),condition(:,:),conditiongrid(:,:)
 real(kind=kind_phys), allocatable :: CA_DEEP(:,:)
@@ -115,7 +116,7 @@ endif
  jsize=nlat+2*halo
 
  !Set time and length scales:
- call mpp_get_global_domain(domain,xsize=nx,ysize=ny,position=CENTER)
+ call mpp_get_global_domain(domain_in,xsize=nx,ysize=ny,position=CENTER)
  pi=3.14159
  re=6371000.
  dx=0.5*pi*re/real(nx)
@@ -139,7 +140,12 @@ endif
 
  if(first_time_step)then 
   !Get CA domain                                                                                                                                       
-  if (.not.restart) call define_ca_domain(domain,domain_sgs,ncells,nxncells,nyncells)
+  if (.not.restart) then
+      allocate(io_layout(2))
+      io_layout=mpp_get_io_domain_layout(domain_in)
+      call define_ca_domain(domain_in,domain_sgs,ncells,nxncells,nyncells)
+      call mpp_define_io_domain(domain_sgs, io_layout)
+  endif
   call mpp_get_data_domain    (domain_sgs,isdnx,iednx,jsdnx,jednx)
   call mpp_get_compute_domain (domain_sgs,iscnx,iecnx,jscnx,jecnx)
   !write(1000+mpp_pe(),*) "nxncells,nyncells: ",nxncells,nyncells

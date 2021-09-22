@@ -3,13 +3,21 @@ module update_ca
 !read and write restart routines, to restart fields 
 !on the ncellsxncells CA grid
 
+use kinddef,           only: kind_dbl_prec
 use halo_exchange,    only: atmosphere_scalar_field_halo
 use random_numbers,   only: random_01_CB
 use mpi_wrapper,      only: mype,mp_reduce_min,mp_reduce_max
 use mpp_domains_mod,  only: domain2D,mpp_get_global_domain,CENTER, mpp_get_data_domain, mpp_get_compute_domain,mpp_get_ntile_count,&
-                            mpp_define_mosaic,mpp_get_layout
+                            mpp_define_mosaic,mpp_get_layout,mpp_define_io_domain,mpp_get_io_domain_layout
 use mpp_mod,          only: mpp_error,  mpp_pe, mpp_root_pe, &
                             NOTE,   FATAL
+use fms2_io_mod,        only: FmsNetcdfDomainFile_t, unlimited,      &
+                                open_file, close_file,                 &
+                                register_axis, register_restart_field, &
+                                register_variable_attribute, register_field, &
+                                read_restart, write_restart, write_data,     &
+                                get_global_io_domain_indices, variable_exists
+
 
 implicit none
 
@@ -74,64 +82,125 @@ end subroutine define_ca_domain
 subroutine write_ca_restart(timestamp)
 !Write restart files 
 
-use fms_io_mod,          only: restart_file_type, &
-                               register_restart_field,               &
-                               restore_state, save_restart
 
 implicit none
 character(len=*), optional, intent(in)    :: timestamp
-character(len=32)  :: fn_phy = 'ca_data.nc'
+character(len=32)  :: fn_ca = 'ca_data.nc'
 
-type(restart_file_type) :: CA_restart
-type(restart_file_type) :: CA_tile_restart
-integer :: id_restart,ncells,nx,ny
-integer :: nxncells, nyncells
+type(FmsNetcdfDomainFile_t) :: CA_restart
+integer :: id_restart,ncells,nx,ny,i
+integer :: is,ie,js,je,nca,nca_g
+
+integer, allocatable, dimension(:) :: buffer
+character(7) :: indir='RESTART'
+character(72) :: infile
+logical :: amiopen
+amiopen=.false.
 
 !Return if not allocated:
 if(.not. allocated(board) .and. .not. allocated(lives) .and. .not.  allocated(board_g) .and. .not. allocated(lives_g))return
 
+infile=trim(indir)//'/'//trim(fn_ca)
+if( present(timestamp) ) infile=trim(indir)//'/'//trim(timestamp)//'.'//trim(fn_ca)
+   !--- register axis
 if (allocated(board)) then
-   !Register restart field
-   id_restart = register_restart_field (CA_tile_restart, fn_phy, "board", &
-        board(:,:,:), domain = domain_sgs, mandatory=.true.)
-   
-   id_restart = register_restart_field (CA_tile_restart, fn_phy, "lives", &
-        lives(:,:,:), domain = domain_sgs,  mandatory=.true.)
-endif
+   amiopen=open_file(CA_restart, trim(infile), 'overwrite', domain=domain_sgs, is_restart=.true., dont_add_res_to_filename=.true.)
+   if( amiopen ) then
+      nca=SIZE(board,3)
+      call mpp_get_compute_domain (domain_sgs,is,ie,js,je)
+      call register_axis(CA_restart, 'xaxis_1', 'X')
+      call register_field(CA_restart, 'xaxis_1', 'double', (/'xaxis_1'/))
+      call register_variable_attribute(CA_restart, 'xaxis_1', 'cartesian_axis', 'X', str_len=1)
+      call get_global_io_domain_indices(CA_restart, 'xaxis_1', is, ie, indices=buffer)
+      call write_data(CA_restart, "xaxis_1", buffer)
+      deallocate(buffer)
 
+      call register_axis(CA_restart, 'yaxis_1', 'Y')
+      call register_field(CA_restart, 'yaxis_1', 'double', (/'yaxis_1'/))
+      call register_variable_attribute(CA_restart, 'yaxis_1', 'cartesian_axis', 'Y', str_len=1)
+      call get_global_io_domain_indices(CA_restart, 'yaxis_1', js, je, indices=buffer)
+      call write_data(CA_restart, "yaxis_1", buffer)
+      deallocate(buffer)
+
+      call register_axis(CA_restart, 'zaxis_1', nca )
+      call register_field(CA_restart, 'zaxis_1', 'double', (/'zaxis_1'/))
+      call register_variable_attribute(CA_restart, 'zaxis_1', 'cartesian_axis', 'Z', str_len=1)
+      allocate( buffer(nca) )
+      do i=1, nca
+         buffer(i)=i
+      end do
+      call write_data(CA_restart, "zaxis_1", buffer)
+      deallocate(buffer)
+      call register_restart_field(CA_restart, "board", board(:,:,:), dimensions=(/'xaxis_1','yaxis_1','zaxis_1'/),is_optional=.false.)
+      call register_restart_field(CA_restart, "lives", lives(:,:,:), dimensions=(/'xaxis_1','yaxis_1','zaxis_1'/),is_optional=.false.)
+      call write_restart(CA_restart)
+      call close_file(CA_restart)
+   else
+      call mpp_error(FATAL, 'Error opening file '//trim(infile))
+   endif
+endif
 if (allocated(board_g)) then
-   !Register restart field
-   id_restart = register_restart_field (CA_tile_restart, fn_phy, "board_g", &
-        board_g(:,:,:), domain = domain_global, mandatory=.true.)
-   
-   id_restart = register_restart_field (CA_tile_restart, fn_phy, "lives_g", &
-        lives_g(:,:,:), domain = domain_global,  mandatory=.true.)
-   
+   if ( amiopen) then 
+      amiopen=open_file(CA_restart, trim(infile), 'append', domain=domain_global, is_restart=.true., dont_add_res_to_filename=.true.)
+   else
+      amiopen=open_file(CA_restart, trim(infile), 'overwrite', domain=domain_global, is_restart=.true., dont_add_res_to_filename=.true.)
+   endif
+   if( amiopen ) then
+      nca_g=SIZE(board_g,3)
+      call mpp_get_compute_domain (domain_global,is,ie,js,je)
+      call register_axis(CA_restart, 'xaxis_2', 'X')
+      call register_field(CA_restart, 'xaxis_2', 'double', (/'xaxis_2'/))
+      call register_variable_attribute(CA_restart, 'xaxis_2', 'cartesian_axis', 'X', str_len=1)
+      call get_global_io_domain_indices(CA_restart, 'xaxis_2', is, ie, indices=buffer)
+      call write_data(CA_restart, "xaxis_2", buffer)
+      deallocate(buffer)
+
+      call register_axis(CA_restart, 'yaxis_2', 'Y')
+      call register_field(CA_restart, 'yaxis_2', 'double', (/'yaxis_2'/))
+      call register_variable_attribute(CA_restart, 'yaxis_2', 'cartesian_axis', 'Y', str_len=1)
+      call get_global_io_domain_indices(CA_restart, 'yaxis_2', js, je, indices=buffer)
+      call write_data(CA_restart, "yaxis_2", buffer)
+      deallocate(buffer)
+
+      call register_axis(CA_restart, 'zaxis_2', nca_g)
+      call register_field(CA_restart, 'zaxis_2', 'double', (/'zaxis_2'/))
+      call register_variable_attribute(CA_restart, 'zaxis_2', 'cartesian_axis', 'Z', str_len=1)
+      allocate( buffer(nca_g) )
+      do i=1, nca_g
+         buffer(i)=i
+      end do
+      call write_data(CA_restart, "zaxis_2", buffer)
+      deallocate(buffer)
+      call register_restart_field(CA_restart, "board_g", board_g(:,:,:), dimensions=(/'xaxis_2','yaxis_2','zaxis_2'/),is_optional=.false.)
+      call register_restart_field(CA_restart, "lives_g", lives_g(:,:,:), dimensions=(/'xaxis_2','yaxis_2','zaxis_2'/),is_optional=.false.)
+      call write_restart(CA_restart)
+      call close_file(CA_restart)
+   else
+      call mpp_error(FATAL, 'Error opening file '//trim(infile))
+   endif
 endif
 
-call save_restart(CA_tile_restart, timestamp)
 
 end subroutine write_ca_restart
 
 subroutine read_ca_restart(domain_in,scells,nca,ncells_g,nca_g)
 !Read restart files
-use fms_io_mod,          only: restart_file_type, &
-                               register_restart_field,               &
-                               restore_state
-use fms_mod,             only: file_exist, stdout
-
 implicit none
-type(restart_file_type) :: CA_restart
-type(restart_file_type) :: CA_tile_restart
+type(FmsNetcdfDomainFile_t) :: CA_restart
 type(domain2D), intent(inout) :: domain_in
 integer,intent(in) :: scells,nca,nca_g,ncells_g
-character(len=32)  :: fn_phy = 'ca_data.nc'
+character(len=32)  :: fn_ca = 'ca_data.nc'
 
 character(len=64) :: fname
 integer :: id_restart
-integer :: nxc,nyc
+integer :: nxc,nyc,i
 real    :: pi,re,dx
 integer :: ncells,nx,ny
+character(5)  :: indir='INPUT'
+logical :: amiopen
+integer, allocatable, dimension(:) :: io_layout(:)
+
+
 
 
 call mpp_get_global_domain(domain_in,xsize=nx,ysize=ny,position=CENTER)
@@ -143,56 +212,71 @@ call mpp_get_global_domain(domain_in,xsize=nx,ysize=ny,position=CENTER)
  ncells=int(dx/real(scells))
  ncells= MIN(ncells,10)
 
-! get seed info
-if (nca .gt. 0 ) then
-   !Get CA SGS domain                                                                                                                                                                    
-   call define_ca_domain(domain_in,domain_sgs,ncells,nxncells,nyncells)
-   call mpp_get_compute_domain (domain_sgs,iscnx,iecnx,jscnx,jecnx)
+ fname = trim(indir)//'/'//trim(fn_ca)
+ if (nca .gt. 0 ) then
+    allocate(io_layout(2))
+    io_layout=mpp_get_io_domain_layout(domain_in)
+    call define_ca_domain(domain_in,domain_sgs,ncells,nxncells,nyncells)
+    call mpp_define_io_domain(domain_sgs, io_layout)
+    call mpp_get_compute_domain (domain_sgs,iscnx,iecnx,jscnx,jecnx)
+    amiopen=open_file(CA_restart, trim(fname), 'read', domain=domain_sgs, is_restart=.true., dont_add_res_to_filename=.true.)
+    if( amiopen ) then
+       call register_axis(CA_restart, 'xaxis_1', 'X')
+       call register_axis(CA_restart, 'yaxis_1', 'Y')
+       call register_axis(CA_restart, 'nca', nca)
+       !Get CA SGS domain
 
-   nxc = iecnx-iscnx+1
-   nyc = jecnx-jscnx+1
-   if (.not. allocated(board))then
-      allocate(board(nxc,nyc,nca))
-   endif
-   if (.not. allocated(lives))then
-      allocate(lives(nxc,nyc,nca))
-   endif
+       nxc = iecnx-iscnx+1
+       nyc = jecnx-jscnx+1
+       if (.not. allocated(board))then
+          allocate(board(nxc,nyc,nca))
+       endif
+       if (.not. allocated(lives))then
+          allocate(lives(nxc,nyc,nca))
+       endif
    
-   !Read restart
-   id_restart = register_restart_field (CA_tile_restart, fn_phy, "board", &
-        board(:,:,1), domain = domain_sgs, mandatory=.true.)
-   
-   id_restart = register_restart_field (CA_tile_restart, fn_phy, "lives", &
-        lives(:,:,1), domain = domain_sgs,  mandatory=.true.)
-
+      !Read restart
+      call register_restart_field(CA_restart, "board", board(:,:,:), dimensions=(/'xaxis_1','yaxis_1','zaxis_1'/),is_optional=.false.)
+      call register_restart_field(CA_restart, "lives", lives(:,:,:), dimensions=(/'xaxis_1','yaxis_1','zaxis_1'/),is_optional=.false.)
+      !--- read the CA restart data
+      call mpp_error(NOTE,'reading CA_sgs restart data from INPUT/ca_data.tile*.nc')
+      call read_restart(CA_restart)
+      call close_file(CA_restart)
+    else
+      call mpp_error(NOTE,'No CA_sgs restarts - cold starting CA')
+    endif
 endif
 
 if (nca_g .gt. 0 ) then
    domain_global=domain_in
-   !call define_ca_domain(domain_in,domain_global,ncells_g,nxncells_g,nyncells_g)
-   call mpp_get_compute_domain (domain_global,iscnx_g,iecnx_g,jscnx_g,jecnx_g)
-   nxc = iecnx_g-iscnx_g+1
-   nyc = jecnx_g-jscnx_g+1
-   if (.not. allocated(board_g))then
-      allocate(board_g(nxc,nyc,nca_g))
-   endif
-   if (.not. allocated(lives_g))then
-      allocate(lives_g(nxc,nyc,nca_g))
-   endif
-   
-   !Read restart
-   id_restart = register_restart_field (CA_tile_restart, fn_phy, "board_g", &
-        board_g(:,:,:), domain = domain_global, mandatory=.true.)
-   
-   id_restart = register_restart_field (CA_tile_restart, fn_phy, "lives_g", &
-        lives_g(:,:,:), domain = domain_global,  mandatory=.true.)
+   amiopen=open_file(CA_restart, trim(fname), 'read', domain=domain_global, is_restart=.true., dont_add_res_to_filename=.true.)
+   if( amiopen ) then
+      call register_axis(CA_restart, 'xaxis_2', 'X')
+      call register_axis(CA_restart, 'yaxis_2', 'Y')
+      call register_axis(CA_restart, 'nca_g', nca_g)
+      !call define_ca_domain(domain_in,domain_global,ncells_g,nxncells_g,nyncells_g)
+      call mpp_get_compute_domain (domain_global,iscnx_g,iecnx_g,jscnx_g,jecnx_g)
+      nxc = iecnx_g-iscnx_g+1
+      nyc = jecnx_g-jscnx_g+1
+      if (.not. allocated(board_g))then
+         allocate(board_g(nxc,nyc,nca_g))
+      endif
+      if (.not. allocated(lives_g))then
+         allocate(lives_g(nxc,nyc,nca_g))
+      endif
 
+      !Read restart
+      call register_restart_field(CA_restart, "board_g", board_g(:,:,:), dimensions=(/'xaxis_2','yaxis_2','zaxis_2'/),is_optional=.false.)
+      call register_restart_field(CA_restart, "lives_g", lives_g(:,:,:), dimensions=(/'xaxis_2','yaxis_2','zaxis_2'/),is_optional=.false.)
+      call mpp_error(NOTE,'reading CA_global restart data from INPUT/ca_data.tile*.nc')
+      call read_restart(CA_restart)
+      call close_file(CA_restart)
+      
+   else
+      call mpp_error(NOTE,'No CA_global restarts - cold starting CA')
+   endif
 endif
 
-fname = 'INPUT/'//trim(fn_phy)
-!--- read the CA restart data
-call mpp_error(NOTE,'reading CA restart data from INPUT/ca_data.tile*.nc')
-call restore_state(CA_tile_restart)
 
 end subroutine read_ca_restart
 
