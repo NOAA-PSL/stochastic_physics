@@ -414,13 +414,21 @@ module spectral_transforms
       NF = 0
       J = 0
   101 J = J+1
-      IF (J-4) 102,102,103
+      IF ( (J-4) .LE. 0) THEN
+         GOTO 102
+      ELSE
+         GOTO 103
+      ENDIF
   102 NTRY = NTRYH(J)
       GO TO 104
   103 NTRY = NTRY+2
   104 NQ = NL/NTRY
       NR = NL-NTRY*NQ
-      IF (NR) 101,105,101
+      IF (NR.EQ.0) THEN
+         GO TO 105
+      ELSE
+         GO TO 101
+      ENDIF
   105 NF = NF+1
       RFAC(NF+2) = FLOAT(NTRY)
       NL = NQ
@@ -483,7 +491,13 @@ module spectral_transforms
          CH(1,K,1) = CC(1,1,K)+CC(IDO,2,K)
          CH(1,K,2) = CC(1,1,K)-CC(IDO,2,K)
   101 CONTINUE
-      IF (IDO-2) 107,105,102
+      IF ( (IDO-2) .LT. 0) THEN
+         GO TO 107
+      ELSE IF (( IDO-2).EQ. 0)THEN
+         GO TO 105
+      ELSE
+        GO TO 102
+      ENDIF
   102 IDP2 = IDO+2
 !OCL NOVREC
       DO 104 K=1,L1
@@ -584,7 +598,13 @@ module spectral_transforms
          CH(1,K,3) = TR2-TR3
          CH(1,K,4) = TR1+TR4
   101 CONTINUE
-      IF (IDO-2) 107,105,102
+      IF ( (IDO-2) .LT.0 ) THEN
+          GO TO 107
+      ELSE IF ( (IDO-2) .EQ.0 ) THEN
+          GO TO 105
+      ELSE
+          GO TO 102
+      ENDIF
   102 IDP2 = IDO+2
 !OCL NOVREC
       DO 104 K=1,L1
