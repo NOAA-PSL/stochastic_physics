@@ -31,7 +31,7 @@ implicit none
 !This program evolves a cellular automaton uniform over the globe 
 
 integer,              intent(in)    :: kstep,ncells,nca,nlives,nseed,nspinup,nsmooth,mpiroot,mpicomm
-integer*8,            intent(in)    :: iseed_ca
+integer(kind=kind_dbl_prec),  intent(in)    :: iseed_ca
 integer,              intent(in)    :: mytile
 real(kind=kind_dbl_prec), intent(in)    :: nfracseed,ca_amplitude
 logical,              intent(in)    :: ca_smooth,first_time_step, restart
@@ -253,7 +253,6 @@ k_in=1
     sq_diff= mpp_global_sum (domain_global, CAprime, flags=BITWISE_EXACT_SUM)
 
     CAstdv = sqrt(sq_diff/csum)
-    print*,'in rescale',psum,sq_diff,csum
 
     !Transform to mean of 1 and ca_amplitude standard deviation
 
@@ -282,7 +281,6 @@ k_in=1
  enddo !nf
 
  do blk = 1, Atm_block%nblks
-    print*,'in ca_global',Atm_block%nblks,Atm_block%blksz(blk)
     do ix = 1,Atm_block%blksz(blk)
        i = Atm_block%index(blk)%ii(ix) - isc + 1
        j = Atm_block%index(blk)%jj(ix) - jsc + 1

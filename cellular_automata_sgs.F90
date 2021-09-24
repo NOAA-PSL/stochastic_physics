@@ -12,7 +12,7 @@ subroutine cellular_automata_sgs(kstep,dtf,restart,first_time_step,sst,lsmsk,lak
             nca,scells,tlives,nfracseed,nseed,iseed_ca, &
             nspinup,ca_trigger,blocksize,mpiroot,mpicomm)
 
-use kinddef,           only: kind_phys
+use kinddef,           only: kind_phys,kind_dbl_prec
 use update_ca,         only: update_cells_sgs, define_ca_domain
 use random_numbers,    only: random_01_CB
 use mpp_domains_mod,   only: domain2D,mpp_get_global_domain,CENTER, mpp_get_data_domain, mpp_get_compute_domain,&
@@ -42,7 +42,7 @@ implicit none
 !area fraction (nca_plumes=false)
 
 integer,intent(in) :: kstep,scells,nca,tlives,nseed,nspinup,mpiroot,mpicomm,mytile
-integer*8,            intent(in)    :: iseed_ca
+integer(kind=kind_dbl_prec),           intent(in)    :: iseed_ca
 real(kind=kind_phys), intent(in)    :: nfracseed,dtf,rcell
 logical,intent(in) :: restart,ca_trigger,first_time_step
 integer, intent(in) :: nblks,isc,iec,jsc,jec,npx,npy,nlev,blocksize
@@ -300,7 +300,7 @@ endif !  restart
     else
     livesmax=maxval(ilives_in)
     call mp_reduce_max(livesmax)
-    livesmaxinv=1.0/real(livesmax,kind=4)
+    livesmaxinv=1.0/livesmax
     do j=1,nlat
        do i=1,nlon
           CA_DEEP(i,j)=CA(i,j)*livesmaxinv

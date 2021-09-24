@@ -288,7 +288,7 @@ subroutine update_cells_sgs(kstep,initialize_ca,iseed_ca,first_flag,restart,firs
 implicit none
 
 integer, intent(in)  :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca,isc,iec,jsc,jec,npx,npy
-integer*8, intent(in) :: iseed_ca
+integer(kind=kind_dbl_prec), intent(in) :: iseed_ca
 integer, intent(in)  :: iini(nxc,nyc,nca),initialize_ca,ilives_in(nxc,nyc,nca)
 integer, intent(in)  :: mytile
 real,    intent(out) :: CA(nlon,nlat)
@@ -580,7 +580,7 @@ implicit none
 
 integer, intent(in) :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca,isc,iec,jsc,jec,npx,npy
 integer, intent(in) :: iini_g(nxc,nyc,nca), ilives_g(nxc,nyc)
-integer*8, intent(in) :: iseed_ca
+integer(kind=kind_dbl_prec), intent(in) :: iseed_ca
 real, intent(out) :: CA(nlon,nlat)
 logical, intent(in) :: first_time_step
 logical, intent(in) :: restart
@@ -665,9 +665,7 @@ do it=1,spinup
  neighbours=0
  birth=0
  newcell=0
- 
  CA=0
- newcell=0
  board_halo=0
 
 !The input to scalar_field_halo needs to be 1D.

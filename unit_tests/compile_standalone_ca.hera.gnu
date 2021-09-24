@@ -1,5 +1,5 @@
 #!/bin/sh
-compile_all=0
+compile_all=1
 DEBUG=YES
 #DEBUG=NO
 source ./module-setup.sh
