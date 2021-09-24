@@ -166,7 +166,7 @@ id_restart = register_restart_field (CA_restart, fn_phy, "board", &
 id_restart = register_restart_field (CA_restart, fn_phy, "lives", &
      lives(:,:,1), domain = domain_ncellx,  mandatory=.false.)
 
-fname = 'INPUT/'//trim(fn_phy)
+fname = 'INPUT/ca_data.tile1.nc'
 if (file_exist(fname)) then
    !--- read the CA restart data
    call mpp_error(NOTE,'reading CA restart data from INPUT/ca_data.tile*.nc')
