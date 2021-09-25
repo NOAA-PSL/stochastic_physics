@@ -38,7 +38,7 @@
 /
 
 &fv_core_nml
-       layout   = 1,1
+       layout   = 1,4
        io_layout = 1,1
        npx      = 97,
        npy      = 97,
@@ -49,35 +49,36 @@
 &gfs_physics_nml
        do_sppt        = .true.
        do_shum        = .true.
-       do_skeb        = .true.
-       lndp_type      = 2
-       n_var_lndp     = 2
+       do_skeb        = .false.
+       lndp_type      = 0
+       n_var_lndp     = 0
 /
 &nam_stochy
+  STOCHINI=.false.,
   SKEBNORM=1,
   SKEB_NPASS=30,
   SKEB_VDOF=5,
-  SKEB=0.5,
+  SKEB=-999,
   SKEB_TAU=2.16E4,
   SKEB_LSCALE=1000.E3,
-  SHUM=0.01,
+  SKEBINT=1800,
+  SHUM=0.003,
   SHUM_TAU=21600,
   SHUM_LSCALE=500000,
-  SPPT=0.8,0.4,0.1
-  SPPT_TAU=21600,86400,216000
-  SPPT_LSCALE=500000,1000000,2000000
+  SHUMINT=3600,
+  SPPT=0.2,
+  SPPT_TAU=21600,
+  SPPT_LSCALE=500000,
   SPPT_LOGIT=.TRUE.,
   SPPT_SFCLIMIT=.TRUE.,
+  SPPTINT=1800,
   ISEED_SHUM=1,
   ISEED_SKEB=2,
   ISEED_SPPT=3,
-  STOCHINI=.false.
 /
 &nam_sfcperts
-  lndp_type=2
-  lndp_var_list='vgf','smc'
-  lndp_prt_list=1.0,0.5
-  iseed_lndp=4,5
-  lndp_tau= 86400,
-  lndp_lscale = 250000,
+  lndp_type=0
+  lndp_tau= 21600,
+  lndp_lscale = 500000,
+  ISEED_LNDP=2010,
 /

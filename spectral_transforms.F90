@@ -1493,7 +1493,6 @@ module spectral_transforms
 
 ! set up gfs internal state dimension and values for dynamics etc
 !-------------------------------------------------------------------
-
       gis_stochy%lon_dim_a = lon_s + 2
       jcap=ntrunc
       latg   = lat_s
@@ -1650,6 +1649,7 @@ module spectral_transforms
 !
       gl_lats_index = 0
       gis_stochy%global_lats_a = -1
+      global_time_sort_index_a=lonf
 
       do node=1,gis_stochy%nodes
           call get_lats_node_a_stochy( node-1, gis_stochy%global_lats_a,gis_stochy%lats_nodes_a(node),&
@@ -1750,8 +1750,8 @@ module spectral_transforms
       integer,intent(in)  :: me_fake
       integer,intent(in)  :: nodes
       integer,intent(in)  :: lats_nodes_a_fake
-      integer,intent(out) :: gl_lats_index
-      integer,intent(out) :: global_lats_a(latg)
+      integer,intent(inout) :: gl_lats_index
+      integer,intent(inout) :: global_lats_a(latg)
       integer, intent(in) :: global_time_sort_index(latg)
 
       integer :: ijk

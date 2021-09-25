@@ -75,7 +75,6 @@ module stochy_data_mod
   
    if (iret/=0) return  ! need to make sure that non-zero irets are being trapped.
    if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb)  .AND. (lndp_type==0) ) return
-
    call initialize_spectral(gis_stochy)
    
    allocate(noise_e(len_trie_ls,2),noise_o(len_trio_ls,2))

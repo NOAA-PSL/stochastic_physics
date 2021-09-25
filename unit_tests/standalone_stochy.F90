@@ -14,7 +14,7 @@ use kinddef,             only : kind_dbl_prec,kind_phys
 use stochy_namelist_def, only : stochini
 
 implicit none
-integer, parameter      :: nlevs=3
+integer, parameter      :: nlevs=127
 integer, parameter :: max_n_var_lndp = 6
 integer                 :: ntasks,fid
 integer                 :: nthreads
@@ -31,8 +31,8 @@ include 'netcdf.inc'
 real :: ak(nlevs+1),bk(nlevs+1)
 real(kind=4) :: ts,undef
 
-data ak(:) /0.0, 306.1489, 13687.72    , 0.99/
-data bk(:) /1.0,   0.9284,     0.013348, 0.0/
+data ak(1:4) /0.0, 306.1489, 13687.72    , 0.99/
+data bk(1:4) /1.0,   0.9284,     0.013348, 0.0/
 integer     :: nb,blksz_1,nblks,ierr,my_id,i,j,k,l,nx,ny,id
 integer     :: isc,iec,jsc,jec,isd,ied,jsd,jed
 integer :: halo_update_type = 1
@@ -97,10 +97,11 @@ DO k=1,nlevs
    pressi(k)=ak(k)+p1000*bk(k)
 ENDDO
 ex3d=cp*(pressi/p1000)**(rd/cp)
-DO k=1,nlevs
+DO k=1,3 !nlevs
    exn = (ex3d(k)*pressi(k)-ex3d(k+1)*pressi(k+1))/((cp+rd)*(pressi(k)-pressi(k+1)))
    pressl(k)=p1000*exn**(cp/rd)
 ENDDO
+pressl(4:)=0.01
 
 call fms_init()
 call mpp_init()
@@ -132,7 +133,7 @@ enddo
 nthreads = 1
 me=my_id
 fhour=0
-dtp=900
+dtp=600
 fn_nml='input.nml'
 nlunit=21
 
