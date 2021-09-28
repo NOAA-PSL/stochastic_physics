@@ -226,7 +226,6 @@ module spectral_transforms
       return
       end subroutine spec_to_four 
 
-
 !>@brief The subroutine 'four_to_grid' calculate real values form fourrier coefficients
 !>@details This code is taken from the legacy spectral GFS
       subroutine four_to_grid(syn_gr_a_1,syn_gr_a_2, lon_dim_coef,nvars)
@@ -2024,7 +2023,6 @@ module spectral_transforms
       subroutine poly(n,rad,p)
 !
       implicit none
-!
       integer                  i,n
 !
 ! increase precision for more significant digit to help wgt
@@ -2046,8 +2044,7 @@ module spectral_transforms
       return
       end
 
-
-!>@brief The subroutine 'pln2eo_a_stochy' calculates the assoicate legendre polynomials
+!>@brief The subroutine 'pln2eo_a_stochy' calculates the assoicated legendre polynomials
 !>@details This code is taken from the legacy spectral GFS
       subroutine pln2eo_a_stochy(gis_stochy,num_lat)
 !

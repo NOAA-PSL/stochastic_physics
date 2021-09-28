@@ -14,7 +14,7 @@ use kinddef,             only : kind_dbl_prec,kind_phys
 use stochy_namelist_def, only : stochini
 
 implicit none
-integer, parameter      :: nlevs=127
+integer, parameter      :: nlevs=3
 integer, parameter :: max_n_var_lndp = 6
 integer                 :: ntasks,fid
 integer                 :: nthreads
@@ -78,7 +78,7 @@ if (nargs.EQ.1) then
    call getarg(1,ntile_out_str)
 endif
 read(ntile_out_str,'(I1.1)') ntile_out
-open (unit=nlunit, file='input.nml', READONLY, status='OLD')
+open (unit=nlunit, file='input.nml', status='OLD')
 n_var_lndp=0
 lndp_type=0
 do_sppt=.false.
@@ -298,7 +298,7 @@ else
    istart=1
 endif
 tpt=1
-do i=istart,201
+do i=istart,21
    ts=i/4.0
    call run_stochastic_physics(nlevs, i-1, fhour, blksz, &
                                sppt_wts=sppt_wts, shum_wts=shum_wts, skebu_wts=skebu_wts, skebv_wts=skebv_wts, sfc_wts=sfc_wts, &

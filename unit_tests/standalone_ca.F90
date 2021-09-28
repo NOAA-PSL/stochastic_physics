@@ -92,7 +92,7 @@ ca_amplitude   = 500.
 rcell          = 0.0
 
 ! open namelist file
-open (unit=565, file='input.nml', READONLY, status='OLD', iostat=ierr)
+open (unit=565, file='input.nml', status='OLD', iostat=ierr)
 read(565,gfs_physics_nml)
 close(565)
 ! define stuff
