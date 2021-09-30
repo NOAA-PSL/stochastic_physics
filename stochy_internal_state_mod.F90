@@ -19,7 +19,7 @@
 
 !!uses:
 !------
-      use spectral_layout_mod
+!      use spectral_layout_mod
 
 
       implicit none
@@ -29,36 +29,21 @@
       type,public::stochy_internal_state		! start type define
 ! -----------------------------------------------
 
-      integer                   :: nodes
-
-!
-      integer lonf,latg,lats_node_a_max
-
-      integer npe_single_member
-
-      character(16)                     ::  cfhour1
-!jws
-      integer                           ::  num_file
-      character(32)        ,allocatable ::  filename_base(:)
-      integer                           ::  ipt_lats_node_a
+      integer                           :: nodes
       integer                           ::  lats_node_a
-      integer                           ::  me
-!jwe
+      integer                           ::  mype
+      integer                           :: lon_dim_a
+      integer                           :: lats_dim_a
+      integer                           :: ipt_lats_node_a
 
-      integer                           ::  nblck,kdt
-!      real                              ::  deltim
-
-      integer              ,allocatable ::      lonsperlat (:)
-      integer              ,allocatable ::      ls_node    (:)
-      integer              ,allocatable ::      ls_nodes   (:, :)
+      integer              ,allocatable ::      ls_node    (:,:)
+      integer              ,allocatable ::      ls_nodes   (:,:)
       integer              ,allocatable ::  max_ls_nodes   (:)
 
       integer              ,allocatable ::  lats_nodes_a   (:)
       integer              ,allocatable ::  global_lats_a  (:)
       integer              ,allocatable ::  global_lats_h  (:)
       integer                           :: xhalo,yhalo
-
-      integer              ,allocatable ::  lats_nodes_a_fix (:)
 
       real,allocatable ::        epse  (:)
       real,allocatable ::        epso  (:)
@@ -72,8 +57,6 @@
 
       real,allocatable ::       plnev_a(:,:)
       real,allocatable ::       plnod_a(:,:)
-      real,allocatable ::       pddev_a(:,:)
-      real,allocatable ::       pddod_a(:,:)
       real,allocatable ::       plnew_a(:,:)
       real,allocatable ::       plnow_a(:,:)
 
@@ -81,27 +64,10 @@
       real,allocatable ::       trie_ls(:,:,:)
       real,allocatable ::       trio_ls(:,:,:)
 
-      INTEGER                               :: TRIEO_TOTAL_SIZE
-      INTEGER, ALLOCATABLE, DIMENSION(:)    :: TRIE_LS_SIZE
-      INTEGER, ALLOCATABLE, DIMENSION(:)    :: TRIO_LS_SIZE
-      INTEGER, ALLOCATABLE, DIMENSION(:)    :: TRIEO_LS_SIZE
-      INTEGER, ALLOCATABLE, DIMENSION(:)    :: LS_MAX_NODE_GLOBAL
-      INTEGER, ALLOCATABLE, DIMENSION(:, :) :: LS_NODE_GLOBAL
-
-
-!
-
-!!
-      integer              init,jpt,node,ibmsign,lon_dim
-
       integer              lotls
-
-!      integer              jdt,ksout,maxstp
-!      integer              mdt,idt
-!      integer              mods,n1,n2,ndgf,ndgi,nfiles,nflps
       integer              nlunit
 
-      integer              iret,ierr,iprint,k,l,locl,n
+      integer              k,l,locl,n
       integer              lan,lat
       integer              nx,ny,nz
       integer, allocatable :: len(:)

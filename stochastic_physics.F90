@@ -28,8 +28,8 @@ subroutine init_stochastic_physics(levs, blksz, dtp, sppt_amp, input_nml_file_in
 use stochy_data_mod, only : init_stochdata,gg_lats,gg_lons,nsppt, &
                             rad2deg,INTTYP,wlon,rnlat,gis_stochy,vfact_skeb,vfact_sppt,vfact_shum,skeb_vpts,skeb_vwts,sl
 use stochy_namelist_def
-use spectral_layout_mod,only:me,master,nodes,colrad_a,latg,lonf,skeblevs
-use mpi_wrapper, only : mpi_wrapper_initialize,mype,npes,is_master
+use spectral_transforms,only:colrad_a,latg,lonf,skeblevs
+use mpi_wrapper, only : mpi_wrapper_initialize,mype,npes,is_rootpe
 
 implicit none
 integer, intent(out)                    :: iret
@@ -63,11 +63,8 @@ character*2::proc
 
 ! Initialize MPI and OpenMP
 call mpi_wrapper_initialize(mpiroot,mpicomm)
-me         = mype
-nodes      = npes
-master     = mpiroot
 gis_stochy%nodes = npes
-gis_stochy%me=me
+gis_stochy%mype=mype
 gis_stochy%nx=maxval(blksz)
 nblks = size(blksz)
 gis_stochy%ny=nblks
@@ -88,9 +85,8 @@ enddo
 
 ! replace
 INTTYP=0 ! bilinear interpolation
-gis_stochy%me=me
-gis_stochy%nodes=nodes
 call init_stochdata(levs,dtp,input_nml_file_in,fn_nml,nlunit,iret)
+print*,'back from init stochdata',iret
 if (iret .ne. 0) return
 ! check namelist entries for consistency
 if (do_sppt_in.neqv.do_sppt) then
@@ -111,9 +107,11 @@ else if (do_skeb_in.neqv.do_skeb) then
 else if (lndp_type_in /= lndp_type) then
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
                    & ' namelist settings lndp_type in physics and nam_sfcperts'
+   print*,'lndp_type',lndp_type_in,lndp_type
    iret = 20 
    return
 else if (n_var_lndp_in /=  n_var_lndp) then
+   print*,'n_var_lndp',n_var_lndp_in , n_var_lndp
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
                    & ' namelist settings n_var_lndp in physics nml, and lndp_* in nam_sfcperts'
    iret = 20 
@@ -144,7 +142,7 @@ if (do_sppt) then
        vfact_sppt(2)=vfact_sppt(3)*0.5
        vfact_sppt(1)=0.0
    endif
-   if (is_master()) then
+   if (is_rootpe()) then
       do k=1,levs
          print *,'sppt vert profile',k,sl(k),vfact_sppt(k)
       enddo
@@ -164,7 +162,7 @@ if (do_skeb) then
       else
           vfact_skeb(k) = 1.0
       endif
-      if (is_master())  print *,'skeb vert profile',k,sl(k),vfact_skeb(k)
+      if (is_rootpe())  print *,'skeb vert profile',k,sl(k),vfact_skeb(k)
    enddo
 ! calculate vertical interpolation weights
    do k=1,skeblevs
@@ -186,7 +184,7 @@ DO k=2,levs-1
    ENDDO
 ENDDO
 deallocate(skeb_vloc)
-if (is_master()) then
+if (is_rootpe()) then
 DO k=1,levs
    print*,'skeb vpts ',skeb_vpts(k,1),skeb_vwts(k,2)
 ENDDO
@@ -202,7 +200,7 @@ if (do_shum) then
       if (sl(k).LT. 2*shum_sigefold) then
          vfact_shum(k)=0.0
       endif
-      if (is_master())  print *,'shum vert profile',k,sl(k),vfact_shum(k)
+      if (is_rootpe())  print *,'shum vert profile',k,sl(k),vfact_shum(k)
    enddo
 endif
 ! get interpolation weights
@@ -221,7 +219,6 @@ enddo
 WLON=gg_lons(1)-(gg_lons(2)-gg_lons(1))
 RNLAT=gg_lats(1)*2-gg_lats(2)
 
-
 end subroutine init_stochastic_physics
 
 !!!!!!!!!!!!!!!!!!!!
@@ -229,11 +226,11 @@ subroutine init_stochastic_physics_ocn(delt,geoLonT,geoLatT,nx,ny,nz,pert_epbl_i
                                        mpiroot, mpicomm, iret)
 use stochy_data_mod, only : init_stochdata_ocn,gg_lats,gg_lons,&
                             rad2deg,INTTYP,wlon,rnlat,gis_stochy_ocn
-use spectral_layout_mod , only : latg,lonf,colrad_a,me,nodes
+use spectral_transforms , only : latg,lonf,colrad_a
 !use MOM_grid, only : ocean_grid_type   
 use stochy_namelist_def
 use mersenne_twister, only: random_gauss
-use mpi_wrapper, only : mpi_wrapper_initialize,mype,npes,is_master
+use mpi_wrapper, only : mpi_wrapper_initialize,mype,npes,is_rootpe
 
 implicit none
 real,intent(in)  :: delt
@@ -248,10 +245,8 @@ real :: dx
 integer :: k,latghf,km
 rad2deg=180.0/con_pi
 call mpi_wrapper_initialize(mpiroot,mpicomm)
-me         = mype
-nodes=npes
 gis_stochy_ocn%nodes = npes
-gis_stochy_ocn%me=me
+gis_stochy_ocn%mype = mype
 gis_stochy_ocn%nx=nx  
 gis_stochy_ocn%ny=ny
 allocate(gis_stochy_ocn%len(ny))
@@ -312,8 +307,7 @@ use get_stochy_pattern_mod,only : get_random_pattern_scalar,get_random_pattern_v
                                   get_random_pattern_sfc
 use stochy_namelist_def, only : do_shum,do_sppt,do_skeb,nssppt,nsshum,nsskeb,sppt_logit,    & 
                                 lndp_type, n_var_lndp
-use mpi_wrapper, only: is_master
-use spectral_layout_mod,only:me
+use mpi_wrapper, only: is_rootpe
 implicit none
 
 ! Interface variables
@@ -335,7 +329,6 @@ integer :: nblks, blk, len, maxlen
 character*120 :: sfile
 character*6   :: STRFH
 logical :: do_advance_pattern
-
 if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb) .AND. (lndp_type==0 ) ) return
 
 ! Update number of threads in shared variables in spectral_layout_mod and set block-related variables
@@ -408,7 +401,6 @@ if ( lndp_type .EQ. 2  ) then
            sfc_wts(blk,1:len,k) = tmpl_wts(1:len,blk,k)
        ENDDO
     ENDDO
-    if (is_master()) print*,'sfc_wts=',sfc_wts(1,1,:)
     deallocate(tmpl_wts)
 endif
  deallocate(tmp_wts)
@@ -458,7 +450,7 @@ subroutine finalize_stochastic_physics()
 use stochy_data_mod, only : nshum,rpattern_shum,rpattern_sppt,nsppt,rpattern_skeb,nskeb,&
                             vfact_sppt,vfact_shum,vfact_skeb, skeb_vwts,skeb_vpts, &
                             rpattern_sfc, nlndp,gg_lats,gg_lons,sl,skebu_save,skebv_save,gis_stochy
-use spectral_layout_mod, only : lat1s_h,lat1s_a ,lon_dims_a,wgt_a,sinlat_a,coslat_a,colrad_a,wgtcs_a,rcs2_a,lats_nodes_h,global_lats_h
+use spectral_transforms, only : lat1s_a ,lon_dims_a,wgt_a,sinlat_a,coslat_a,colrad_a,rcs2_a
 implicit none
 
    if (allocated(gg_lats)) deallocate (gg_lats)
@@ -487,24 +479,15 @@ implicit none
 deallocate(lat1s_a)
 deallocate(lon_dims_a)
 deallocate(wgt_a)
-deallocate(wgtcs_a)
 deallocate(rcs2_a)
 deallocate(colrad_a)
 deallocate(sinlat_a)
 deallocate(coslat_a)
-deallocate(lat1s_h)
-deallocate(gis_stochy%lonsperlat)
 deallocate(gis_stochy%ls_node)
 deallocate(gis_stochy%ls_nodes)
 deallocate(gis_stochy%max_ls_nodes)
-deallocate(gis_stochy%lats_nodes_a_fix)
 deallocate(gis_stochy%lats_nodes_a)
 deallocate(gis_stochy%global_lats_a)
-deallocate(gis_stochy%TRIE_LS_SIZE)
-deallocate(gis_stochy%TRIO_LS_SIZE)
-deallocate(gis_stochy%TRIEO_LS_SIZE)
-deallocate(gis_stochy%LS_MAX_NODE_GLOBAL)
-deallocate(gis_stochy%LS_NODE_GLOBAL)
 deallocate(gis_stochy%epse)
 deallocate(gis_stochy%epso)
 deallocate(gis_stochy%epsedn)
@@ -515,8 +498,6 @@ deallocate(gis_stochy%snnp1ev)
 deallocate(gis_stochy%snnp1od)
 deallocate(gis_stochy%plnev_a)
 deallocate(gis_stochy%plnod_a)
-deallocate(gis_stochy%pddev_a)
-deallocate(gis_stochy%pddod_a)
 deallocate(gis_stochy%plnew_a)
 deallocate(gis_stochy%plnow_a)
 

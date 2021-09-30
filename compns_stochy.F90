@@ -170,25 +170,13 @@ module compns_stochy_mod
          do_skeb=.true.
          if (skebnorm==0) then ! stream function norm
             skeb=skeb*1.111e3*sqrt(deltim)
-            !skeb=skeb*5.0e5/sqrt(deltim)
          endif
          if (skebnorm==1) then ! stream function norm
             skeb=skeb*0.00222*sqrt(deltim)
-            !skeb=skeb*1/sqrt(deltim)
          endif
          if (skebnorm==2) then ! vorticty function norm
             skeb=skeb*1.111e-9*sqrt(deltim)
-            !skeb=skeb*5.0e-7/sqrt(deltim)
          endif
-!      adjust skeb values for resolution.
-!      scaling is such that a value of 1.0 at T574 with a 900 second
-!      timestep produces well-calibrated values of forecast spread.
-!         DO k=1,5
-!            IF  (skeb(k) .gt. 0.0) THEN
-!               skeb(k)=skeb(k)*deltim/(ntrunc*(ntrunc+1))*365765.0  ! 365765 is a scale factor so the base SKEB value in the namelist is 1.0
-!               skeb(k)=skeb(k)*deltim/(ntrunc*(ntrunc+1))*2000.0  ! 2000 is new scale factor so the base SKEB value in the namelist is 1.0
-!            ENDIF
-!         ENDDO
       ENDIF
 !    compute frequencty to estimate dissipation timescale
       IF (skebint == 0.) skebint=deltim
