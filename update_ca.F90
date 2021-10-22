@@ -183,12 +183,12 @@ endif
 
 end subroutine write_ca_restart
 
-subroutine read_ca_restart(domain_in,scells,nca,ncells_g,nca_g)
+subroutine read_ca_restart(domain_in,ncells,nca,ncells_g,nca_g)
 !Read restart files
 implicit none
 type(FmsNetcdfDomainFile_t) :: CA_restart
 type(domain2D), intent(inout) :: domain_in
-integer,intent(in) :: scells,nca,nca_g,ncells_g
+integer,intent(in) :: ncells,nca,nca_g,ncells_g
 character(len=32)  :: fn_ca = 'ca_data.nc'
 
 character(len=64) :: fname
@@ -209,7 +209,7 @@ call mpp_get_global_domain(domain_in,xsize=nx,ysize=ny,position=CENTER)
  pi=3.14159
  re=6371000.
  dx=0.5*pi*re/real(nx)
- ncells=int(dx/real(scells))
+ ncells=int(dx/real(ncells))
  ncells= MIN(ncells,10)
 
  fname = trim(indir)//'/'//trim(fn_ca)
