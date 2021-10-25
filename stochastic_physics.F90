@@ -49,8 +49,8 @@ integer,                  intent(in)    :: lndp_type_in, n_var_lndp_in
 real(kind=kind_dbl_prec), intent(in)    :: ak(:), bk(:) 
 logical,                  intent(out)   :: use_zmtnblck_out
 integer,                  intent(out)   :: skeb_npass_out
-character(len=3), dimension(max_n_var_lndp),         intent(out) :: lndp_var_list_out
-real(kind=kind_dbl_prec), dimension(max_n_var_lndp), intent(out) :: lndp_prt_list_out
+character(len=3),         dimension(:), intent(out) :: lndp_var_list_out
+real(kind=kind_dbl_prec), dimension(:), intent(out) :: lndp_prt_list_out
 
 
 ! Local variables
@@ -107,11 +107,9 @@ else if (do_skeb_in.neqv.do_skeb) then
 else if (lndp_type_in /= lndp_type) then
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
                    & ' namelist settings lndp_type in physics and nam_sfcperts'
-   print*,'lndp_type',lndp_type_in,lndp_type
    iret = 20 
    return
 else if (n_var_lndp_in /=  n_var_lndp) then
-   print*,'n_var_lndp',n_var_lndp_in , n_var_lndp
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
                    & ' namelist settings n_var_lndp in physics nml, and lndp_* in nam_sfcperts'
    iret = 20 
@@ -120,8 +118,10 @@ end if
 ! update remaining model configuration parameters from namelist
 use_zmtnblck_out=use_zmtnblck
 skeb_npass_out=skeb_npass
-lndp_var_list_out=lndp_var_list
-lndp_prt_list_out=lndp_prt_list
+if (n_var_lndp>0) then
+   lndp_var_list_out=lndp_var_list(1:n_var_lndp)
+   lndp_prt_list_out=lndp_prt_list(1:n_var_lndp)
+endif
 if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb)  .AND. (lndp_type==0) ) return
 allocate(sl(levs))
 do k=1,levs
