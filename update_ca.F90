@@ -88,7 +88,7 @@ character(len=*), optional, intent(in)    :: timestamp
 character(len=32)  :: fn_ca = 'ca_data.nc'
 
 type(FmsNetcdfDomainFile_t) :: CA_restart
-integer :: id_restart,ncells,nx,ny,i
+integer :: id_restart,nx,ny,i
 integer :: is,ie,js,je,nca,nca_g
 
 integer, allocatable, dimension(:) :: buffer
@@ -195,22 +195,13 @@ character(len=64) :: fname
 integer :: id_restart
 integer :: nxc,nyc,i
 real    :: pi,re,dx
-integer :: ncells,nx,ny
+integer :: nx,ny
 character(5)  :: indir='INPUT'
 logical :: amiopen
 integer, allocatable, dimension(:) :: io_layout(:)
 
 
-
-
 call mpp_get_global_domain(domain_in,xsize=nx,ysize=ny,position=CENTER)
-
-!Set time and length scales:                                                                                                                          
- pi=3.14159
- re=6371000.
- dx=0.5*pi*re/real(nx)
- ncells=int(dx/real(ncells))
- ncells= MIN(ncells,10)
 
  fname = trim(indir)//'/'//trim(fn_ca)
  if (nca .gt. 0 ) then
