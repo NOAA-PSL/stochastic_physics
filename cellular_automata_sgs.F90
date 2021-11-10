@@ -8,8 +8,8 @@ contains
 
 subroutine cellular_automata_sgs(kstep,dtf,restart,first_time_step,sst,lsmsk,lake,condition_cpl, &
             ca_deep_cpl,ca_turb_cpl,ca_shal_cpl,domain_in, &
-            nblks,isc,iec,jsc,jec,npx,npy,nlev,nthresh,rcell, mytile, &
-            nca,scells,tlives,nfracseed,nseed,iseed_ca, &
+            nblks,isc,iec,jsc,jec,npx,npy,nlev,nthresh, mytile, &
+            nca,ncells,nlives,nfracseed,nseed,iseed_ca, &
             nspinup,ca_trigger,blocksize,mpiroot,mpicomm)
 
 use kinddef,           only: kind_phys,kind_dbl_prec
@@ -41,12 +41,11 @@ implicit none
 !CA_DEEP can be either number of plumes in a cluster (nca_plumes=true) or updraft 
 !area fraction (nca_plumes=false)
 
-integer,intent(in) :: kstep,scells,nca,tlives,nseed,nspinup,mpiroot,mpicomm,mytile
+integer,intent(in) :: kstep,ncells,nca,nlives,nseed,nspinup,mpiroot,mpicomm,mytile
 integer(kind=kind_dbl_prec),           intent(in)    :: iseed_ca
-real(kind=kind_phys), intent(in)    :: nfracseed,dtf,rcell
+real(kind=kind_phys), intent(in)    :: nfracseed,dtf,nthresh
 logical,intent(in) :: restart,ca_trigger,first_time_step
 integer, intent(in) :: nblks,isc,iec,jsc,jec,npx,npy,nlev,blocksize
-real  , intent(out) :: nthresh
 real(kind=kind_phys), intent(in)    :: sst(:,:),lsmsk(:,:),lake(:,:)
 real(kind=kind_phys), intent(inout) :: condition_cpl(:,:)
 real(kind=kind_phys), intent(inout) :: ca_deep_cpl(:,:)
@@ -60,7 +59,6 @@ integer :: inci, incj, nxc, nyc, nxch, nych, nx, ny
 integer :: halo, k_in, i, j, k
 integer :: seed, ierr7,blk, ix, iix, count4,ih,jh
 integer :: blocksz,levs
-integer :: ncells,nlives
 integer, save :: initialize_ca
 integer(8) :: count, count_rate, count_max, count_trunc,nx_full
 integer(8) :: iscale = 10000000000
@@ -79,9 +77,9 @@ integer              :: ct
 !nca         :: switch for number of cellular automata to be used.
 !            :: for the moment only 1 CA can be used 
 !nfracseed   :: switch for number of random cells initially seeded
-!tlives      :: switch for time scale (s)
+!nlives      :: switch for time scale (s)
 !nspinup     :: switch for number of itterations to spin up the ca
-!scells      :: switch for CA cell size (m)
+!ncells      :: switch for CA cell size (m)
 !nca_plumes   :: compute number of CA-cells ("plumes") within a NWP gridbox.
 
 if (nca .LT. 1) return
@@ -117,16 +115,7 @@ endif
 
  !Set time and length scales:
  call mpp_get_global_domain(domain_in,xsize=nx,ysize=ny,position=CENTER)
- pi=3.14159
- re=6371000.
- dx=0.5*pi*re/real(nx)
- ncells=int(dx/real(scells))
- nlives=int(real(tlives)/dtf)
- ncells = MIN(ncells,10)
- nlives = MAX(nlives,5)
-
- nthresh=rcell*real(ncells)*real(ncells)
-
+ 
  if(mype == 1)then
  write(*,*)'ncells=',ncells
  write(*,*)'nlives=',nlives
