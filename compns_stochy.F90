@@ -65,6 +65,9 @@ module compns_stochy_mod
       ocnsppt,ocnsppt_lscale,ocnsppt_tau,iseed_ocnsppt
       namelist /nam_sfcperts/lndp_type,lndp_var_list, lndp_prt_list, iseed_lndp, & 
       lndp_tau,lndp_lscale 
+!     For SPP physics parameterization perterbations
+      namelist /nam_spperts/spp_var_list, spp_prt_list, iseed_spp, &
+      spp_tau,spp_lscale,spp_sigtop1, spp_sigtop2,spp_stddev_cutoff
 
       rerth  =6.3712e+6      ! radius of earth (m)
       tol=0.01  ! tolerance for calculations
@@ -79,12 +82,15 @@ module compns_stochy_mod
       skeb             = -999.  ! stochastic KE backscatter amplitude
       lndp_var_list  = 'XXX'
       lndp_prt_list  = -999.
+      spp_var_list  = 'XXX'
+      spp_prt_list  = -999.
 ! logicals
       do_sppt = .false.
       use_zmtnblck = .false.
       new_lscale = .false.
       do_shum = .false.
       do_skeb = .false.
+      do_spp  = .false.
 ! C. Draper July 2020.
 ! input land pert variables: 
 ! LNDP_TYPE = 0
@@ -125,6 +131,8 @@ module compns_stochy_mod
       skeb_sigtop1 = 0.1
       skeb_sigtop2 = 0.025
       shum_sigefold = 0.2
+      spp_sigtop1 = 0.1
+      spp_sigtop2 = 0.025
 ! reduce amplitude of sppt near surface (lowest 2 levels)
       sppt_sfclimit = .false.
 ! gaussian or power law variance spectrum for skeb (0: gaussian, 1:
@@ -133,6 +141,11 @@ module compns_stochy_mod
       skeb_varspect_opt = 0
       sppt_logit        = .false. ! logit transform for sppt to bounded interval [-1,+1]
       stochini          = .false. ! true= read in pattern, false=initialize from seed
+! For SPP perturbations
+      spp_lscale  = -999.       ! length scales
+      spp_tau     = -999.       ! time scales
+      spp_stddev_cutoff = 0     ! cutoff/limit for std-dev (zero==no limit applied)
+      iseed_spp   = 0           ! random seeds (if 0 use system clock)
 
 #ifdef INTERNAL_FILE_NML
       read(input_nml_file, nml=nam_stochy)
@@ -149,8 +162,19 @@ module compns_stochy_mod
       read(nlunit,nam_sfcperts)
 #endif
 
+#ifdef INTERNAL_FILE_NML
+      read(input_nml_file, nml=nam_spperts)
+#else
+      rewind (nlunit)
+      open (unit=nlunit, file=fn_nml, action='READ', status='OLD', iostat=ios)
+      read(nlunit,nam_spperts)
+#endif
+
       if (me == 0) then
       print *,' in compns_stochy'
+      print*,'spp_lscale=',spp_lscale
+      print*,'spp_tau=',spp_tau
+      print*,'spp_stddev_cutoff=',spp_stddev_cutoff
       endif
 
 ! PJP stochastic physics additions
@@ -223,6 +247,7 @@ module compns_stochy_mod
            if (skeb(k).GT.0) l_min=min(skeb_lscale(k),l_min)
        enddo
        if (lndp_type.GT.0) l_min=min(lndp_lscale(1),l_min)
+       if (spp_prt_list(1).GT.0) l_min=min(spp_lscale(1),l_min)
        !ntrunc=1.5*circ/l_min
        ntrunc=circ/l_min
        if (me==0) print*,'ntrunc calculated from l_min',l_min,ntrunc
@@ -310,6 +335,41 @@ module compns_stochy_mod
          iret = 10 
          return 
      end select 
+! 
+! SPP perts  - parse nml input
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+     ! count requested pert variables
+     n_var_spp= 0
+     do k =1,size(spp_var_list)
+         if  ( (spp_var_list(k) .EQ. 'XXX') .or. (spp_prt_list(k) .LE. 0.) ) then
+            cycle
+         else
+             n_var_spp=n_var_spp+1
+             spp_var_list( n_var_spp) = spp_var_list(k)  ! 
+             spp_prt_list( n_var_spp) = spp_prt_list(k)
+         endif
+     enddo
+     IF (n_var_spp > 0 ) THEN
+       do_spp=.true.
+     ENDIF
+     if (n_var_spp > max_n_var_spp) then
+           print*, 'ERROR: SPP physics perturbation requested for too many parameters', &
+                    'increase max_n_var_spp'
+           iret = 10
+           return
+     endif
+     if (me==0) print*, &
+         'SPP physics perturbations will be applied to selected parameters', n_var_spp
+        do k =1,n_var_spp
+            select case (spp_var_list(k))
+            case('pbl','sfc', 'mp','rad','gwd')
+                if (me==0) print*, 'SPP physics perturbation will be applied to ', spp_var_list(k)
+            case default
+               print*, 'ERROR: SPP physics perturbation requested for new parameter - will need to be coded in spp_apply_pert', spp_var_list(k)
+               iret = 10
+               return
+            end select
+        enddo
 !
 !  All checks are successful.
 !
@@ -320,6 +380,8 @@ module compns_stochy_mod
          print *, ' do_skeb : ', do_skeb
          print *, ' lndp_type : ', lndp_type
          if (lndp_type .NE. 0) print *, ' n_var_lndp : ', n_var_lndp
+         print *, ' do_spp  : ', do_spp
+         print *, ' n_var_spp : ', n_var_spp
       endif
       iret = 0
 !

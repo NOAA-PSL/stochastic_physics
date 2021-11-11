@@ -5,12 +5,13 @@ module get_stochy_pattern_mod
                                  lats_node_a, lon_dim_a, len_trie_ls,       &
                                  len_trio_ls, ls_dim, nodes, stochy_la2ga,  &
                                  coslat_a, latg, latg2, levs, lonf, skeblevs
- use stochy_namelist_def, only : n_var_lndp, ntrunc, stochini
+ use stochy_namelist_def, only : n_var_lndp, ntrunc, stochini,n_var_spp
  use stochy_data_mod, only : gg_lats, gg_lons, inttyp, nskeb, nshum, nsppt, &
                              nocnsppt,nepbl,nlndp,                          &
                              rnlat, rpattern_sfc, rpattern_skeb,            &
                              rpattern_shum, rpattern_sppt, rpattern_ocnsppt,&
                              rpattern_epbl1, rpattern_epbl2, skebu_save,    &
+                             nspp,rpattern_spp,                             &
                              skebv_save, skeb_vwts, skeb_vpts, wlon
  use stochy_patterngenerator_mod, only: random_pattern, ndimspec,           &
                                         patterngenerator_advance
@@ -364,18 +365,20 @@ subroutine scalarspect_to_gaugrid(&
 subroutine write_stoch_restart_atm(sfile)
 !\callgraph
     use netcdf
-    use stochy_namelist_def, only : do_sppt,do_shum,do_skeb,lndp_type
+    use stochy_namelist_def, only : do_sppt,do_shum,do_skeb,lndp_type,do_spp
     implicit none
     character(len=*) :: sfile
     integer :: stochlun,k,n,isize,ierr
     integer :: ncid,varid1a,varid1b,varid2a,varid2b,varid3a,varid3b,varid4a,varid4b
     integer :: seed_dim_id,spec_dim_id,zt_dim_id,ztsfc_dim_id,np_dim_id,npsfc_dim_id
+    integer :: ztspp_dim_id,npspp_dim_id
+
     include 'netcdf.inc'
 
-    if ( ( .NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb) .AND. (lndp_type==0 ) ) return
+    if ( ( .NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb) .AND. (lndp_type==0 ) .AND. (.NOT. do_spp)) return
     stochlun=99
     if (is_master()) then
-       if (nsppt > 0 .OR. nshum > 0 .OR. nskeb > 0 .OR. nlndp>0 ) then
+       if (nsppt > 0 .OR. nshum > 0 .OR. nskeb > 0 .OR. nlndp>0 .OR. nspp>0 ) then
           ierr=nf90_create(trim(sfile),cmode=NF90_CLOBBER,ncid=ncid)
           ierr=NF90_PUT_ATT(ncid,NF_GLOBAL,"ntrunc",ntrunc)
           call random_seed(size=isize) ! get seed size
@@ -388,6 +391,12 @@ subroutine write_stoch_restart_atm(sfile)
              ierr=NF90_PUT_ATT(ncid,npsfc_dim_id,"long_name","number of random patterns for surface)")
              ierr=NF90_DEF_DIM(ncid,"n_var_lndp",n_var_lndp,ztsfc_dim_id)
              ierr=NF90_PUT_ATT(ncid,ztsfc_dim_id,"long_name","number of sfc perturbation types")
+          endif
+          if (nspp .GT. 0) then
+             ierr=NF90_DEF_DIM(ncid,"num_patterns_spp",nspp,npspp_dim_id) !  should be 5
+             ierr=NF90_PUT_ATT(ncid,npspp_dim_id,"long_name","number of random patterns for spp)")
+             ierr=NF90_DEF_DIM(ncid,"n_var_spp",n_var_spp,ztspp_dim_id)
+             ierr=NF90_PUT_ATT(ncid,ztspp_dim_id,"long_name","number of spp perturbation types")
           endif
           ierr=NF90_DEF_DIM(ncid,"ndimspecx2",2*ndimspec,spec_dim_id)
           ierr=NF90_PUT_ATT(ncid,spec_dim_id,"long_name","number of spectral cofficients")
@@ -417,6 +426,12 @@ subroutine write_stoch_restart_atm(sfile)
              ierr=NF90_DEF_VAR(ncid,"sfcpert_spec",NF90_DOUBLE,(/spec_dim_id, ztsfc_dim_id, npsfc_dim_id/), varid4b)
              ierr=NF90_PUT_ATT(ncid,varid4b,"long_name","spectral cofficients SHUM")
           endif
+          if (nspp>0) then
+             ierr=NF90_DEF_VAR(ncid,"spp_seed",NF90_DOUBLE,(/seed_dim_id, ztspp_dim_id, npspp_dim_id/), varid4a)
+             ierr=NF90_PUT_ATT(ncid,varid4a,"long_name","random number seed for SPP")
+             ierr=NF90_DEF_VAR(ncid,"spp_spec",NF90_DOUBLE,(/spec_dim_id, ztspp_dim_id, npspp_dim_id/), varid4b)
+             ierr=NF90_PUT_ATT(ncid,varid4b,"long_name","spectral cofficients SPP")
+          endif
           ierr=NF90_ENDDEF(ncid)
           if (ierr .NE. 0) then
              write(0,*) 'error creating stochastic restart file'
@@ -445,6 +460,13 @@ subroutine write_stoch_restart_atm(sfile)
        do n=1,nlndp
           do k=1,n_var_lndp
              call write_pattern(rpattern_sfc(n),ncid,k,n,varid4a,varid4b,.true.,ierr)
+          enddo
+       enddo
+    endif
+    if (nspp > 0) then
+       do n=1,nspp
+          do k=1,n_var_spp
+             call write_pattern(rpattern_spp(n),ncid,k,n,varid4a,varid4b,.true.,ierr)
           enddo
        enddo
     endif
