@@ -483,10 +483,10 @@ module stochy_data_mod
                 do nn=1,len_trio_ls
                    rpattern_spp(n)%spec_o(nn,1,k)=noise_o(nn,1)
                    rpattern_spp(n)%spec_o(nn,2,k)=noise_o(nn,2)
-                   nm = rpattern_sfc(n)%idx_o(nn)
+                   nm = rpattern_spp(n)%idx_o(nn)
                    if (nm .eq. 0) cycle
-                   rpattern_sfc(n)%spec_o(nn,1,k) = rpattern_spp(n)%stdev*rpattern_spp(n)%spec_o(nn,1,k)*rpattern_spp(n)%varspectrum(nm)
-                   rpattern_sfc(n)%spec_o(nn,2,k) = rpattern_spp(n)%stdev*rpattern_spp(n)%spec_o(nn,2,k)*rpattern_spp(n)%varspectrum(nm)
+                   rpattern_spp(n)%spec_o(nn,1,k) = rpattern_spp(n)%stdev*rpattern_spp(n)%spec_o(nn,1,k)*rpattern_spp(n)%varspectrum(nm)
+                   rpattern_spp(n)%spec_o(nn,2,k) = rpattern_spp(n)%stdev*rpattern_spp(n)%spec_o(nn,2,k)*rpattern_spp(n)%varspectrum(nm)
                 enddo
                 do nn=1,nspinup
                    call patterngenerator_advance(rpattern_spp(n),k,.false.)
