@@ -1,10 +1,10 @@
 !>@brief The module 'get_stochy_pattern_mod' contains the subroutines to retrieve the random pattern in the cubed-sphere grid
 module get_stochy_pattern_mod
  use kinddef, only : kind_dbl_prec, kind_evod
- use spectral_layout_mod, only : ipt_lats_node_a, lat1s_a, lats_dim_a,      &
-                                 lats_node_a, lon_dim_a, len_trie_ls,       &
-                                 len_trio_ls, ls_dim, nodes, stochy_la2ga,  &
-                                 coslat_a, latg, latg2, levs, lonf, skeblevs
+ use spectral_transforms, only : len_trie_ls,                       &
+                                 len_trio_ls, ls_dim, stochy_la2ga,          &
+                                 coslat_a, latg, levs, lonf, skeblevs,&
+                                 four_to_grid, spec_to_four, dezouv_stochy,dozeuv_stochy
  use stochy_namelist_def, only : n_var_lndp, ntrunc, stochini,n_var_spp
  use stochy_data_mod, only : gg_lats, gg_lons, inttyp, nskeb, nshum, nsppt, &
                              nocnsppt,nepbl,nlndp,                          &
@@ -16,12 +16,8 @@ module get_stochy_pattern_mod
  use stochy_patterngenerator_mod, only: random_pattern, ndimspec,           &
                                         patterngenerator_advance
  use stochy_internal_state_mod, only: stochy_internal_state
- use mpi_wrapper, only : mp_reduce_sum,is_master
+ use mpi_wrapper, only : mp_reduce_sum,is_rootpe
  use mersenne_twister, only: random_seed
- use dezouv_stochy_mod, only: dezouv_stochy
- use dozeuv_stochy_mod, only: dozeuv_stochy
- use four_to_grid_mod, only: four_to_grid
- use sumfln_stochy_mod, only: sumfln_stochy
  implicit none
  private
 
@@ -59,26 +55,22 @@ subroutine get_random_pattern_sfc(rpattern,npatterns,&
    glolal = 0.
    do n=1,npatterns
      call patterngenerator_advance(rpattern(n),k,.false.)
-     if (is_master()) print *, 'Random pattern for LNDP PERTS in get_random_pattern_fv3_sfc: k, min, max ',k,minval(rpattern_sfc(n)%spec_o(:,:,k)), maxval(rpattern_sfc(n)%spec_o(:,:,k))
-     call scalarspect_to_gaugrid(                       &
-         rpattern(n)%spec_e(:,:,k),rpattern(n)%spec_o(:,:,k),wrk2d,&
-         gis_stochy%ls_node,gis_stochy%ls_nodes,gis_stochy%max_ls_nodes,&
-         gis_stochy%lats_nodes_a,gis_stochy%global_lats_a,gis_stochy%lonsperlat,&
-         gis_stochy%plnev_a,gis_stochy%plnod_a,1)
+!     if (is_rootpe()) print *, 'Random pattern for LNDP PERTS in get_random_pattern_fv3_sfc: k, min, max ',k,minval(rpattern_sfc(n)%spec_o(:,:,k)), maxval(rpattern_sfc(n)%spec_o(:,:,k))
+     call scalarspect_to_gaugrid(rpattern(n),gis_stochy,wrk2d,k)
      glolal = glolal + wrk2d(:,:,1)
    enddo
 
    allocate(workg(lonf,latg))
    workg = 0.
    do j=1,gis_stochy%lats_node_a
-     lat=gis_stochy%global_lats_a(ipt_lats_node_a-1+j)
+     lat=gis_stochy%global_lats_a(gis_stochy%ipt_lats_node_a-1+j)
      do i=1,lonf
         workg(i,lat) = glolal(i,j)
      enddo
    enddo
 
    call mp_reduce_sum(workg,lonf,latg)
-   if (is_master()) print *, 'workg after mp_reduce_sum for LNDP PERTS in get_random_pattern_fv3_sfc: k, min, max ',k,minval(workg), maxval(workg)
+!   if (is_rootpe()) print *, 'workg after mp_reduce_sum for LNDP PERTS in get_random_pattern_fv3_sfc: k, min, max ',k,minval(workg), maxval(workg)
 
 ! interpolate to cube grid
 
@@ -91,7 +83,7 @@ subroutine get_random_pattern_sfc(rpattern,npatterns,&
       pattern_3d(:,j,k)=pattern_1d(:)
       end associate
    enddo
-   if (is_master()) print *, '3D pattern for LNDP PERTS in get_random_pattern_fv3_sfc: k, min, max ',k,minval(pattern_3d(:,:,k)), maxval(pattern_3d(:,:,k))
+!   if (is_rootpe()) print *, '3D pattern for LNDP PERTS in get_random_pattern_fv3_sfc: k, min, max ',k,minval(pattern_3d(:,:,k)), maxval(pattern_3d(:,:,k))
    deallocate(workg)
 
  enddo  ! loop over k, n_var_lndp
@@ -110,8 +102,8 @@ subroutine get_random_pattern_vector(rpattern,npatterns,&
  type(stochy_internal_state), intent(in) :: gis_stochy
  type(random_pattern), intent(inout) :: rpattern(npatterns)
 
- real(kind=kind_evod), dimension(len_trie_ls,2,1) ::  vrtspec_e,divspec_e
- real(kind=kind_evod), dimension(len_trio_ls,2,1) ::  vrtspec_o,divspec_o
+ real(kind=kind_evod), dimension(len_trie_ls,2) ::  vrtspec_e,divspec_e
+ real(kind=kind_evod), dimension(len_trio_ls,2) ::  vrtspec_o,divspec_o
  integer::   npatterns
 
  real(kind=kind_dbl_prec) :: upattern_3d(gis_stochy%nx,gis_stochy%ny,levs)
@@ -138,20 +130,15 @@ subroutine get_random_pattern_vector(rpattern,npatterns,&
           if (.not. stochini) call patterngenerator_advance(rpattern(n),k,first_call)
       !   ke norm (convert streamfunction forcing to vorticity forcing)
           do nn=1,2
-             vrtspec_e(:,nn,1) = gis_stochy%kenorm_e*rpattern(n)%spec_e(:,nn,k)
-             vrtspec_o(:,nn,1) = gis_stochy%kenorm_o*rpattern(n)%spec_o(:,nn,k)
+             vrtspec_e(:,nn) = gis_stochy%kenorm_e*rpattern(n)%spec_e(:,nn,k)
+             vrtspec_o(:,nn) = gis_stochy%kenorm_o*rpattern(n)%spec_o(:,nn,k)
           enddo
         ! convert to winds
-          call vrtdivspect_to_uvgrid(&
-                 divspec_e,divspec_o,vrtspec_e,vrtspec_o,&
-                 wrk2du,wrk2dv,&
-                 gis_stochy%ls_node,gis_stochy%ls_nodes,gis_stochy%max_ls_nodes,&
-                 gis_stochy%lats_nodes_a,gis_stochy%global_lats_a,gis_stochy%lonsperlat,&
-                 gis_stochy%epsedn,gis_stochy%epsodn,gis_stochy%snnp1ev,gis_stochy%snnp1od,&
-                 gis_stochy%plnev_a,gis_stochy%plnod_a,1)
+          call vrtdivspect_to_uvgrid( divspec_e,divspec_o,vrtspec_e,vrtspec_o,&
+                 wrk2du,wrk2dv, gis_stochy)
           do i=1,lonf
              do j=1,gis_stochy%lats_node_a
-                lat=gis_stochy%global_lats_a(ipt_lats_node_a-1+j)
+                lat=gis_stochy%global_lats_a(gis_stochy%ipt_lats_node_a-1+j)
                 workgu(i,lat) = workgu(i,lat) + wrk2du(i,j,1)
                 workgv(i,lat) = workgv(i,lat) + wrk2dv(i,j,1)
              enddo
@@ -190,20 +177,16 @@ subroutine get_random_pattern_vector(rpattern,npatterns,&
   ! ke norm (convert streamfunction forcing to vorticity forcing)
     divspec_e = 0; divspec_o = 0.
     do nn=1,2
-       vrtspec_e(:,nn,1) = gis_stochy%kenorm_e*rpattern(n)%spec_e(:,nn,skeblevs)
-       vrtspec_o(:,nn,1) = gis_stochy%kenorm_o*rpattern(n)%spec_o(:,nn,skeblevs)
+       vrtspec_e(:,nn) = gis_stochy%kenorm_e*rpattern(n)%spec_e(:,nn,skeblevs)
+       vrtspec_o(:,nn) = gis_stochy%kenorm_o*rpattern(n)%spec_o(:,nn,skeblevs)
     enddo
   ! convert to winds
     call vrtdivspect_to_uvgrid(&
            divspec_e,divspec_o,vrtspec_e,vrtspec_o,&
-           wrk2du,wrk2dv,&
-           gis_stochy%ls_node,gis_stochy%ls_nodes,gis_stochy%max_ls_nodes,&
-           gis_stochy%lats_nodes_a,gis_stochy%global_lats_a,gis_stochy%lonsperlat,&
-           gis_stochy%epsedn,gis_stochy%epsodn,gis_stochy%snnp1ev,gis_stochy%snnp1od,&
-           gis_stochy%plnev_a,gis_stochy%plnod_a,1)
+           wrk2du,wrk2dv, gis_stochy)
     do i=1,lonf
        do j=1,gis_stochy%lats_node_a
-          lat=gis_stochy%global_lats_a(ipt_lats_node_a-1+j)
+          lat=gis_stochy%global_lats_a(gis_stochy%ipt_lats_node_a-1+j)
           workgu(i,lat) = workgu(i,lat) + wrk2du(i,j,1)
           workgv(i,lat) = workgv(i,lat) + wrk2dv(i,j,1)
        enddo
@@ -248,7 +231,7 @@ subroutine get_random_pattern_scalar(rpattern,npatterns,&
  type(stochy_internal_state)          :: gis_stochy
  integer,intent(in)::   npatterns
 
- integer i,j,lat,n,pe_print
+ integer i,j,lat,n
  real(kind=kind_dbl_prec), dimension(lonf,gis_stochy%lats_node_a,1):: wrk2d
 
 ! logical lprint
@@ -258,28 +241,20 @@ subroutine get_random_pattern_scalar(rpattern,npatterns,&
  integer kmsk0(lonf,gis_stochy%lats_node_a)
  real(kind=kind_dbl_prec) :: pattern_2d(gis_stochy%nx,gis_stochy%ny)
  real(kind=kind_dbl_prec) :: pattern_1d(gis_stochy%nx)
- pe_print=111
- !if (is_master()) then
- !   print*,'in get_random_pattern_scalar',npatterns
- !   print*,'nx,ny',gis_stochy%nx,gis_stochy%ny
- !endif
 
  kmsk0 = 0
  glolal = 0.
  do n=1,npatterns
     call patterngenerator_advance(rpattern(n),1,.false.)
-    call scalarspect_to_gaugrid(                       &
-         rpattern(n)%spec_e,rpattern(n)%spec_o,wrk2d,&
-         gis_stochy%ls_node,gis_stochy%ls_nodes,gis_stochy%max_ls_nodes,&
-         gis_stochy%lats_nodes_a,gis_stochy%global_lats_a,gis_stochy%lonsperlat,&
-         gis_stochy%plnev_a,gis_stochy%plnod_a,1)
+    call scalarspect_to_gaugrid(rpattern(n),gis_stochy,   &
+         wrk2d,1)
     glolal = glolal + wrk2d(:,:,1)
  enddo
 
  allocate(workg(lonf,latg))
  workg = 0.
   do j=1,gis_stochy%lats_node_a
-     lat=gis_stochy%global_lats_a(ipt_lats_node_a-1+j)
+     lat=gis_stochy%global_lats_a(gis_stochy%ipt_lats_node_a-1+j)
      do i=1,lonf
         workg(i,lat) = glolal(i,j)
      enddo
@@ -304,54 +279,37 @@ end subroutine get_random_pattern_scalar
 
 !>@brief The subroutine 'scalarspect_to_gaugrid' converts scalar spherical harmonics to a scalar on a gaussian grid
 !>@details This subroutine is for a 2-D (lat-lon) scalar field
-subroutine scalarspect_to_gaugrid(&
-           trie_ls,trio_ls,datag,&
-           ls_node,ls_nodes,max_ls_nodes,&
-           lats_nodes_a,global_lats_a,lonsperlat,&
-           plnev_a,plnod_a,nlevs)
+subroutine scalarspect_to_gaugrid(rpattern,gis_stochy,datag,n)
 !\callgraph
 
-
       implicit none
-      real(kind=kind_dbl_prec), intent(in) :: trie_ls(len_trie_ls,2,nlevs)
-      real(kind=kind_dbl_prec), intent(in) :: trio_ls(len_trio_ls,2,nlevs)
-      real(kind=kind_dbl_prec),  intent(out) :: datag(lonf,lats_node_a,nlevs)
-      integer, intent(in) :: ls_node(ls_dim,3),ls_nodes(ls_dim,nodes),&
-        nlevs,max_ls_nodes(nodes),lats_nodes_a(nodes),global_lats_a(latg),lonsperlat(latg)
-      real(kind=kind_dbl_prec),intent(in) :: plnev_a(len_trie_ls,latg2),plnod_a(len_trio_ls,latg2)
+      type(random_pattern),        intent(in)  :: rpattern
+      type(stochy_internal_state), intent(in)  :: gis_stochy
+      integer                 ,    intent(in)  :: n
+      real(kind=kind_dbl_prec),    intent(out) :: datag(lonf,gis_stochy%lats_node_a)
 ! local vars
-      real(kind=kind_dbl_prec) for_gr_a_1(lon_dim_a,nlevs,lats_dim_a)
-      real(kind=kind_dbl_prec) for_gr_a_2(lonf,nlevs,lats_dim_a)
+      real(kind=kind_dbl_prec) for_gr_a_1(gis_stochy%lon_dim_a,1,gis_stochy%lats_dim_a)
+      real(kind=kind_dbl_prec) for_gr_a_2(lonf,1,gis_stochy%lats_dim_a)
       integer              i,k
       integer              lan,lat
-      integer              lons_lat
-
-      call sumfln_stochy(trie_ls,&
-                  trio_ls,&
-                  lat1s_a,&
-                  plnev_a,plnod_a,&
-                  nlevs,ls_node,latg2,&
-                  lats_dim_a,nlevs,for_gr_a_1,&
-                  ls_nodes,max_ls_nodes,&
-                  lats_nodes_a,global_lats_a,&
-                  lats_node_a,ipt_lats_node_a,&
-                  lonsperlat,lon_dim_a,latg,0)
-
-      do lan=1,lats_node_a
-         lat = global_lats_a(ipt_lats_node_a-1+lan)
-         lons_lat = lonsperlat(lat)
-         CALL FOUR_TO_GRID(for_gr_a_1(1,1,lan),for_gr_a_2(1,1,lan),&
-                           lon_dim_a,lonf,lons_lat,nlevs)
+      call spec_to_four(rpattern%spec_e(:,:,n), rpattern%spec_o(:,:,n), &
+                  gis_stochy%plnev_a,gis_stochy%plnod_a,&
+                  gis_stochy%ls_node, &
+                  gis_stochy%lats_dim_a,for_gr_a_1,&
+                  gis_stochy%ls_nodes,gis_stochy%max_ls_nodes,&
+                  gis_stochy%lats_nodes_a,gis_stochy%global_lats_a,&
+                  gis_stochy%lats_node_a,gis_stochy%ipt_lats_node_a,1)
+      do lan=1,gis_stochy%lats_node_a
+         lat = gis_stochy%global_lats_a(gis_stochy%ipt_lats_node_a-1+lan)
+         call four_to_grid(for_gr_a_1(:,:,lan),for_gr_a_2(:,:,lan),&
+                           gis_stochy%lon_dim_a,1)
       enddo
 
       datag = 0.
-      do lan=1,lats_node_a
-        lat      = global_lats_a(ipt_lats_node_a-1+lan)
-        lons_lat = lonsperlat(lat)
-        do k=1,nlevs
-          do i=1,lons_lat
-            datag(i,lan,k) = for_gr_a_2(i,k,lan)
-          enddo
+      do lan=1,gis_stochy%lats_node_a
+        lat      = gis_stochy%global_lats_a(gis_stochy%ipt_lats_node_a-1+lan)
+          do i=1,lonf
+            datag(i,lan) = for_gr_a_2(i,1,lan)
         enddo
       enddo
 
@@ -377,7 +335,7 @@ subroutine write_stoch_restart_atm(sfile)
 
     if ( ( .NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb) .AND. (lndp_type==0 ) .AND. (.NOT. do_spp)) return
     stochlun=99
-    if (is_master()) then
+    if (is_rootpe()) then
        if (nsppt > 0 .OR. nshum > 0 .OR. nskeb > 0 .OR. nlndp>0 .OR. nspp>0 ) then
           ierr=nf90_create(trim(sfile),cmode=NF90_CLOBBER,ncid=ncid)
           ierr=NF90_PUT_ATT(ncid,NF_GLOBAL,"ntrunc",ntrunc)
@@ -470,7 +428,7 @@ subroutine write_stoch_restart_atm(sfile)
           enddo
        enddo
     endif
-    if (is_master() ) then
+    if (is_rootpe() ) then
        ierr=NF90_CLOSE(ncid)
        if (ierr .NE. 0) then
            write(0,*) 'error writing patterns and closing file'
@@ -494,7 +452,7 @@ subroutine write_stoch_restart_ocn(sfile)
     include 'netcdf.inc'
     if ( ( .NOT. do_ocnsppt) .AND. (.NOT. pert_epbl) ) return
     stochlun=99
-    if (is_master()) then
+    if (is_rootpe()) then
        ierr=nf90_create(trim(sfile),cmode=NF90_CLOBBER,ncid=ncid)
        ierr=NF90_PUT_ATT(ncid,NF_GLOBAL,"ntrunc",ntrunc)
        call random_seed(size=isize) ! get seed size
@@ -537,7 +495,7 @@ subroutine write_stoch_restart_ocn(sfile)
           call write_pattern(rpattern_epbl2(n),ncid,1,n,varid3a,varid3b,.false.,ierr)
        enddo
     endif
-    if (is_master() ) then
+    if (is_rootpe() ) then
        ierr=NF90_CLOSE(ncid)
        if (ierr .NE. 0) then
            write(0,*) 'error writing patterns and closing file'
@@ -579,7 +537,7 @@ subroutine write_stoch_restart_ocn(sfile)
    enddo
    call mp_reduce_sum(pattern2d,arrlen)
   !  write only on root process
-   if (is_master()) then
+   if (is_rootpe()) then
       print*,'writing out random pattern (min/max/size)',&
       minval(pattern2d),maxval(pattern2d),size(pattern2d)
       call random_seed(size=isize) ! get seed size
@@ -604,71 +562,54 @@ subroutine write_stoch_restart_ocn(sfile)
 !>@details This subroutine is for a 2-D (lat-lon) vector field
  subroutine vrtdivspect_to_uvgrid(&
            trie_di,trio_di,trie_ze,trio_ze,&
-           uug,vvg,&
-           ls_node,ls_nodes,max_ls_nodes,&
-           lats_nodes_a,global_lats_a,lonsperlar,&
-           epsedn,epsodn,snnp1ev,snnp1od,plnev_a,plnod_a,nlevs)
+           uug,vvg, gis_stochy)
 !\callgraph
 
       implicit none
-      real(kind=kind_dbl_prec), intent(in) :: trie_di(len_trie_ls,2,nlevs)
-      real(kind=kind_dbl_prec), intent(in) :: trio_di(len_trio_ls,2,nlevs)
-      real(kind=kind_dbl_prec), intent(in) :: trie_ze(len_trie_ls,2,nlevs)
-      real(kind=kind_dbl_prec), intent(in) :: trio_ze(len_trio_ls,2,nlevs)
-      real(kind=kind_dbl_prec),  intent(out) :: uug(lonf,lats_node_a,nlevs)
-      real(kind=kind_dbl_prec),  intent(out) :: vvg(lonf,lats_node_a,nlevs)
-      integer, intent(in) :: ls_node(ls_dim,3),ls_nodes(ls_dim,nodes),&
-        nlevs,max_ls_nodes(nodes),lats_nodes_a(nodes),global_lats_a(latg),lonsperlar(latg)
-      real(kind=kind_dbl_prec),intent(in) ::  epsedn(len_trie_ls),&
-       epsodn(len_trio_ls),snnp1ev(len_trie_ls),snnp1od(len_trio_ls),&
-       plnev_a(len_trie_ls,latg2),plnod_a(len_trio_ls,latg2)
+      type(stochy_internal_state), intent(in) :: gis_stochy
+      real(kind=kind_dbl_prec), intent(in) :: trie_di(len_trie_ls,2)
+      real(kind=kind_dbl_prec), intent(in) :: trio_di(len_trio_ls,2)
+      real(kind=kind_dbl_prec), intent(in) :: trie_ze(len_trie_ls,2)
+      real(kind=kind_dbl_prec), intent(in) :: trio_ze(len_trio_ls,2)
+      real(kind=kind_dbl_prec), intent(out) :: uug(lonf,gis_stochy%lats_node_a)
+      real(kind=kind_dbl_prec), intent(out) :: vvg(lonf,gis_stochy%lats_node_a)
 ! local vars
-      real(kind=kind_dbl_prec) trie_ls(len_trie_ls,2,2*nlevs)
-      real(kind=kind_dbl_prec) trio_ls(len_trio_ls,2,2*nlevs)
-      real(kind=kind_dbl_prec) for_gr_a_1(lon_dim_a,2*nlevs,lats_dim_a)
-      real(kind=kind_dbl_prec) for_gr_a_2(lonf,2*nlevs,lats_dim_a)
+      real(kind=kind_dbl_prec) trie_ls(len_trie_ls,2,2)
+      real(kind=kind_dbl_prec) trio_ls(len_trio_ls,2,2)
+      real(kind=kind_dbl_prec) for_gr_a_1(gis_stochy%lon_dim_a,2,gis_stochy%lats_dim_a)
+      real(kind=kind_dbl_prec) for_gr_a_2(lonf,2,gis_stochy%lats_dim_a)
       integer              i,k
       integer              lan,lat
-      integer              lons_lat
       real (kind=kind_dbl_prec) tx1
 
-      do k=1,nlevs
-        call dezouv_stochy(trie_di(1,1,k),       trio_ze(1,1,k),&
-                    trie_ls(1,1,k), trio_ls(1,1,nlevs+k),&
-                    epsedn,epsodn,snnp1ev,snnp1od,ls_node)
-        call dozeuv_stochy(trio_di(1,1,k),       trie_ze(1,1,k),&
-                    trio_ls(1,1,k), trie_ls(1,1,nlevs+k),&
-                    epsedn,epsodn,snnp1ev,snnp1od,ls_node)
-      enddo
+      call dezouv_stochy(trie_di(:,:),       trio_ze(:,:), &
+                  trie_ls(:,:,1), trio_ls(:,:,2), gis_stochy%epsedn,gis_stochy%epsodn, &
+                  gis_stochy%snnp1ev,gis_stochy%snnp1od,gis_stochy%ls_node)
+      call dozeuv_stochy(trio_di(:,:),       trie_ze(:,:), &
+                  trio_ls(:,:,1), trie_ls(:,:,2), gis_stochy%epsedn,gis_stochy%epsodn, &
+                  gis_stochy%snnp1ev,gis_stochy%snnp1od,gis_stochy%ls_node)
 
-      call sumfln_stochy(trie_ls,&
-                  trio_ls,&
-                  lat1s_a,&
-                  plnev_a,plnod_a,&
-                  2*nlevs,ls_node,latg2,&
-                  lats_dim_a,2*nlevs,for_gr_a_1,&
-                  ls_nodes,max_ls_nodes,&
-                  lats_nodes_a,global_lats_a,&
-                  lats_node_a,ipt_lats_node_a,&
-                  lonsperlar,lon_dim_a,latg,0)
+      call spec_to_four(trie_ls, trio_ls, &
+                  gis_stochy%plnev_a,gis_stochy%plnod_a,&
+                  gis_stochy%ls_node,&
+                  gis_stochy%lats_dim_a,for_gr_a_1,&
+                  gis_stochy%ls_nodes,gis_stochy%max_ls_nodes,&
+                  gis_stochy%lats_nodes_a,gis_stochy%global_lats_a,&
+                  gis_stochy%lats_node_a,gis_stochy%ipt_lats_node_a,2)
 
-      do lan=1,lats_node_a
-         lat = global_lats_a(ipt_lats_node_a-1+lan)
-         lons_lat = lonsperlar(lat)
-         CALL FOUR_TO_GRID(for_gr_a_1(1,1,lan),for_gr_a_2(1,1,lan),&
-                           lon_dim_a,lonf,lons_lat,2*nlevs)
+      do lan=1,gis_stochy%lats_node_a
+         lat = gis_stochy%global_lats_a(gis_stochy%ipt_lats_node_a-1+lan)
+         call four_to_grid(for_gr_a_1(:,:,lan),for_gr_a_2(:,:,lan),&
+                           gis_stochy%lon_dim_a,2)
       enddo
 
       uug = 0.; vvg = 0.
-      do lan=1,lats_node_a
-        lat      = global_lats_a(ipt_lats_node_a-1+lan)
-        lons_lat = lonsperlar(lat)
+      do lan=1,gis_stochy%lats_node_a
+        lat      = gis_stochy%global_lats_a(gis_stochy%ipt_lats_node_a-1+lan)
         tx1      = 1. / coslat_a(lat)
-        do k=1,nlevs
-          do i=1,lons_lat
-            uug(i,lan,k) = for_gr_a_2(i,k,lan) * tx1
-            vvg(i,lan,k) = for_gr_a_2(i,nlevs+k,lan) * tx1
-          enddo
+        do i=1,lonf
+          uug(i,lan) = for_gr_a_2(i,1,lan) * tx1
+          vvg(i,lan) = for_gr_a_2(i,2,lan) * tx1
         enddo
       enddo
 

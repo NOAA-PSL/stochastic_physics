@@ -1,25 +1,26 @@
 module cellular_automata_sgs_mod
 
+use update_ca, only : domain_global,domain_sgs,iscnx,iecnx,jscnx,jecnx,isdnx,iednx,jsdnx,jednx,nxncells,nyncells
 implicit none
+
 
 contains
 
 subroutine cellular_automata_sgs(kstep,dtf,restart,first_time_step,sst,lsmsk,lake,condition_cpl, &
-            ca_deep_cpl,ca_turb_cpl,ca_shal_cpl,ca_deep_diag,ca_turb_diag,ca_shal_diag,domain, &
-            nblks,isc,iec,jsc,jec,npx,npy,nlev,nthresh,rcell, &
-            nca,scells,tlives,nfracseed,nseed,ca_global,ca_sgs,iseed_ca, &
-            ca_smooth,nspinup,ca_trigger,blocksize,mpiroot,mpicomm)
+            ca_deep_cpl,ca_turb_cpl,ca_shal_cpl,domain_in, &
+            nblks,isc,iec,jsc,jec,npx,npy,nlev,nthresh, mytile, &
+            nca,ncells,nlives,nfracseed,nseed,iseed_ca, &
+            nspinup,ca_trigger,blocksize,mpiroot,mpicomm)
 
-use kinddef,           only: kind_phys
-use update_ca,         only: update_cells_sgs, update_cells_global, define_ca_domain
-use mersenne_twister,  only: random_setseed,random_gauss,random_stat,random_number
-use mpp_domains_mod,   only: domain2D
+use kinddef,           only: kind_phys,kind_dbl_prec
+use update_ca,         only: update_cells_sgs, define_ca_domain
+use random_numbers,    only: random_01_CB
+use mpp_domains_mod,   only: domain2D,mpp_get_global_domain,CENTER, mpp_get_data_domain, mpp_get_compute_domain,&
+                             mpp_define_io_domain,mpp_get_io_domain_layout
 use block_control_mod, only: block_control_type, define_blocks_packed
 use time_manager_mod, only: time_type
-use mpi_wrapper,       only: mype,mp_reduce_sum,mp_bcst,mp_reduce_max,mp_reduce_min, &
+use mpi_wrapper,       only: mype,mp_reduce_max, &
                              mpi_wrapper_initialize
-use mpp_domains_mod
-use mpp_mod
 
 
 
@@ -32,61 +33,56 @@ implicit none
 !Setting control variables as a function of dx and dt
 !for scale adaptation. 
 
+!P.Pegion, 2021-09
+! swtich to new random number generator and improve computational efficiency
+! and remove unsued code
+
 !This routine produces an output field CA_DEEP for coupling to convection (saSAS).
 !CA_DEEP can be either number of plumes in a cluster (nca_plumes=true) or updraft 
 !area fraction (nca_plumes=false)
 
-integer,intent(in) :: kstep,scells,nca,tlives,nseed,iseed_ca,nspinup,mpiroot,mpicomm
-real(kind=kind_phys), intent(in)    :: nfracseed,dtf,rcell
-logical,intent(in) :: ca_global, ca_sgs, ca_smooth, restart,ca_trigger,first_time_step
+integer,intent(in) :: kstep,ncells,nca,nlives,nseed,nspinup,mpiroot,mpicomm,mytile
+integer(kind=kind_dbl_prec),           intent(in)    :: iseed_ca
+real(kind=kind_phys), intent(in)    :: nfracseed,dtf,nthresh
+logical,intent(in) :: restart,ca_trigger,first_time_step
 integer, intent(in) :: nblks,isc,iec,jsc,jec,npx,npy,nlev,blocksize
-real  , intent(out) :: nthresh
 real(kind=kind_phys), intent(in)    :: sst(:,:),lsmsk(:,:),lake(:,:)
 real(kind=kind_phys), intent(inout) :: condition_cpl(:,:)
 real(kind=kind_phys), intent(inout) :: ca_deep_cpl(:,:)
 real(kind=kind_phys), intent(inout) :: ca_turb_cpl(:,:)
 real(kind=kind_phys), intent(inout) :: ca_shal_cpl(:,:)
-real(kind=kind_phys), intent(out)   :: ca_deep_diag(:,:)
-real(kind=kind_phys), intent(out)   :: ca_turb_diag(:,:)
-real(kind=kind_phys), intent(out)   :: ca_shal_diag(:,:)
-type(domain2D),       intent(inout) :: domain
+type(domain2D),       intent(inout) :: domain_in
 
 type(block_control_type)          :: Atm_block
-type(random_stat) :: rstate
 integer :: nlon, nlat, isize,jsize,nf,nn
 integer :: inci, incj, nxc, nyc, nxch, nych, nx, ny
-integer :: nxncells, nyncells
 integer :: halo, k_in, i, j, k
 integer :: seed, ierr7,blk, ix, iix, count4,ih,jh
 integer :: blocksz,levs
-integer,save :: isdnx,iednx,jsdnx,jednx
-integer,save :: iscnx,iecnx,jscnx,jecnx
-integer :: ncells,nlives
 integer, save :: initialize_ca
-integer(8) :: count, count_rate, count_max, count_trunc
+integer(8) :: count, count_rate, count_max, count_trunc,nx_full
 integer(8) :: iscale = 10000000000
-integer, allocatable :: iini(:,:,:),ilives_in(:,:,:),ca_plumes(:,:)
+integer, allocatable :: iini(:,:,:),ilives_in(:,:,:),ca_plumes(:,:),io_layout(:)
 real(kind=kind_phys), allocatable :: ssti(:,:),lsmski(:,:),lakei(:,:)
 real(kind=kind_phys), allocatable :: CA(:,:),condition(:,:),conditiongrid(:,:)
 real(kind=kind_phys), allocatable :: CA_DEEP(:,:)
-real(kind=kind_phys), allocatable :: noise1D(:),noise(:,:,:)
-real(kind=kind_phys) :: condmax,livesmax,factor,dx,pi,re
-type(domain2D),save  :: domain_ncellx
+real*8              , allocatable :: noise(:,:,:)
+real(kind=kind_phys) :: condmax,condmaxinv,livesmax,livesmaxinv,factor,dx,pi,re
 logical,save         :: block_message=.true.
 logical              :: nca_plumes
 logical,save         :: first_flag
+integer*8            :: i1,j1
+integer              :: ct
 
 !nca         :: switch for number of cellular automata to be used.
-!            :: for the moment only 1 CA can be used if ca_sgs = true
-!ca_global   :: switch for global cellular automata
-!ca_sgs      :: switch for cellular automata for deep convection
+!            :: for the moment only 1 CA can be used 
 !nfracseed   :: switch for number of random cells initially seeded
-!tlives      :: switch for time scale (s)
+!nlives      :: switch for time scale (s)
 !nspinup     :: switch for number of itterations to spin up the ca
-!scells      :: switch for CA cell size (m)
-!ca_smooth   :: switch to smooth the cellular automata
+!ncells      :: switch for CA cell size (m)
 !nca_plumes   :: compute number of CA-cells ("plumes") within a NWP gridbox.
 
+if (nca .LT. 1) return
 ! Initialize MPI and OpenMP
 if (first_time_step) then
    call mpi_wrapper_initialize(mpiroot,mpicomm)
@@ -118,17 +114,8 @@ endif
  jsize=nlat+2*halo
 
  !Set time and length scales:
- call mpp_get_global_domain(domain,xsize=nx,ysize=ny,position=CENTER)
- pi=3.14159
- re=6371000.
- dx=0.5*pi*re/real(nx)
- ncells=int(dx/real(scells))
- nlives=int(real(tlives)/dtf)
- ncells = MIN(ncells,10)
- nlives = MAX(nlives,5)
-
- nthresh=rcell*real(ncells)*real(ncells)
-
+ call mpp_get_global_domain(domain_in,xsize=nx,ysize=ny,position=CENTER)
+ 
  if(mype == 1)then
  write(*,*)'ncells=',ncells
  write(*,*)'nlives=',nlives
@@ -138,17 +125,23 @@ endif
  inci=ncells
  incj=ncells
 
-!--- get params from domain_ncellx for building board and board_halo                                                                                
+!--- get params from domain_sgs for building board and board_halo                                                                                
 
  if(first_time_step)then 
   !Get CA domain                                                                                                                                       
-  call define_ca_domain(domain,domain_ncellx,ncells,nxncells,nyncells)
-  call mpp_get_data_domain    (domain_ncellx,isdnx,iednx,jsdnx,jednx)
-  call mpp_get_compute_domain (domain_ncellx,iscnx,iecnx,jscnx,jecnx)
+  if (.not.restart) then
+      allocate(io_layout(2))
+      io_layout=mpp_get_io_domain_layout(domain_in)
+      call define_ca_domain(domain_in,domain_sgs,ncells,nxncells,nyncells)
+      call mpp_define_io_domain(domain_sgs, io_layout)
+  endif
+  call mpp_get_data_domain    (domain_sgs,isdnx,iednx,jsdnx,jednx)
+  call mpp_get_compute_domain (domain_sgs,iscnx,iecnx,jscnx,jecnx)
   !write(1000+mpp_pe(),*) "nxncells,nyncells: ",nxncells,nyncells
   !write(1000+mpp_pe(),*) "iscnx,iecnx,jscnx,jecnx: ",iscnx,iecnx,jscnx,jecnx
   !write(1000+mpp_pe(),*) "isdnx,iednx,jsdnx,jednx: ",isdnx,iednx,jsdnx,jednx
- endif
+endif
+
   nxc = iecnx-iscnx+1
   nyc = jecnx-jscnx+1
   nxch = iednx-isdnx+1
@@ -166,18 +159,8 @@ endif
  allocate(CA(nlon,nlat))
  allocate(ca_plumes(nlon,nlat))
  allocate(CA_DEEP(nlon,nlat))
- allocate(noise(nxc,nyc,nca))
- allocate(noise1D(nxc*nyc))
 
  !Initialize:
- condition(:,:)=0.
- conditiongrid(:,:)=0.
- ca_plumes(:,:) = 0
- noise(:,:,:) = 0.0
- noise1D(:) = 0.0
- iini(:,:,:) = 0
- ilives_in(:,:,:) = 0
- CA_DEEP(:,:) = 0.
 
  !Put the blocks of model fields into a 2d array - can't use nlev and blocksize directly,
  !because the arguments to define_blocks_packed are intent(inout) and not intent(in).
@@ -199,7 +182,6 @@ endif
  enddo
 
 !Initialize the CA when the condition field is populated
-
   do j=1,nyc
    do i=1,nxc
      condition(i,j)=conditiongrid(inci/ncells,incj/ncells)
@@ -214,19 +196,21 @@ endif
   enddo
 
   condmax=maxval(condition)
+  condmaxinv=0.0
   call mp_reduce_max(condmax)
   if(condmax > 0.)then
      if(.not. first_flag)then
         first_flag = .true.
         initialize_ca = kstep
      endif
+     condmaxinv=1.0/condmax
   endif
 
 if(kstep >=initialize_ca)then
   do nf=1,nca
      do j = 1,nyc
         do i = 1,nxc
-           ilives_in(i,j,nf)=int(real(nlives)*(condition(i,j)/condmax))
+           ilives_in(i,j,nf)=int(real(nlives)*(condition(i,j)*condmaxinv))
         enddo
      enddo
   enddo
@@ -244,53 +228,57 @@ else
 endif
                                                                                                                                         
 !Generate random number, following stochastic physics code:
-if(kstep == initialize_ca) then
-   if (iseed_ca == 0) then
-    ! generate a random seed from system clock and ens member number
-    call system_clock(count, count_rate, count_max)
-    ! iseed is elapsed time since unix epoch began (secs)
-    ! truncate to 4 byte integer
-    count_trunc = iscale*(count/iscale)
-    count4 = count - count_trunc
-  else
-    ! don't rely on compiler to truncate integer(8) to integer(4) on
-    ! overflow, do wrap around explicitly.
-    count4 = mod(mype + iseed_ca + 2147483648, 4294967296) - 2147483648
-  endif
-
-  call random_setseed(count4)
-
-  do nf=1,nca
-    call random_number(noise1D)
-    !Put on 2D:
-    do j=1,nyc
-      do i=1,nxc
-        noise(i,j,nf)=noise1D(i+(j-1)*nxc)
+if (.not. restart) then
+   if(kstep == initialize_ca) then
+      nx_full=int(ncells,kind=8)*int(npx-1,kind=8)
+      allocate(noise(nxc,nyc,nca))
+      do j=1,nyc
+         j1=j+(jsc-1)*ncells
+         do i=1,nxc
+            i1=i+(isc-1)*ncells
+            if (iseed_ca <= 0) then
+               ! generate a random seed from system clock and ens member number
+               call system_clock(count, count_rate, count_max)
+               ! iseed is elapsed time since unix epoch began (secs)
+               ! truncate to 4 byte integer
+               count_trunc = iscale*(count/iscale)
+               count4 = count - count_trunc + mytile *( i1+nx_full*(j1-1)) ! no need to multply by 7 since time will be different in sgs
+            else
+               ! don't rely on compiler to truncate integer(8) to integer(4) on
+               ! overflow, do wrap around explicitly.
+               count4 = mod((iseed_ca+mytile)*(i1+nx_full*(j1-1))+ 2147483648, 4294967296) - 2147483648
+            endif
+            ct=1
+            do nf=1,nca
+               noise(i,j,nf)=real(random_01_CB(ct,count4),kind=8)
+               ct=ct+1
+            enddo
+         enddo
       enddo
-    enddo
-   enddo
-
-!Initiate the cellular automaton with random numbers larger than nfracseed
-   do nf=1,nca
-    do j = 1,nyc
-      do i = 1,nxc
-        if (noise(i,j,nf) > nfracseed ) then
-          iini(i,j,nf)=1
-        else
-          iini(i,j,nf)=0
-        endif
-      enddo
-    enddo
-  enddo !nf
-
-endif ! 
+   
+      !Initiate the cellular automaton with random numbers larger than nfracseed
+      do nf=1,nca
+       do j = 1,nyc
+         do i = 1,nxc
+           if (noise(i,j,nf) > nfracseed ) then
+             iini(i,j,nf)=1
+           else
+             iini(i,j,nf)=0
+           endif
+         enddo
+       enddo
+     enddo !nf
+   
+   deallocate(noise)
+   endif ! 
+endif !  restart
 
 !Calculate neighbours and update the automata
  do nf=1,nca
-  call update_cells_sgs(kstep,initialize_ca,first_flag,restart,first_time_step,iseed_ca,nca,nxc,nyc, &
-                        nxch,nych,nlon,nlat,nxncells,nyncells,isc,iec,jsc,jec, &
-                        npx,npy,isdnx,iednx,jsdnx,jednx,iscnx,iecnx,jscnx,jecnx,domain_ncellx,CA,ca_plumes,iini,ilives_in,        &
-                        nlives,nfracseed,nseed,nspinup,nf,nca_plumes,ncells)
+  call update_cells_sgs(kstep,initialize_ca,iseed_ca,first_flag,restart,first_time_step,nca,nxc,nyc, &
+                        nxch,nych,nlon,nlat,isc,iec,jsc,jec, &
+                        npx,npy,CA,ca_plumes,iini,ilives_in,        &
+                        nlives,nfracseed,nseed,nspinup,nf,nca_plumes,ncells,mytile)
 
     if(nca_plumes)then
     do j=1,nlat
@@ -301,9 +289,10 @@ endif !
     else
     livesmax=maxval(ilives_in)
     call mp_reduce_max(livesmax)
+    livesmaxinv=1.0/livesmax
     do j=1,nlat
        do i=1,nlon
-          CA_DEEP(i,j)=CA(i,j)/livesmax
+          CA_DEEP(i,j)=CA(i,j)*livesmaxinv
        enddo
     enddo
     endif
@@ -323,14 +312,13 @@ enddo
 !Put back into blocks 1D array to be passed to physics
 !or diagnostics output
 
-  do blk = 1, Atm_block%nblks
-  do ix = 1,Atm_block%blksz(blk)
-     i = Atm_block%index(blk)%ii(ix) - isc + 1
-     j = Atm_block%index(blk)%jj(ix) - jsc + 1
-     ca_deep_diag(blk,ix)=CA_DEEP(i,j)
-     ca_deep_cpl(blk,ix)=CA_DEEP(i,j) 
-  enddo
-  enddo
+ do blk = 1, Atm_block%nblks
+    do ix = 1,Atm_block%blksz(blk)
+       i = Atm_block%index(blk)%ii(ix) - isc + 1
+       j = Atm_block%index(blk)%jj(ix) - jsc + 1
+       ca_deep_cpl(blk,ix)=CA_DEEP(i,j) 
+    enddo
+ enddo
 
  deallocate(conditiongrid)
  deallocate(ssti)
@@ -342,8 +330,6 @@ enddo
  deallocate(CA)
  deallocate(ca_plumes)
  deallocate(CA_DEEP)
- deallocate(noise)
- deallocate(noise1D)
 
 end subroutine cellular_automata_sgs
 

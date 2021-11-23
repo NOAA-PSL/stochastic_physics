@@ -4,7 +4,7 @@ module mpi_wrapper
 
    private
 
-   public :: mype, npes, root, comm, is_master
+   public :: mype, npes, root, comm, is_rootpe
    public :: mpi_wrapper_initialize, mpi_wrapper_finalize
    public :: mp_reduce_min, mp_reduce_max, mp_reduce_sum
    public :: mp_bcst, mp_alltoall
@@ -59,6 +59,8 @@ module mpi_wrapper
      MODULE PROCEDURE mp_reduce_sum_r8_1d
      MODULE PROCEDURE mp_reduce_sum_r8_1darr
      MODULE PROCEDURE mp_reduce_sum_r8_2darr
+     MODULE PROCEDURE mp_reduce_sum_i
+     MODULE PROCEDURE mp_reduce_sum_i8
    END INTERFACE
 
    INTERFACE mp_alltoall
@@ -67,13 +69,13 @@ module mpi_wrapper
 
 contains
 
-   logical function is_master()
+   logical function is_rootpe()
       if (mype==root) then
-         is_master = .true.
+         is_rootpe = .true.
       else
-         is_master = .false.
+         is_rootpe = .false.
       end if
-   end function is_master
+   end function is_rootpe
 
    subroutine mpi_wrapper_initialize(mpiroot, mpicomm)
       integer, intent(in) :: mpiroot, mpicomm
@@ -642,6 +644,53 @@ contains
 !
 ! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ! !
+
+!-------------------------------------------------------------------------------
+! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
+!
+!     mp_reduce_sum_i :: Call SPMD REDUCE_SUM 
+!
+      subroutine mp_reduce_sum_i(mysum)
+         integer, intent(INOUT)  :: mysum
+
+         integer :: gsum
+
+         call MPI_ALLREDUCE( mysum, gsum, 1, MPI_INTEGER, MPI_SUM, &
+                             comm, ierror )
+
+         mysum = gsum
+
+      end subroutine mp_reduce_sum_i
+!
+! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
+!-------------------------------------------------------------------------------
+
+
+
+!-------------------------------------------------------------------------------
+! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+
+!-------------------------------------------------------------------------------
+! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv !
+!
+!     mp_reduce_sum_i8 :: Call SPMD REDUCE_SUM 
+!
+      subroutine mp_reduce_sum_i8(mysum)
+         integer*8, intent(INOUT)  :: mysum
+
+         integer*8 :: gsum
+
+         call MPI_ALLREDUCE( mysum, gsum, 1, MPI_INTEGER8, MPI_SUM, &
+                             comm, ierror )
+
+         mysum = gsum
+
+      end subroutine mp_reduce_sum_i8
+!
+! ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ !
+!-------------------------------------------------------------------------------
+
+
 
 !-------------------------------------------------------------------------------
 ! vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv

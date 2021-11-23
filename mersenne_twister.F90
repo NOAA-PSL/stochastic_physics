@@ -223,19 +223,15 @@
           integer,intent(out),optional:: get(nrest)
           type(random_stat),intent(inout),optional:: stat
           if(present(size)) then     ! return size of seed array
-!     if(present(put).or.present(get))&
-!      call errmsg('RANDOM_SEED: more than one option set - some ignored')
             size=nrest
           elseif(present(put)) then  ! restore from seed array
-!     if(present(get))&
-!      call errmsg('RANDOM_SEED: more than one option set - some ignored')
             if(present(stat)) then
               stat%mti=put(1)
               stat%mt=put(2:n+1)
               stat%iset=put(n+2)
               stat%gset=transfer(put(n+3:nrest),stat%gset)
-              if(stat%mti.lt.0.or.stat%mti.gt.n.or.any(stat%mt.eq.0).or.
-     &         stat%iset.lt.0.or.stat%iset.gt.1) then
+              if(stat%mti.lt.0.or.stat%mti.gt.n.or.any(stat%mt.eq.0).or.  &
+              stat%iset.lt.0.or.stat%iset.gt.1) then
                 call random_setseed_t(iseed,stat)
 !         call errmsg('RANDOM_SEED: invalid seeds put - default seeds used')
               endif
@@ -244,8 +240,8 @@
               sstat%mt=put(2:n+1)
               sstat%iset=put(n+2)
               sstat%gset=transfer(put(n+3:nrest),sstat%gset)
-              if(sstat%mti.lt.0.or.sstat%mti.gt.n.or.any(sstat%mt.eq.0)
-     &         .or.sstat%iset.lt.0.or.sstat%iset.gt.1) then
+              if(sstat%mti.lt.0.or.sstat%mti.gt.n.or.any(sstat%mt.eq.0) &
+              .or.sstat%iset.lt.0.or.sstat%iset.gt.1) then
                 call random_setseed_t(iseed,sstat)
 !         call errmsg('RANDOM_SEED: invalid seeds put - default seeds used')
               endif
@@ -340,17 +336,14 @@
             if(stat%mti.ge.n) then
               do kk=0,n-m-1
                 y=ior(iand(stat%mt(kk),umask),iand(stat%mt(kk+1),lmask))
-                stat%mt(kk)=ieor(ieor(stat%mt(kk+m),ishft(y,-1)),
-     &   mag01(iand(y,1)))
+                stat%mt(kk)=ieor(ieor(stat%mt(kk+m),ishft(y,-1)), mag01(iand(y,1)))
               enddo
               do kk=n-m,n-2
                 y=ior(iand(stat%mt(kk),umask),iand(stat%mt(kk+1),lmask))
-                stat%mt(kk)=ieor(ieor(stat%mt(kk+(m-n)),ishft(y,-1)),
-     &   mag01(iand(y,1)))
+                stat%mt(kk)=ieor(ieor(stat%mt(kk+(m-n)),ishft(y,-1)), mag01(iand(y,1)))
               enddo
               y=ior(iand(stat%mt(n-1),umask),iand(stat%mt(0),lmask))
-              stat%mt(n-1)=ieor(ieor(stat%mt(m-1),ishft(y,-1)),
-     &   mag01(iand(y,1)))
+              stat%mt(n-1)=ieor(ieor(stat%mt(m-1),ishft(y,-1)), mag01(iand(y,1)))
               stat%mti=0
             endif
             y=stat%mt(stat%mti)

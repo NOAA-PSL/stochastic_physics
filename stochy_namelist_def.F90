@@ -28,14 +28,14 @@
       real(kind=kind_dbl_prec), dimension(5) :: epbl,epbl_lscale,epbl_tau
       real(kind=kind_dbl_prec), dimension(5) :: ocnsppt,ocnsppt_lscale,ocnsppt_tau
       integer,dimension(5) ::skeb_vfilt
-      integer(8),dimension(5) ::iseed_sppt,iseed_shum,iseed_skeb,iseed_epbl,iseed_ocnsppt,iseed_epbl2
+      integer(kind=kind_dbl_prec),dimension(5) ::iseed_sppt,iseed_shum,iseed_skeb,iseed_epbl,iseed_ocnsppt,iseed_epbl2
       logical stochini,sppt_logit,new_lscale
       logical use_zmtnblck
       logical do_shum,do_sppt,do_skeb,pert_epbl,do_ocnsppt,do_spp
 
       real(kind=kind_dbl_prec), dimension(5) :: lndp_lscale,lndp_tau
       integer n_var_lndp
-      integer(8),dimension(5) ::iseed_lndp
+      integer(kind=kind_dbl_prec),dimension(5) ::iseed_lndp
       integer lndp_type
       character(len=3), dimension(max_n_var_lndp)         ::  lndp_var_list
       real(kind=kind_dbl_prec), dimension(max_n_var_lndp) ::  lndp_prt_list
