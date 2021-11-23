@@ -93,7 +93,6 @@ enddo
 ! replace
 INTTYP=0 ! bilinear interpolation
 call init_stochdata(levs,dtp,input_nml_file_in,fn_nml,nlunit,iret)
-print*,'back from init stochdata',iret
 if (iret .ne. 0) return
 ! check namelist entries for consistency
 if (do_sppt_in.neqv.do_sppt) then
@@ -235,7 +234,7 @@ if (do_spp) then
       else
           vfact_spp(k) = 1.0
       endif
-      if (is_master())  print *,'spp vert profile',k,sl(k),vfact_spp(k)
+      if (is_rootpe())  print *,'spp vert profile',k,sl(k),vfact_spp(k)
    enddo
 endif
 ! get interpolation weights
@@ -342,14 +341,8 @@ use stochy_data_mod, only : nshum,rpattern_shum,rpattern_sppt,nsppt,rpattern_ske
 use get_stochy_pattern_mod,only : get_random_pattern_scalar,get_random_pattern_vector, & 
                                   get_random_pattern_sfc
 use stochy_namelist_def, only : do_shum,do_sppt,do_skeb,nssppt,nsshum,nsskeb,sppt_logit,    & 
-<<<<<<< HEAD
                                 lndp_type, n_var_lndp, n_var_spp, do_spp, spp_stddev_cutoff, spp_prt_list
-use mpi_wrapper, only: is_master
-use spectral_layout_mod,only:me
-=======
-                                lndp_type, n_var_lndp
 use mpi_wrapper, only: is_rootpe
->>>>>>> 4e8a7cff92ee158104963dddea5ae335071cbbb9
 implicit none
 
 ! Interface variables
@@ -372,12 +365,8 @@ integer :: nblks, blk, len, maxlen
 character*120 :: sfile
 character*6   :: STRFH
 logical :: do_advance_pattern
-<<<<<<< HEAD
 
 if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb) .AND. (lndp_type==0 ) .AND. (n_var_spp .le. 0)) return
-=======
-if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb) .AND. (lndp_type==0 ) ) return
->>>>>>> 4e8a7cff92ee158104963dddea5ae335071cbbb9
 
 ! Update number of threads in shared variables in spectral_layout_mod and set block-related variables
 nblks = size(blksz)
