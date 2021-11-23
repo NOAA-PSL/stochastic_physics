@@ -436,7 +436,6 @@ module stochy_data_mod
       do n=1,nspp
          if (is_rootpe()) print *, 'Initialize random pattern for SPP PERTS'
          do k=1,n_var_spp
-            nspinup = spinup_efolds*spp_tau(n)/delt
             if (stochini) then
                call read_pattern(rpattern_spp(n),jcapin,stochlun,k,n,varid1,varid2,.true.,ierr)
                if (ierr .NE. 0) then
@@ -462,9 +461,6 @@ module stochy_data_mod
                    if (nm .eq. 0) cycle
                    rpattern_spp(n)%spec_o(nn,1,k) = rpattern_spp(n)%stdev*rpattern_spp(n)%spec_o(nn,1,k)*rpattern_spp(n)%varspectrum(nm)
                    rpattern_spp(n)%spec_o(nn,2,k) = rpattern_spp(n)%stdev*rpattern_spp(n)%spec_o(nn,2,k)*rpattern_spp(n)%varspectrum(nm)
-                enddo
-                do nn=1,nspinup
-                   call patterngenerator_advance(rpattern_spp(n),k,.false.)
                 enddo
                 if (is_rootpe()) print *, 'spp pattern initialized, ',n, k, minval(rpattern_spp(n)%spec_o(:,:,k)), maxval(rpattern_spp(n)%spec_o(:,:,k))
             endif ! stochini
