@@ -163,7 +163,7 @@ module compns_stochy_mod
 #endif
 
 #ifdef INTERNAL_FILE_NML
-      read(input_nml_file, nml=nam_spperts)
+      read(input_nml_file, nml=nam_spperts, iostat=ios)
 #else
       rewind (nlunit)
       open (unit=nlunit, file=fn_nml, action='READ', status='OLD', iostat=ios)
