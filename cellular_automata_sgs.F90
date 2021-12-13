@@ -1,6 +1,6 @@
 module cellular_automata_sgs_mod
 
-use update_ca, only : domain_global,domain_sgs,iscnx,iecnx,jscnx,jecnx,isdnx,iednx,jsdnx,jednx,nxncells,nyncells
+use update_ca, only : domain_global,domain_sgs,iscnx,iecnx,jscnx,jecnx,isdnx,iednx,jsdnx,jednx,nxncells,nyncells,cold_start_ca_sgs
 implicit none
 
 
@@ -161,6 +161,8 @@ endif
  allocate(CA_DEEP(nlon,nlat))
 
  !Initialize:
+ ilives_in(:,:,:) = 0
+ iini(:,:,:) = 0
 
  !Put the blocks of model fields into a 2d array - can't use nlev and blocksize directly,
  !because the arguments to define_blocks_packed are intent(inout) and not intent(in).
@@ -228,7 +230,7 @@ else
 endif
                                                                                                                                         
 !Generate random number, following stochastic physics code:
-if (.not. restart) then
+if (cold_start_ca_sgs) then
    if(kstep == initialize_ca) then
       nx_full=int(ncells,kind=8)*int(npx-1,kind=8)
       allocate(noise(nxc,nyc,nca))
@@ -271,7 +273,7 @@ if (.not. restart) then
    
    deallocate(noise)
    endif ! 
-endif !  restart
+endif !  cold_start_ca_sgs
 
 !Calculate neighbours and update the automata
  do nf=1,nca

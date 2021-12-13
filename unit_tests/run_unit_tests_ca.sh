@@ -10,7 +10,7 @@
 RES=96
 NPX=`expr $RES + 1`
 NPY=`expr $RES + 1`
-DO_CA_SGS=.false.
+DO_CA_SGS=.true.
 DO_CA_GLOBAL=.true.
 
 source ./module-setup.sh
@@ -19,7 +19,7 @@ module use $( pwd -P )
 module load modules.stoch
 EXEC=standalone_ca.x
 # compile codes
-#sh compile_standalone_ca.hera.intel
+sh compile_standalone_ca.hera.intel
 if [ ! -f $EXEC ];then
   echo "compilation errors"
   exit 1
@@ -65,6 +65,37 @@ mkdir -p RESTART
    time srun --label -n 6 $EXEC >& stdout.1x1_restart
    mkdir ca_layout_1x1_restart
    mv ca_out* ca_layout_1x1_restart
+   ct=1
+   while [ $ct -le 6 ];do
+      diff RESTART/ca_data.tile${ct}.nc RESTART/run1_end_ca_data.tile${ct}.nc
+      if [ $? -ne 0 ];then
+         echo "restart test failed"
+         exit 1
+      fi   
+      ct=`expr $ct + 1`
+   done
+   if [ $? -eq 0 ];then
+      echo "unit test 1 successful"
+   fi
+   set OMP_NUM_THREADS=2
+      
+   cp input.nml.ca_template input.nml
+   ct=1
+   while [ $ct -le 6 ];do
+      rm INPUT/ca_data.tile${ct}.nc
+      ct=`expr $ct + 1`
+   done
+   sed -i -e "s/LOX/1/g" input.nml
+   sed -i -e "s/LOY/1/g" input.nml
+   sed -i -e "s/NPX/$NPX/g" input.nml
+   sed -i -e "s/NPY/$NPY/g" input.nml
+   sed -i -e "s/RES/$RES/g" input.nml
+   sed -i -e "s/CA_SGS/${DO_CA_SGS}/g" input.nml
+   sed -i -e "s/CA_GLOBAL/${DO_CA_GLOBAL}/g" input.nml
+   sed -i -e "s/WARM_START/.true./g" input.nml
+   time srun --label -n 6 $EXEC >& stdout.1x1_restart2
+   mkdir ca_layout_1x1_restart2
+   mv ca_out* ca_layout_1x1_restart2
    ct=1
    while [ $ct -le 6 ];do
       diff RESTART/ca_data.tile${ct}.nc RESTART/run1_end_ca_data.tile${ct}.nc
