@@ -38,8 +38,8 @@ real(kind=4),allocatable,dimension(:) :: grid_xt,grid_yt
 type(grid_box_type)           :: grid_box
 !---cellular automata control parameters
 integer              :: nca             !< number of independent cellular automata
-integer              :: tlives          !< cellular automata lifetime
-integer              :: scells          !< cellular automata finer grid
+integer              :: nlives          !< cellular automata lifetime
+integer              :: ncells          !< cellular automata finer grid
 integer              :: nca_g           !< number of independent cellular automata
 integer              :: nlives_g        !< cellular automata lifetime
 integer              :: ncells_g        !< cellular automata finer grid
@@ -65,7 +65,7 @@ real(kind=kind_phys), dimension(:,:),   allocatable :: ca_deep, ca_turb, ca_shal
 
 real(kind=kind_phys), dimension(:,:),   allocatable :: ca1, ca2, ca3
 
-NAMELIST /gfs_physics_nml/ do_ca, ca_sgs, ca_global, nca, scells, tlives, nseed,       &
+NAMELIST /gfs_physics_nml/ do_ca, ca_sgs, ca_global, nca, ncells, nlives, nseed,       &
                           nfracseed, rcell, ca_trigger, ca_entr, ca_closure, nca_g,    &
                           ncells_g, nlives_g, nseed_g, ca_smooth, nspinup, iseed_ca,   &
                           nsmooth, ca_amplitude, warm_start
@@ -316,7 +316,7 @@ endif
 dump_time=50
 if (warm_start) then
    istart=dump_time+1
-   call read_ca_restart(Atm(1)%domain,scells,nca,ncells_g,nca_g)
+   call read_ca_restart(Atm(1)%domain,ncells,nca,ncells_g,nca_g)
 else
    istart=1
 endif
@@ -328,7 +328,7 @@ do i=istart,101
             sst,lmsk,lake,condition,ca_deep,ca_turb,ca_shal, &
             Atm(1)%domain_for_coupler,nblks,                                          &
             isc,iec,jsc,jec,Atm(1)%npx,Atm(1)%npy, levs,                                           &
-            nthresh,rcell,Atm(1)%tile_of_mosaic,nca,scells,tlives,nfracseed,                       & ! for new random number
+            nthresh,Atm(1)%tile_of_mosaic,nca,ncells,nlives,nfracseed,                       & ! for new random number
             nseed,iseed_ca ,nspinup,ca_trigger,blksz,root_pe,comm)
    endif
    if (ca_global) then

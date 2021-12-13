@@ -1,7 +1,7 @@
 module cellular_automata_global_mod
 
 use update_ca, only : domain_global,iscnx_g,iecnx_g,jscnx_g,jecnx_g,isdnx_g,iednx_g,jsdnx_g,jednx_g, &
-                      nxncells_g,nyncells_g,csum
+                      nxncells_g,nyncells_g,csum,cold_start_ca_global
 implicit none
 
 contains
