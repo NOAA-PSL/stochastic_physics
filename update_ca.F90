@@ -34,6 +34,7 @@ integer,public :: isdnx_g,iednx_g,jsdnx_g,jednx_g
 integer,public :: iscnx_g,iecnx_g,jscnx_g,jecnx_g
 integer*8, public :: csum
 type(domain2D),public :: domain_sgs,domain_global
+logical, public  :: cold_start_ca_sgs=.true.,cold_start_ca_global=.true.
 
 
 contains
@@ -233,8 +234,10 @@ call mpp_get_global_domain(domain_in,xsize=nx,ysize=ny,position=CENTER)
       call mpp_error(NOTE,'reading CA_sgs restart data from INPUT/ca_data.tile*.nc')
       call read_restart(CA_restart)
       call close_file(CA_restart)
+      cold_start_ca_sgs=.false.
     else
       call mpp_error(NOTE,'No CA_sgs restarts - cold starting CA')
+      cold_start_ca_sgs=.true.
     endif
 endif
 
@@ -262,9 +265,11 @@ if (nca_g .gt. 0 ) then
       call mpp_error(NOTE,'reading CA_global restart data from INPUT/ca_data.tile*.nc')
       call read_restart(CA_restart)
       call close_file(CA_restart)
+      cold_start_ca_global=.false.
       
    else
       call mpp_error(NOTE,'No CA_global restarts - cold starting CA')
+      cold_start_ca_global=.true.
    endif
 endif
 
@@ -320,9 +325,11 @@ k_in=1
  
   if (.not. allocated(board))then
      allocate(board(nxc,nyc,nca))
+     board=0.0
   endif
   if (.not. allocated(lives))then
      allocate(lives(nxc,nyc,nca))
+     lives=0.0
   endif
   if(.not. allocated(board_halo))then
      allocate(board_halo(nxch,nych,1))
@@ -602,7 +609,7 @@ k_in=1
  if (.not. allocated(lives_g)) allocate(lives_g(nxc,nyc,nca))
  if (.not. allocated(board_halo)) allocate(board_halo(nxch,nych,1))   
 
-  if(first_time_step .and. .not. restart)then
+  if(first_time_step .and. cold_start_ca_global)then
    do j=1,nyc
     do i=1,nxc
      board_g(i,j,nf) = iini_g(i,j,nf)
@@ -643,7 +650,7 @@ if(mod(kstep,nseed) == 0)then
    enddo
 endif
 
-  if(first_time_step .and. .not. restart)then
+  if(first_time_step .and. cold_start_ca_global)then
   spinup=nspinup
   else
   spinup = 1
