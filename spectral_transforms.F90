@@ -1972,7 +1972,12 @@ module spectral_transforms
                                              cons2 = 2.d0, cons4 = 4.d0, &
                                              cons180 = 180.d0, &
                                              cons0p25 = 0.25d0
+#ifdef NO_QUAD_PRECISION
+      real(kind=kind_qdt_prec), parameter :: eps = 1.d-12
+#else
       real(kind=kind_qdt_prec), parameter :: eps = 1.d-20
+#endif
+
 !
 ! for better accuracy to select smaller number
 !     eps = 1.d-12
