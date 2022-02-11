@@ -477,9 +477,7 @@ subroutine write_stoch_restart_atm(sfile)
     endif
     if (nspp > 0) then
        do n=1,nspp
-          do k=1,n_var_spp
-             call write_pattern(rpattern_spp(n),ncid,k,n,varid5a,varid5b,.true.,ierr)
-          enddo
+          call write_pattern(rpattern_spp(n),ncid,1,n,varid5a,varid5b,.true.,ierr)
        enddo
     endif
     if (is_rootpe() ) then
