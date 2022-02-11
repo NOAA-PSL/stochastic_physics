@@ -339,7 +339,7 @@ use stochy_data_mod, only : nshum,rpattern_shum,rpattern_sppt,nsppt,rpattern_ske
                             gis_stochy,vfact_sppt,vfact_shum,vfact_skeb, rpattern_sfc, nlndp, &
                             rpattern_spp, nspp, vfact_spp
 use get_stochy_pattern_mod,only : get_random_pattern_scalar,get_random_pattern_vector, & 
-                                  get_random_pattern_sfc
+                                  get_random_pattern_sfc,get_random_pattern_spp
 use stochy_namelist_def, only : do_shum,do_sppt,do_skeb,nssppt,nsshum,nsskeb,sppt_logit,    & 
                                 lndp_type, n_var_lndp, n_var_spp, do_spp, spp_stddev_cutoff, spp_prt_list
 use mpi_wrapper, only: is_rootpe
@@ -357,7 +357,7 @@ real(kind=kind_dbl_prec), intent(inout) :: sfc_wts(:,:,:)
 real(kind=kind_dbl_prec), intent(inout) :: spp_wts(:,:,:,:)
 integer,                  intent(in)    :: nthreads
 
-real,allocatable :: tmp_wts(:,:),tmpu_wts(:,:,:),tmpv_wts(:,:,:), tmpl_wts(:,:,:)
+real,allocatable :: tmp_wts(:,:),tmpu_wts(:,:,:),tmpv_wts(:,:,:),tmpl_wts(:,:,:),tmp_spp_wts(:,:,:)
 !D-grid
 integer :: k,v
 integer j,ierr,i
@@ -441,20 +441,21 @@ if ( lndp_type .EQ. 2  ) then
     deallocate(tmpl_wts)
 endif
 if (n_var_spp .GE. 1) then
-    DO v=1,n_var_spp
-       tmp_wts=0.0
-       call get_random_pattern_scalar(rpattern_spp(v),nspp,gis_stochy,tmp_wts)
+    allocate(tmp_spp_wts(gis_stochy%nx,gis_stochy%ny,n_var_spp))
+    call get_random_pattern_spp(rpattern_spp,nspp,gis_stochy,tmp_spp_wts)
+     DO v=1,n_var_spp
        DO blk=1,nblks
          len=blksz(blk)
          DO k=1,levs
             if (spp_stddev_cutoff(v).gt.0.0) then
-              spp_wts(blk,1:len,k,v)=MAX(MIN(tmp_wts(1:len,blk)*vfact_spp(k),spp_stddev_cutoff(v)),-1.0*spp_stddev_cutoff(v)) * spp_prt_list(v)
+              spp_wts(blk,1:len,k,v)=MAX(MIN(tmp_spp_wts(1:len,blk,v)*vfact_spp(k),spp_stddev_cutoff(v)),-1.0*spp_stddev_cutoff(v)) * spp_prt_list(v)
             else
-              spp_wts(blk,1:len,k,v)=tmp_wts(1:len,blk)*vfact_spp(k) * spp_prt_list(v)
+              spp_wts(blk,1:len,k,v)=tmp_spp_wts(1:len,blk,v)*vfact_spp(k) * spp_prt_list(v)
             endif
          ENDDO
        ENDDO
      ENDDO
+    deallocate(tmp_spp_wts)
 endif
  deallocate(tmp_wts)
  deallocate(tmpu_wts)

@@ -21,7 +21,7 @@ module get_stochy_pattern_mod
  implicit none
  private
 
- public  get_random_pattern_vector   
+ public  get_random_pattern_vector,get_random_pattern_spp 
  public  get_random_pattern_sfc,get_random_pattern_scalar
  public  write_stoch_restart_atm,write_stoch_restart_ocn
  logical :: first_call=.true.
@@ -275,7 +275,61 @@ subroutine get_random_pattern_scalar(rpattern,npatterns,&
    deallocate(workg)
 
 end subroutine get_random_pattern_scalar
-!
+
+!>@brief The subroutine 'get_random_pattern_spp' converts spherical harmonics
+!to the gaussian grid then interpolates to the target grid
+!>@details This subroutine is for a 2-D (lat-lon) scalar field
+subroutine get_random_pattern_spp(rpattern,npatterns,&
+           gis_stochy,pattern_3d)
+
+! generate a random pattern for stochastic physics
+ implicit none
+ type(random_pattern), intent(inout)  :: rpattern(npatterns)
+ type(stochy_internal_state)          :: gis_stochy
+ integer,intent(in)::   npatterns
+
+ integer i,j,lat,n
+
+! logical lprint
+
+ real(kind=kind_dbl_prec), allocatable, dimension(:,:) :: workg
+ real (kind=kind_dbl_prec)   glolal(lonf,gis_stochy%lats_node_a)
+ integer kmsk0(lonf,gis_stochy%lats_node_a)
+ real(kind=kind_dbl_prec) :: pattern_3d(gis_stochy%nx,gis_stochy%ny,npatterns)
+ real(kind=kind_dbl_prec) :: pattern_1d(gis_stochy%nx)
+
+ allocate(workg(lonf,latg))
+ do n=1,npatterns
+    kmsk0 = 0
+    glolal = 0.
+    call patterngenerator_advance(rpattern(n),1,.false.)
+    call scalarspect_to_gaugrid(rpattern(n),gis_stochy,   &
+         glolal,1)
+
+ workg = 0.
+  do j=1,gis_stochy%lats_node_a
+     lat=gis_stochy%global_lats_a(gis_stochy%ipt_lats_node_a-1+j)
+     do i=1,lonf
+        workg(i,lat) = glolal(i,j)
+     enddo
+  enddo
+
+   call mp_reduce_sum(workg,lonf,latg)
+
+! interpolate to cube grid
+   do j=1,gis_stochy%ny
+      pattern_1d = 0
+      associate( tlats=>gis_stochy%parent_lats(1:gis_stochy%len(j),j),&
+                 tlons=>gis_stochy%parent_lons(1:gis_stochy%len(j),j))
+      call stochy_la2ga(workg,lonf,latg,gg_lons,gg_lats,wlon,rnlat,&
+                        pattern_1d(1:gis_stochy%len(j)),gis_stochy%len(j),tlats,tlons)
+      pattern_3d(:,j,n)=pattern_1d(:)
+      end associate
+   enddo
+ enddo
+ deallocate(workg)
+
+end subroutine get_random_pattern_spp
 
 !>@brief The subroutine 'scalarspect_to_gaugrid' converts scalar spherical harmonics to a scalar on a gaussian grid
 !>@details This subroutine is for a 2-D (lat-lon) scalar field
@@ -327,7 +381,7 @@ subroutine write_stoch_restart_atm(sfile)
     implicit none
     character(len=*) :: sfile
     integer :: stochlun,k,n,isize,ierr
-    integer :: ncid,varid1a,varid1b,varid2a,varid2b,varid3a,varid3b,varid4a,varid4b
+    integer :: ncid,varid1a,varid1b,varid2a,varid2b,varid3a,varid3b,varid4a,varid4b,varid5a,varid5b
     integer :: seed_dim_id,spec_dim_id,zt_dim_id,ztsfc_dim_id,np_dim_id,npsfc_dim_id
     integer :: ztspp_dim_id,npspp_dim_id
 
@@ -385,10 +439,10 @@ subroutine write_stoch_restart_atm(sfile)
              ierr=NF90_PUT_ATT(ncid,varid4b,"long_name","spectral cofficients SHUM")
           endif
           if (nspp>0) then
-             ierr=NF90_DEF_VAR(ncid,"spp_seed",NF90_DOUBLE,(/seed_dim_id, ztspp_dim_id, npspp_dim_id/), varid4a)
-             ierr=NF90_PUT_ATT(ncid,varid4a,"long_name","random number seed for SPP")
-             ierr=NF90_DEF_VAR(ncid,"spp_spec",NF90_DOUBLE,(/spec_dim_id, ztspp_dim_id, npspp_dim_id/), varid4b)
-             ierr=NF90_PUT_ATT(ncid,varid4b,"long_name","spectral cofficients SPP")
+             ierr=NF90_DEF_VAR(ncid,"spp_seed",NF90_DOUBLE,(/seed_dim_id, ztspp_dim_id, npspp_dim_id/), varid5a)
+             ierr=NF90_PUT_ATT(ncid,varid5a,"long_name","random number seed for SPP")
+             ierr=NF90_DEF_VAR(ncid,"spp_spec",NF90_DOUBLE,(/spec_dim_id, ztspp_dim_id, npspp_dim_id/), varid5b)
+             ierr=NF90_PUT_ATT(ncid,varid5b,"long_name","spectral cofficients SPP")
           endif
           ierr=NF90_ENDDEF(ncid)
           if (ierr .NE. 0) then
@@ -424,7 +478,7 @@ subroutine write_stoch_restart_atm(sfile)
     if (nspp > 0) then
        do n=1,nspp
           do k=1,n_var_spp
-             call write_pattern(rpattern_spp(n),ncid,k,n,varid4a,varid4b,.true.,ierr)
+             call write_pattern(rpattern_spp(n),ncid,k,n,varid5a,varid5b,.true.,ierr)
           enddo
        enddo
     endif

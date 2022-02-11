@@ -435,39 +435,36 @@ module stochy_data_mod
                                  lonf,latg,jcap,gis_stochy%ls_node,nspp,n_var_spp,0,new_lscale)
       do n=1,nspp
          if (is_rootpe()) print *, 'Initialize random pattern for SPP PERTS'
-         do k=1,n_var_spp
             if (stochini) then
-               call read_pattern(rpattern_spp(n),jcapin,stochlun,k,n,varid1,varid2,.true.,ierr)
+               call read_pattern(rpattern_spp(n),jcapin,stochlun,1,n,varid1,varid2,.true.,ierr)
                if (ierr .NE. 0) then
                   write(0,*) 'error reading SPP  pattern'
                   iret = ierr
                   return
                endif
-               if (is_rootpe()) print *, 'spp  pattern read',n,k,minval(rpattern_spp(n)%spec_o(:,:,k)), maxval(rpattern_spp(n)%spec_o(:,:,k))
+               if (is_rootpe()) print *, 'spp  pattern read',n,1,minval(rpattern_spp(n)%spec_o(:,:,1)), maxval(rpattern_spp(n)%spec_o(:,:,1))
             else
                 call getnoise(rpattern_spp(n),noise_e,noise_o)
                 do nn=1,len_trie_ls
-                   rpattern_spp(n)%spec_e(nn,1,k)=noise_e(nn,1)
-                   rpattern_spp(n)%spec_e(nn,2,k)=noise_e(nn,2)
+                   rpattern_spp(n)%spec_e(nn,1,1)=noise_e(nn,1)
+                   rpattern_spp(n)%spec_e(nn,2,1)=noise_e(nn,2)
                    nm = rpattern_spp(n)%idx_e(nn)
                    if (nm .eq. 0) cycle
-                   rpattern_spp(n)%spec_e(nn,1,k) = rpattern_spp(n)%stdev*rpattern_spp(n)%spec_e(nn,1,k)*rpattern_spp(n)%varspectrum(nm)
-                   rpattern_spp(n)%spec_e(nn,2,k) = rpattern_spp(n)%stdev*rpattern_spp(n)%spec_e(nn,2,k)*rpattern_spp(n)%varspectrum(nm)
+                   rpattern_spp(n)%spec_e(nn,1,1) = rpattern_spp(n)%stdev*rpattern_spp(n)%spec_e(nn,1,1)*rpattern_spp(n)%varspectrum(nm)
+                   rpattern_spp(n)%spec_e(nn,2,1) = rpattern_spp(n)%stdev*rpattern_spp(n)%spec_e(nn,2,1)*rpattern_spp(n)%varspectrum(nm)
                 enddo
                 do nn=1,len_trio_ls
-                   rpattern_spp(n)%spec_o(nn,1,k)=noise_o(nn,1)
-                   rpattern_spp(n)%spec_o(nn,2,k)=noise_o(nn,2)
+                   rpattern_spp(n)%spec_o(nn,1,1)=noise_o(nn,1)
+                   rpattern_spp(n)%spec_o(nn,2,1)=noise_o(nn,2)
                    nm = rpattern_spp(n)%idx_o(nn)
                    if (nm .eq. 0) cycle
-                   rpattern_spp(n)%spec_o(nn,1,k) = rpattern_spp(n)%stdev*rpattern_spp(n)%spec_o(nn,1,k)*rpattern_spp(n)%varspectrum(nm)
-                   rpattern_spp(n)%spec_o(nn,2,k) = rpattern_spp(n)%stdev*rpattern_spp(n)%spec_o(nn,2,k)*rpattern_spp(n)%varspectrum(nm)
+                   rpattern_spp(n)%spec_o(nn,1,1) = rpattern_spp(n)%stdev*rpattern_spp(n)%spec_o(nn,1,1)*rpattern_spp(n)%varspectrum(nm)
+                   rpattern_spp(n)%spec_o(nn,2,1) = rpattern_spp(n)%stdev*rpattern_spp(n)%spec_o(nn,2,1)*rpattern_spp(n)%varspectrum(nm)
                 enddo
-                if (is_rootpe()) print *, 'spp pattern initialized, ',n, k, minval(rpattern_spp(n)%spec_o(:,:,k)), maxval(rpattern_spp(n)%spec_o(:,:,k))
+                if (is_rootpe()) print *, 'spp pattern initialized, ',n, 1, minval(rpattern_spp(n)%spec_o(:,:,1)), maxval(rpattern_spp(n)%spec_o(:,:,1))
             endif ! stochini
-         enddo ! k, n_var_spp 
       enddo ! n, nspp
    endif ! nspp  > 0
-
 
    if (is_rootpe() .and. stochini) CLOSE(stochlun)
    deallocate(noise_e,noise_o)
