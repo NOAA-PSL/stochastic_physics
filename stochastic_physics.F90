@@ -65,7 +65,7 @@ real(kind=kind_dbl_prec), parameter     :: con_pi =4.0d0*atan(1.0d0)
 integer :: nblks,len
 real*8 :: PRSI(levs),PRSL(levs),dx
 real, allocatable :: skeb_vloc(:)
-integer :: k,kflip,latghf,blk,k2,v
+integer :: k,kflip,latghf,blk,k2,v,i
 character*2::proc
 
 ! Initialize MPI and OpenMP
@@ -447,11 +447,16 @@ if (n_var_spp .GE. 1) then
        DO blk=1,nblks
          len=blksz(blk)
          DO k=1,levs
-            if (spp_stddev_cutoff(v).gt.0.0) then
-              spp_wts(blk,1:len,k,v)=MAX(MIN(tmp_spp_wts(1:len,blk,v)*vfact_spp(k),spp_stddev_cutoff(v)),-1.0*spp_stddev_cutoff(v)) * spp_prt_list(v)
-            else
-              spp_wts(blk,1:len,k,v)=tmp_spp_wts(1:len,blk,v)*vfact_spp(k) * spp_prt_list(v)
-            endif
+           spp_wts(blk,1:len,k,v)=tmp_spp_wts(1:len,blk,v)*vfact_spp(k)
+           DO i=1,len
+             if (spp_wts(blk,i,k,v) .GT. spp_stddev_cutoff(v)*spp_prt_list(v)) then
+               spp_wts(blk,i,k,v)=spp_wts(blk,i,k,v)*spp_stddev_cutoff(v)*spp_prt_list(v)
+             endif
+             if (spp_wts(blk,i,k,v) .LT. -1.0*spp_stddev_cutoff(v)*spp_prt_list(v)) then
+               spp_wts(blk,i,k,v)=spp_wts(blk,i,k,v)*spp_stddev_cutoff(v)*spp_prt_list(v)
+             endif
+             !spp_wts(blk,i,k,v)=spp_wts(blk,i,k,v)*vfact_spp(k)
+           ENDDO
          ENDDO
        ENDDO
      ENDDO
