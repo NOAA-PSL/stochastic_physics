@@ -450,10 +450,10 @@ if (n_var_spp .GE. 1) then
            spp_wts(blk,1:len,k,v)=tmp_spp_wts(1:len,blk,v)*vfact_spp(k)
            DO i=1,len
              if (spp_wts(blk,i,k,v) .GT. spp_stddev_cutoff(v)*spp_prt_list(v)) then
-               spp_wts(blk,i,k,v)=spp_wts(blk,i,k,v)*spp_stddev_cutoff(v)*spp_prt_list(v)
+               spp_wts(blk,i,k,v)=spp_stddev_cutoff(v)*spp_prt_list(v)
              endif
              if (spp_wts(blk,i,k,v) .LT. -1.0*spp_stddev_cutoff(v)*spp_prt_list(v)) then
-               spp_wts(blk,i,k,v)=spp_wts(blk,i,k,v)*spp_stddev_cutoff(v)*spp_prt_list(v)
+               spp_wts(blk,i,k,v)=-1.0*spp_stddev_cutoff(v)*spp_prt_list(v)
              endif
              !spp_wts(blk,i,k,v)=spp_wts(blk,i,k,v)*vfact_spp(k)
            ENDDO
