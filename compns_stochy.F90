@@ -66,7 +66,7 @@ module compns_stochy_mod
       namelist /nam_sfcperts/lndp_type,lndp_var_list, lndp_prt_list, iseed_lndp, & 
       lndp_tau,lndp_lscale 
 !     For SPP physics parameterization perterbations
-      namelist /nam_spperts/spp_var_list, spp_prt_list, iseed_spp, &
+      namelist /nam_sppperts/spp_var_list, spp_prt_list, iseed_spp, &
       spp_tau,spp_lscale,spp_sigtop1, spp_sigtop2,spp_stddev_cutoff
 
       rerth  =6.3712e+6      ! radius of earth (m)
