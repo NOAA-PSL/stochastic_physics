@@ -21,16 +21,17 @@ module stochy_data_mod
  public :: init_stochdata,init_stochdata_ocn
 
  type(random_pattern), public, save, allocatable, dimension(:) :: &
-       rpattern_sppt,rpattern_shum,rpattern_skeb, rpattern_sfc,rpattern_epbl1,rpattern_epbl2,rpattern_ocnsppt
+       rpattern_sppt,rpattern_shum,rpattern_skeb, rpattern_sfc,rpattern_epbl1,rpattern_epbl2,rpattern_ocnsppt,rpattern_spp
  integer, public :: nepbl=0
  integer, public :: nocnsppt=0
  integer, public :: nsppt=0
  integer, public :: nshum=0
  integer, public :: nskeb=0
  integer, public :: nlndp=0 ! this is the number of different patterns (determined by the tau/lscale input) 
+ integer, public :: nspp =0 ! this is the number of different patterns (determined by the tau/lscale input) 
  real*8, public,allocatable :: sl(:)
 
- real(kind=kind_dbl_prec),public, allocatable :: vfact_sppt(:),vfact_shum(:),vfact_skeb(:)
+ real(kind=kind_dbl_prec),public, allocatable :: vfact_sppt(:),vfact_shum(:),vfact_skeb(:),vfact_spp(:)
  real(kind=kind_dbl_prec),public, allocatable :: skeb_vwts(:,:)
  integer                 ,public, allocatable :: skeb_vpts(:,:)
  real(kind=kind_dbl_prec),public, allocatable :: gg_lats(:),gg_lons(:)
@@ -74,9 +75,9 @@ module stochy_data_mod
    call compns_stochy (mype,size(input_nml_file,1),input_nml_file(:),fn_nml,nlunit,delt,iret)
   
    if (iret/=0) return  ! need to make sure that non-zero irets are being trapped.
-   if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb)  .AND. (lndp_type==0) ) return
+   if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb)  .AND. (lndp_type==0) .AND. (.NOT. do_spp)) return
+
    call initialize_spectral(gis_stochy)
-   
    allocate(noise_e(len_trie_ls,2),noise_o(len_trio_ls,2))
 ! determine number of random patterns to be used for each scheme.
    do n=1,size(sppt)
@@ -113,13 +114,16 @@ module stochy_data_mod
    !  endif
    !enddo
    if (n_var_lndp>0) nlndp=1
+   if (n_var_spp>0) nspp=n_var_spp
    if (is_rootpe())  print *,' nlndp   = ', nlndp
+   if (is_rootpe())  print *,' nspp   = ', nspp
 
    if (nsppt > 0) allocate(rpattern_sppt(nsppt))
    if (nshum > 0) allocate(rpattern_shum(nshum))
    if (nskeb > 0) allocate(rpattern_skeb(nskeb))
    ! mg, sfc perts
    if (nlndp > 0) allocate(rpattern_sfc(nlndp))
+   if (nspp > 0) allocate(rpattern_spp(nspp))
 
 !  if stochini is true, then read in pattern from a file
    if (is_rootpe()) then
@@ -408,6 +412,60 @@ module stochy_data_mod
          enddo ! k, n_var_lndp
       enddo ! n, nlndp
    endif ! nlndp > 0
+   if (nspp  > 0) then
+      if (is_rootpe()) then
+         print *, 'Initialize random pattern for SPP-PERTS'
+         if (stochini) then
+            ierr=NF90_INQ_VARID(stochlun,"spppert_seed", varid1)
+            if (ierr .NE. 0) then
+               write(0,*) 'error inquring SPP-PERTS seed'
+               iret = ierr
+               return
+            end if
+            ierr=NF90_INQ_VARID(stochlun,"ppcpert_spec", varid2)
+            if (ierr .NE. 0) then
+               write(0,*) 'error inquring SPP-PERTS spec'
+               iret = ierr
+               return
+            end if
+         endif
+      endif
+      ones = 1.
+      call patterngenerator_init(spp_lscale(1:nspp),delt,spp_tau(1:nspp),ones(1:nspp),iseed_spp,rpattern_spp, &
+                                 lonf,latg,jcap,gis_stochy%ls_node,nspp,n_var_spp,0,new_lscale)
+      do n=1,nspp
+         if (is_rootpe()) print *, 'Initialize random pattern for SPP PERTS'
+            if (stochini) then
+               call read_pattern(rpattern_spp(n),jcapin,stochlun,1,n,varid1,varid2,.true.,ierr)
+               if (ierr .NE. 0) then
+                  write(0,*) 'error reading SPP  pattern'
+                  iret = ierr
+                  return
+               endif
+               if (is_rootpe()) print *, 'spp  pattern read',n,1,minval(rpattern_spp(n)%spec_o(:,:,1)), maxval(rpattern_spp(n)%spec_o(:,:,1))
+            else
+                call getnoise(rpattern_spp(n),noise_e,noise_o)
+                do nn=1,len_trie_ls
+                   rpattern_spp(n)%spec_e(nn,1,1)=noise_e(nn,1)
+                   rpattern_spp(n)%spec_e(nn,2,1)=noise_e(nn,2)
+                   nm = rpattern_spp(n)%idx_e(nn)
+                   if (nm .eq. 0) cycle
+                   rpattern_spp(n)%spec_e(nn,1,1) = rpattern_spp(n)%stdev*rpattern_spp(n)%spec_e(nn,1,1)*rpattern_spp(n)%varspectrum(nm)
+                   rpattern_spp(n)%spec_e(nn,2,1) = rpattern_spp(n)%stdev*rpattern_spp(n)%spec_e(nn,2,1)*rpattern_spp(n)%varspectrum(nm)
+                enddo
+                do nn=1,len_trio_ls
+                   rpattern_spp(n)%spec_o(nn,1,1)=noise_o(nn,1)
+                   rpattern_spp(n)%spec_o(nn,2,1)=noise_o(nn,2)
+                   nm = rpattern_spp(n)%idx_o(nn)
+                   if (nm .eq. 0) cycle
+                   rpattern_spp(n)%spec_o(nn,1,1) = rpattern_spp(n)%stdev*rpattern_spp(n)%spec_o(nn,1,1)*rpattern_spp(n)%varspectrum(nm)
+                   rpattern_spp(n)%spec_o(nn,2,1) = rpattern_spp(n)%stdev*rpattern_spp(n)%spec_o(nn,2,1)*rpattern_spp(n)%varspectrum(nm)
+                enddo
+                if (is_rootpe()) print *, 'spp pattern initialized, ',n, 1, minval(rpattern_spp(n)%spec_o(:,:,1)), maxval(rpattern_spp(n)%spec_o(:,:,1))
+            endif ! stochini
+      enddo ! n, nspp
+   endif ! nspp  > 0
+
    if (is_rootpe() .and. stochini) CLOSE(stochlun)
    deallocate(noise_e,noise_o)
  end subroutine init_stochdata
