@@ -1,6 +1,7 @@
 module lndp_apply_perts_mod
 
     use kinddef, only : kind_dbl_prec
+    use stochy_namelist_def
 
     implicit none
 
@@ -13,12 +14,45 @@ module lndp_apply_perts_mod
 !====================================================================
 ! lndp_apply_perts
 !====================================================================
-! Driver for applying perturbations to sprecified land states or parameters
+! Driver for applying perturbations to specified land states or parameters, 
+! following the LNDP_TYPE=2 scheme.
 ! Draper, July 2020.
 
-    subroutine lndp_apply_perts(blksz, lsm, lsm_noah, lsm_ruc, lsoil,           &
-                dtf, kdt, lndp_each_step,                                       &
-                n_var_lndp, lndp_var_list, lndp_prt_list,                       &
+! Can select perturbations by specifying lndp_var_list and lndp_pert_list
+
+! Notes on how the perturbations are added.
+! 1. Model prognostic variables.
+! If running a long forecast or cycling DA system (as in global UFS), 
+! perturbing the prognostic variables only at the initial conditions will 
+! have very limited impact, and they should instead be perturbed at every time step.  
+! In this case, the pertrubations should be specified as a rate (pert/hr)
+! to avoid the ensemble spread being dependent on the model time step. 
+!
+! For a short forecast (~days, as in regional HRRR), can see impact from 
+! perturbing only the initial conditions. In this case, the perturbation 
+! is specified as an absolute value (not a rate). 
+! 
+! 2. Model parameters: 
+! The timing of how to perturb the parameters depends on how / whether 
+! the parameters are updated over time. For the UFS global system, global_cycle
+! is periodically called to update the parameters (controlled by FHCYC). 
+! Each time it's called global_cycle overwrites most of the 
+! prior parameters (overwriting any perturbations applied to those
+! parameters). Hence, the perturbations are applied only immediately after global_cycle  
+! has been called, and the parameters are not applied as a rate (since they 
+! don't accumulate).  
+! For the regional models, FHCYC is 0, and the global_cycle is not called, so 
+! can perturb parameters every time step. Hence, need to specify the perturbations 
+! as a rate. 
+!
+! The above cases are controlled by the lndp_model_type variable, 
+! combined with setting tfactor_state below.
+!
+! If adding new parameters, need to check how/whether 
+! the parameters are updated. 
+
+    subroutine lndp_apply_perts(blksz, lsm, lsm_noah, lsm_ruc, lsm_noahmp, lsoil,&
+                dtf, kdt, n_var_lndp, lndp_var_list, lndp_prt_list,              &
                 sfc_wts, xlon, xlat, stype, smcmax, smcmin, param_update_flag,  &
                 smc, slc, stc, vfrac, alvsf, alnsf, alvwf, alnwf, facsf, facwf, &
                 snoalb, semis, zorll, ierr)
@@ -28,8 +62,7 @@ module lndp_apply_perts_mod
         ! intent(in)
         integer,                      intent(in) :: blksz(:)
         integer,                      intent(in) :: n_var_lndp, lsoil, kdt
-        logical,                      intent(in) :: lndp_each_step
-        integer,                      intent(in) :: lsm, lsm_noah, lsm_ruc
+        integer,                      intent(in) :: lsm, lsm_noah, lsm_ruc, lsm_noahmp
         character(len=3),             intent(in) :: lndp_var_list(:)
         real(kind=kind_dbl_prec),     intent(in) :: lndp_prt_list(:)
         real(kind=kind_dbl_prec),     intent(in) :: dtf
@@ -37,7 +70,7 @@ module lndp_apply_perts_mod
         real(kind=kind_dbl_prec),     intent(in) :: xlon(:,:)
         real(kind=kind_dbl_prec),     intent(in) :: xlat(:,:)
         logical,                      intent(in) :: param_update_flag
-                                        ! true =  parameters have been updated, apply perts
+                                        ! true =  parameters have just been updated by global_cycle
         real(kind=kind_dbl_prec),     intent(in) :: stype(:,:)
         real(kind=kind_dbl_prec),     intent(in) :: smcmax(:)
         real(kind=kind_dbl_prec),     intent(in) :: smcmin(:)
@@ -63,9 +96,10 @@ module lndp_apply_perts_mod
         ! local
         integer         :: nblks, print_i, print_nb, i, nb
         integer         :: this_im, v, soiltyp, k
-        logical         :: print_flag
+        logical         :: print_flag, do_pert_state, do_pert_param
 
-        real(kind=kind_dbl_prec) :: p, min_bound, max_bound, tmp_sic,  pert, factor
+        real(kind=kind_dbl_prec) :: p, min_bound, max_bound, tmp_sic,  pert 
+        real(kind=kind_dbl_prec) :: conv_hr2tstep, tfactor_state, tfactor_param
         real(kind=kind_dbl_prec), dimension(lsoil) :: zslayer, smc_vertscale, stc_vertscale
 
         ! decrease in applied pert with depth
@@ -80,28 +114,69 @@ module lndp_apply_perts_mod
 
         ierr = 0
 
-        if (lsm/=lsm_noah .and. lsm/=lsm_ruc) then
-          write(6,*) 'ERROR: lndp_apply_pert assumes LSM is Noah or RUC,', &
+        if (lsm/=lsm_noah .and. lsm/=lsm_ruc .and. lsm/=lsm_noahmp) then
+          write(6,*) 'ERROR: lndp_apply_pert assumes LSM is Noah, Noah-MP, or RUC,', &
                      ' may need to adapt variable names for a different LSM'
           ierr=10
           return
         endif
 
-        !write (0,*) 'Input to lndp_apply_pert'
-        !write (0,*) 'lsm, lsoil, lsm_ruc, lsoil_lsm =', lsm, lsoil, lsm_ruc, lsoil_lsm
-        !write (0,*) 'zs_lsm =', zs_lsm
-        !write (0,*) 'n_var_lndp, lndp_var_list =', n_var_lndp, lndp_var_list
-        !write (0,*) 'smcmin =',smcmin
-
-        ! lndp_prt_list input is per hour, factor converts to per timestep
-        ! Do conversion only when variables are perturbed at every time step
-        if(lndp_each_step) then
-          factor = dtf/3600.
-        else
-          factor = 1.
+        if (lsm==lsm_noahmp) then 
+            do v = 1,n_var_lndp
+                select case (trim(lndp_var_list(v)))
+                case ('alb','sal','emi','zol') 
+                    print*, &
+                     'ERROR:  lndp_prt_list option in lndp_apply_pert', trim(lndp_var_list(v)) , & 
+                     ' has not been checked for Noah-MP. Please check how the parameter is set/updated ', & 
+                     ' before applying'
+                    ierr = 10
+                    return
+                end select
+            enddo 
         endif
 
-        if (lsm == lsm_noah) then
+        ! for perturbations applied as a rate, lndp_prt_list input is per hour. Converts to per timestep
+        conv_hr2tstep = dtf/3600. ! conversion factor from per hour to per tstep.
+
+        ! determine whether updating state variables and/or parameters
+
+        do_pert_state=.false. 
+        do_pert_param=.false. 
+
+        select case (lndp_model_type)
+        case(1)  ! global, perturb states every time step (pert applied as a rate) 
+                 !         perturb parameters only when they've been update (pert is not a rate) 
+            do_pert_state=.true.
+            tfactor_state=conv_hr2tstep
+            if (param_update_flag) then 
+                do_pert_param=.true.
+                tfactor_param=1.
+            endif
+        case(2)  ! regional, perturb states only at first time step (pert is not a rate) 
+                 !           perurb parameters at every time step (pert is a rate) 
+            if ( kdt == 2 ) then 
+                do_pert_state=.true.
+                tfactor_state=1. 
+            endif
+            do_pert_param = .true.
+            tfactor_param = conv_hr2tstep
+        case(3)  ! special case to apply perturbations at initial time step only (pert is not a rate) 
+            if ( kdt == 2 ) then 
+                do_pert_state=.true.
+                tfactor_state=1.
+                do_pert_param=.true.
+                tfactor_param=1.
+            endif
+        case(0) 
+                ! no perts requested, do nothing
+        case default
+            print*, &
+             'ERROR: unrecognised lndp_model_type option in lndp_apply_pert, exiting', trim(lndp_var_list(v))
+            ierr = 10
+            return
+        end select
+
+        if (lsm == lsm_noah .or. lsm == lsm_noahmp) then
           do k = 1, lsoil
             zslayer(k) = zs_noah(k)
             smc_vertscale(k) = smc_vertscale_noah(k)
@@ -141,59 +216,63 @@ module lndp_apply_perts_mod
                 ! State updates - performed every cycle
                 !=================================================================
                 case('smc')
-                    p=5.
-                    soiltyp  = int( stype(nb,i)+0.5 )  ! also need for maxsmc
-                    min_bound = smcmin(soiltyp)
-                    max_bound = smcmax(soiltyp)
+                    if (do_pert_state) then
+                        p=5.
+                        soiltyp  = int( stype(nb,i)+0.5 )  ! also need for maxsmc
+                        min_bound = smcmin(soiltyp)
+                        max_bound = smcmax(soiltyp)
 
-                  if ((lsm /= lsm_ruc) .or. (lsm == lsm_ruc .and. kdt == 2)) then
-                  ! with RUC LSM perturb smc only at time step = 2, as in HRRR
-                    do k=1,lsoil
-                         !store frozen soil moisture
-                         tmp_sic= smc(nb,i,k)  - slc(nb,i,k)
+                      ! with RUC LSM perturb smc only at time step = 2, as in HRRR
+                        do k=1,lsoil
+                             !store frozen soil moisture
+                             tmp_sic= smc(nb,i,k)  - slc(nb,i,k)
 
-                         ! perturb total soil moisture
-                         ! factor of sldepth*1000 converts from mm to m3/m3
-                         ! lndp_prt_list(v) = 0.3 in input.nml
-                         pert = sfc_wts(nb,i,v)*smc_vertscale(k)*lndp_prt_list(v)/(zslayer(k)*1000.)
-                         pert = pert*dtf/3600. ! lndp_prt_list input is per hour, convert to per timestep
-                                                     ! (necessary for state vars only)
-                         call apply_pert('smc',pert,print_flag, smc(nb,i,k),ierr,p,min_bound, max_bound)
+                             ! perturb total soil moisture
+                             ! factor of sldepth*1000 converts from mm to m3/m3
+                             ! lndp_prt_list(v) = 0.3 in input.nml
+                             pert = sfc_wts(nb,i,v)*smc_vertscale(k)*lndp_prt_list(v)/(zslayer(k)*1000.)
+                             pert = pert*tfactor_state
 
-                         ! assign all of applied pert to the liquid soil moisture
-                         slc(nb,i,k)  =  smc(nb,i,k) -  tmp_sic
-                    enddo
-                  endif
+                             call apply_pert('smc',pert,print_flag, smc(nb,i,k),ierr,p,min_bound, max_bound)
+
+                             ! assign all of applied pert to the liquid soil moisture
+                             slc(nb,i,k)  =  smc(nb,i,k) -  tmp_sic
+                        enddo
+                    endif
 
                 case('stc')
+                    if (do_pert_state) then
+                        do k=1,lsoil
+                             pert = sfc_wts(nb,i,v)*stc_vertscale(k)*lndp_prt_list(v)
+                             pert = tfactor_state
+                             call apply_pert('stc',pert,print_flag, stc(nb,i,k),ierr)
+                        enddo
+                    endif 
 
-                    do k=1,lsoil
-                         pert = sfc_wts(nb,i,v)*stc_vertscale(k)*lndp_prt_list(v)
-                         pert = pert*dtf/3600. ! lndp_prt_list input is per hour, convert to per timestep
-                                                     ! (necessary for state vars only)
-                         call apply_pert('stc',pert,print_flag, stc(nb,i,k),ierr)
-                    enddo
                 !=================================================================
-                ! Parameter updates - only if param_update_flag = TRUE
+                ! Parameter updates 
                 !=================================================================
+
+                ! are all of the params below included in noah?  
+
                 case('vgf')  ! vegetation fraction
-                     if (param_update_flag .or. lndp_each_step) then
+                    if (do_pert_param) then
                          p =5.
                          min_bound=0.
                          max_bound=1.
 
                          pert = sfc_wts(nb,i,v)*lndp_prt_list(v)
-                         pert = pert*factor 
+                         pert = pert*tfactor_param
                          call apply_pert ('vfrac',pert,print_flag, vfrac(nb,i), ierr,p,min_bound, max_bound)
                      endif
                 case('alb')  ! albedo
-                     if (param_update_flag .or. lndp_each_step) then
+                    if (do_pert_param) then
                          p =5.
                          min_bound=0.0
                          max_bound=0.4
 
                          pert = sfc_wts(nb,i,v)*lndp_prt_list(v)
-                         pert = pert*factor
+                         pert = pert*tfactor_param
                          !call apply_pert ('alvsf',pert,print_flag, alvsf(nb,i), ierr,p,min_bound, max_bound)
                          call apply_pert ('alnsf',pert,print_flag, alnsf(nb,i), ierr,p,min_bound, max_bound)
                          !call apply_pert ('alvwf',pert,print_flag, alvwf(nb,i), ierr,p,min_bound, max_bound)
@@ -202,33 +281,33 @@ module lndp_apply_perts_mod
                          !call apply_pert ('facwf',pert,print_flag, facwf(nb,i), ierr,p,min_bound, max_bound)
                      endif
                 case('sal')  ! snow albedo
-                     if (param_update_flag .or. lndp_each_step) then
+                    if (do_pert_param) then
                          p =5.
                          min_bound=0.3
                          max_bound=0.85
 
                          pert = sfc_wts(nb,i,v)*lndp_prt_list(v)
-                         pert = pert*factor
+                         pert = pert*tfactor_param
                          call apply_pert ('snoalb',pert,print_flag, snoalb(nb,i), ierr,p,min_bound, max_bound)
                      endif
                 case('emi')  ! emissivity
-                     if (param_update_flag .or. lndp_each_step) then
+                    if (do_pert_param) then
                          p =5.
                          min_bound=0.8
                          max_bound=1.
 
                          pert = sfc_wts(nb,i,v)*lndp_prt_list(v)
-                         pert = pert*factor
+                         pert = pert*tfactor_param
                          call apply_pert ('semis',pert,print_flag, semis(nb,i), ierr,p,min_bound, max_bound)
                      endif
                 case('zol')  ! land roughness length
-                     if (param_update_flag .or. lndp_each_step) then
+                    if (do_pert_param) then
                          p =5.
                          min_bound=0.
                          max_bound=300.
 
                          pert = sfc_wts(nb,i,v)*lndp_prt_list(v)
-                         pert = pert*factor
+                         pert = pert*tfactor_param
                          call apply_pert ('zol',pert,print_flag, zorll(nb,i), ierr,p,min_bound, max_bound)
                      endif
                 case default

@@ -10,7 +10,7 @@
       implicit none
 
       public
-      integer, parameter :: max_n_var_lndp = 6 ! must match value used in GFS_typedefs
+      integer, parameter :: max_n_var_lndp = 20 ! must match value used in GFS_typedefs
       integer, parameter :: max_n_var_spp  = 6 ! must match value used in GFS_typedefs
       integer nssppt,nsshum,nsepbl,nsocnsppt,nsskeb,lon_s,lat_s,ntrunc
 
@@ -37,6 +37,7 @@
       integer n_var_lndp
       integer(kind=kind_dbl_prec),dimension(5) ::iseed_lndp
       integer lndp_type
+      integer lndp_model_type
       character(len=3), dimension(max_n_var_lndp)         ::  lndp_var_list
       real(kind=kind_dbl_prec), dimension(max_n_var_lndp) ::  lndp_prt_list
 
