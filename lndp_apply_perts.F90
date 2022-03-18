@@ -133,11 +133,12 @@ module lndp_apply_perts_mod
                     ierr = 10
                     return
                 case ('veg') 
-                    if (iopt_dveg ~=4 ) then 
+                    if (iopt_dveg .NE. 4 ) then 
                     print*, &
                      'ERROR:  veg perturbations have not yet been coded for dveg options other than 4' 
                       ierr = 10 
                       return 
+                    endif
                 end select
             enddo 
         endif
