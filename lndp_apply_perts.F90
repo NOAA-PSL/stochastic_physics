@@ -45,14 +45,13 @@ module lndp_apply_perts_mod
 ! can perturb parameters every time step. Hence, need to specify the perturbations 
 ! as a rate. 
 !
-! The above cases are controlled by the lndp_model_type variable, 
-! combined with setting tfactor_state below.
+! The above cases are controlled by the lndp_model_type variable. 
 !
-! If adding new parameters, need to check how/whether 
-! the parameters are updated. 
+! If adding perturbations to new parameters, need to check how/whether 
+! the parameters are updated by the model.
 
-    subroutine lndp_apply_perts(blksz, lsm, lsm_noah, lsm_ruc, lsm_noahmp, lsoil,&
-                dtf, kdt, n_var_lndp, lndp_var_list, lndp_prt_list,              &
+    subroutine lndp_apply_perts(blksz, lsm, lsm_noah, lsm_ruc, lsm_noahmp, iopt_dveg, & 
+                lsoil, dtf, kdt, n_var_lndp, lndp_var_list, lndp_prt_list,            &
                 sfc_wts, xlon, xlat, stype, smcmax, smcmin, param_update_flag,  &
                 smc, slc, stc, vfrac, alvsf, alnsf, alvwf, alnwf, facsf, facwf, &
                 snoalb, semis, zorll, ierr)
@@ -61,7 +60,7 @@ module lndp_apply_perts_mod
 
         ! intent(in)
         integer,                      intent(in) :: blksz(:)
-        integer,                      intent(in) :: n_var_lndp, lsoil, kdt
+        integer,                      intent(in) :: n_var_lndp, lsoil, kdt, iopt_dveg
         integer,                      intent(in) :: lsm, lsm_noah, lsm_ruc, lsm_noahmp
         character(len=3),             intent(in) :: lndp_var_list(:)
         real(kind=kind_dbl_prec),     intent(in) :: lndp_prt_list(:)
@@ -128,9 +127,17 @@ module lndp_apply_perts_mod
                     print*, &
                      'ERROR:  lndp_prt_list option in lndp_apply_pert', trim(lndp_var_list(v)) , & 
                      ' has not been checked for Noah-MP. Please check how the parameter is set/updated ', & 
-                     ' before applying'
+                     ' before applying. Note: in Noah-MP many variables that have traditionally been', & 
+                     ' externally specified parameters are now prognostic. Also, many parameters are', & 
+                     ' set at each Noah-MP model call from data tables' 
                     ierr = 10
                     return
+                case ('veg') 
+                    if (iopt_dveg ~=4 ) then 
+                    print*, &
+                     'ERROR:  veg perturbations have not yet been coded for dveg options other than 4' 
+                      ierr = 10 
+                      return 
                 end select
             enddo 
         endif
