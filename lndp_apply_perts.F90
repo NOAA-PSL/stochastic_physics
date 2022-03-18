@@ -167,8 +167,6 @@ module lndp_apply_perts_mod
                 do_pert_param=.true.
                 tfactor_param=1.
             endif
-        case(0) 
-                ! no perts requested, do nothing
         case default
             print*, &
              'ERROR: unrecognised lndp_model_type option in lndp_apply_pert, exiting', trim(lndp_var_list(v))
@@ -197,17 +195,16 @@ module lndp_apply_perts_mod
         do nb =1,nblks
            do i = 1, blksz(nb)
 
-             !if ( nint(Sfcprop(nb)%slmsk(i)) .NE. 1) cycle ! skip if not land
-
-             !if ( ((isot == 1) .and. (soiltyp == 16)) &
-             !  .or.( (isot == 0) .and. (soiltyp  == 9 )) ) cycle ! skip if land-ice
-
              if ( smc(nb,i,1) .EQ. 1.) cycle ! skip  non-soil (land-ice and non-land)
              ! set printing
              if ( (i==print_i)  .and. (nb==print_nb) ) then
                 print_flag = .true.
              else
                 print_flag=.false.
+             endif
+
+             if (print_flag) then 
+                write(6,*) 'LNDPtmp', vfrac(nb,i)
              endif
 
              do v = 1,n_var_lndp
