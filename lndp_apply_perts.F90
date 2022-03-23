@@ -53,8 +53,7 @@ module lndp_apply_perts_mod
     subroutine lndp_apply_perts(blksz, lsm, lsm_noah, lsm_ruc, lsm_noahmp, iopt_dveg, & 
                 lsoil, dtf, kdt, n_var_lndp, lndp_var_list, lndp_prt_list,            &
                 sfc_wts, xlon, xlat, stype, smcmax, smcmin, param_update_flag,  &
-                smc, slc, stc, vfrac, alvsf, alnsf, alvwf, alnwf, facsf, facwf, &
-                snoalb, semis, zorll, ierr)
+                smc, slc, stc, vfrac, alnsf, alnwf, snoalb, semis, zorll, ierr)
 
         implicit none
 
@@ -70,7 +69,7 @@ module lndp_apply_perts_mod
         real(kind=kind_dbl_prec),     intent(in) :: xlat(:,:)
         logical,                      intent(in) :: param_update_flag
                                         ! true =  parameters have just been updated by global_cycle
-        real(kind=kind_dbl_prec),     intent(in) :: stype(:,:)
+        integer,     intent(in) :: stype(:,:)
         real(kind=kind_dbl_prec),     intent(in) :: smcmax(:)
         real(kind=kind_dbl_prec),     intent(in) :: smcmin(:)
 
@@ -80,12 +79,8 @@ module lndp_apply_perts_mod
         real(kind=kind_dbl_prec),     intent(inout) :: stc(:,:,:)
         real(kind=kind_dbl_prec),     intent(inout) :: vfrac(:,:)
         real(kind=kind_dbl_prec),     intent(inout) :: snoalb(:,:)
-        real(kind=kind_dbl_prec),     intent(inout) :: alvsf(:,:)
         real(kind=kind_dbl_prec),     intent(inout) :: alnsf(:,:)
-        real(kind=kind_dbl_prec),     intent(inout) :: alvwf(:,:)
         real(kind=kind_dbl_prec),     intent(inout) :: alnwf(:,:)
-        real(kind=kind_dbl_prec),     intent(inout) :: facsf(:,:)
-        real(kind=kind_dbl_prec),     intent(inout) :: facwf(:,:)
         real(kind=kind_dbl_prec),     intent(inout) :: semis(:,:)
         real(kind=kind_dbl_prec),     intent(inout) :: zorll(:,:)
 
@@ -94,10 +89,12 @@ module lndp_apply_perts_mod
 
         ! local
         integer         :: nblks, print_i, print_nb, i, nb
-        integer         :: this_im, v, soiltyp, k
+        !integer         :: this_im, v, soiltyp, k
+        integer         :: this_im, v, k
         logical         :: print_flag, do_pert_state, do_pert_param
 
-        real(kind=kind_dbl_prec) :: p, min_bound, max_bound, tmp_sic,  pert 
+        real(kind=kind_dbl_prec) :: p, min_bound, max_bound, pert
+        real(kind=kind_dbl_prec) :: tmp_smc
         real(kind=kind_dbl_prec) :: conv_hr2tstep, tfactor_state, tfactor_param
         real(kind=kind_dbl_prec), dimension(lsoil) :: zslayer, smc_vertscale, stc_vertscale
 
@@ -211,10 +208,6 @@ module lndp_apply_perts_mod
                 print_flag=.false.
              endif
 
-             if (print_flag) then 
-                write(6,*) 'LNDPtmp', vfrac(nb,i)
-             endif
-
              do v = 1,n_var_lndp
                 select case (trim(lndp_var_list(v)))
                 !=================================================================
@@ -223,25 +216,31 @@ module lndp_apply_perts_mod
                 case('smc')
                     if (do_pert_state) then
                         p=5.
-                        soiltyp  = int( stype(nb,i)+0.5 )  ! also need for maxsmc
-                        min_bound = smcmin(soiltyp)
-                        max_bound = smcmax(soiltyp)
+                        min_bound = smcmin(stype(nb,i))
+                        max_bound = smcmax(stype(nb,i))
 
                       ! with RUC LSM perturb smc only at time step = 2, as in HRRR
                         do k=1,lsoil
-                             !store frozen soil moisture
-                             tmp_sic= smc(nb,i,k)  - slc(nb,i,k)
+                             ! apply perts to a copy of smc, retain original smc
+                             ! for later update to liquid soil moisture.
+                             ! note: previously we were saving the ice water content 
+                             ! (smc-slc) and subtracting this from the perturbed smc to 
+                             ! get the perturbed slc. This was introducing small errors in the slc 
+                             ! when passing back to the calling program, I think due to precision issues, 
+                             ! as the ice content is typically zero. Clara Draper, March, 2022. 
+                             tmp_smc = smc(nb,i,k)
 
                              ! perturb total soil moisture
                              ! factor of sldepth*1000 converts from mm to m3/m3
-                             ! lndp_prt_list(v) = 0.3 in input.nml
                              pert = sfc_wts(nb,i,v)*smc_vertscale(k)*lndp_prt_list(v)/(zslayer(k)*1000.)
                              pert = pert*tfactor_state
 
-                             call apply_pert('smc',pert,print_flag, smc(nb,i,k),ierr,p,min_bound, max_bound)
+                             call apply_pert('smc',pert,print_flag, tmp_smc,ierr,p,min_bound, max_bound)
 
                              ! assign all of applied pert to the liquid soil moisture
-                             slc(nb,i,k)  =  smc(nb,i,k) -  tmp_sic
+                             slc(nb,i,k) = slc(nb,i,k) + tmp_smc - smc(nb,i,k)
+                             smc(nb,i,k) = tmp_smc
+                             
                         enddo
                     endif
 
@@ -278,12 +277,8 @@ module lndp_apply_perts_mod
 
                          pert = sfc_wts(nb,i,v)*lndp_prt_list(v)
                          pert = pert*tfactor_param
-                         !call apply_pert ('alvsf',pert,print_flag, alvsf(nb,i), ierr,p,min_bound, max_bound)
                          call apply_pert ('alnsf',pert,print_flag, alnsf(nb,i), ierr,p,min_bound, max_bound)
-                         !call apply_pert ('alvwf',pert,print_flag, alvwf(nb,i), ierr,p,min_bound, max_bound)
                          call apply_pert ('alnwf',pert,print_flag, alnwf(nb,i), ierr,p,min_bound, max_bound)
-                         !call apply_pert ('facsf',pert,print_flag, facsf(nb,i), ierr,p,min_bound, max_bound)
-                         !call apply_pert ('facwf',pert,print_flag, facwf(nb,i), ierr,p,min_bound, max_bound)
                      endif
                 case('sal')  ! snow albedo
                     if (do_pert_param) then
@@ -366,12 +361,11 @@ module lndp_apply_perts_mod
            z = -1. + 2*(state  - vmin)/(vmax - vmin) ! flat-top function
            state =  state  + pert*(1-abs(z**p))
        else
-          state =  state  + pert
+           state =  state  + pert
        endif
 
        if (present(vmax)) state =  min( state , vmax )
        if (present(vmin)) state =  max( state , vmin )
-       !state = max( min( state , vmax ), vmin )
 
        if ( print_flag ) then
               write(*,*) 'LNDP - applying lndp to ',vname, ', final value', state
