@@ -2,6 +2,7 @@
 !! the stochastic physics random pattern generators
 module stochastic_physics
 
+use mpi_f08
 use kinddef, only : kind_dbl_prec
 
 implicit none
@@ -40,7 +41,8 @@ integer, intent(out)                    :: iret
 
 ! Interface variables
 
-integer,                  intent(in)    :: levs, nlunit, nthreads, mpiroot, mpicomm
+integer,                  intent(in)    :: levs, nlunit, nthreads, mpiroot
+type(MPI_Comm),           intent(in)    :: mpicomm
 integer,                  intent(in)    :: blksz(:)
 real(kind=kind_dbl_prec), intent(in)    :: dtp
 real(kind=kind_dbl_prec), intent(out)   :: sppt_amp
@@ -277,8 +279,10 @@ real(kind=kind_dbl_prec), parameter     :: con_pi =4.0d0*atan(1.0d0)
 
 real :: dx
 integer :: k,latghf,km
+type(MPI_Comm) :: mpicomm_t ! FIXME once MOM6 updates to use mpi_f90 types
 rad2deg=180.0/con_pi
-call mpi_wrapper_initialize(mpiroot,mpicomm)
+mpicomm_t%mpi_val = mpicomm
+call mpi_wrapper_initialize(mpiroot,mpicomm_t)
 gis_stochy_ocn%nodes = npes
 gis_stochy_ocn%mype = mype
 gis_stochy_ocn%nx=nx  
