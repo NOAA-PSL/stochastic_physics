@@ -23,7 +23,7 @@ subroutine init_stochastic_physics(levs, blksz, dtp, sppt_amp, input_nml_file_in
     xlon,xlat, &
     do_sppt_in, do_shum_in, do_skeb_in, lndp_type_in, n_var_lndp_in, use_zmtnblck_out, skeb_npass_out,    &
     lndp_var_list_out, lndp_prt_list_out,                         &
-    n_var_spp_in, spp_var_list_out, spp_prt_list_out, do_spp_in,     &
+    n_var_spp_in, spp_var_list_out, spp_stddev_cutoff_out, spp_prt_list_out, do_spp_in,     &
     ak, bk, nthreads, mpiroot, mpicomm, iret) 
 !\callgraph
 !use stochy_internal_state_moa
@@ -58,6 +58,7 @@ character(len=3),         dimension(:), intent(out) :: lndp_var_list_out
 real(kind=kind_dbl_prec), dimension(:), intent(out) :: lndp_prt_list_out
 character(len=3),         dimension(:), intent(out) :: spp_var_list_out
 real(kind=kind_dbl_prec), dimension(:), intent(out) :: spp_prt_list_out
+real(kind=kind_dbl_prec), dimension(:), intent(out) :: spp_stddev_cutoff_out
 
 
 ! Local variables
@@ -142,6 +143,7 @@ endif
 if (n_var_spp>0) then
    spp_var_list_out=spp_var_list(1:n_var_spp)
    spp_prt_list_out=spp_prt_list(1:n_var_spp)
+   spp_stddev_cutoff_out=spp_stddev_cutoff(1:n_var_spp)
 endif
 if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb)  .AND. (lndp_type==0) .AND. (.NOT. do_spp)) return
 allocate(sl(levs))
