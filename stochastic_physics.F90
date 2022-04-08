@@ -23,7 +23,7 @@ subroutine init_stochastic_physics(levs, blksz, dtp, sppt_amp, input_nml_file_in
     xlon,xlat, &
     do_sppt_in, do_shum_in, do_skeb_in, lndp_type_in, n_var_lndp_in, use_zmtnblck_out, skeb_npass_out,    &
     lndp_var_list_out, lndp_prt_list_out,                         &
-    n_var_spp_in, spp_var_list_out, spp_stddev_cutoff_out, spp_prt_list_out, do_spp_in,     &
+    n_var_spp_in, spp_var_list_out, spp_prt_list_out, spp_stddev_cutoff_out, do_spp_in,     &
     ak, bk, nthreads, mpiroot, mpicomm, iret) 
 !\callgraph
 !use stochy_internal_state_moa
