@@ -63,8 +63,8 @@ module compns_stochy_mod
       shum_sigefold,spptint,shumint,skebint,skeb_npass,use_zmtnblck,new_lscale, &
       epbl,epbl_lscale,epbl_tau,iseed_epbl,                                    &
       ocnsppt,ocnsppt_lscale,ocnsppt_tau,iseed_ocnsppt
-      namelist /nam_sfcperts/lndp_type,lndp_var_list, lndp_prt_list, iseed_lndp, & 
-      lndp_tau,lndp_lscale 
+      namelist /nam_sfcperts/lndp_type,lndp_model_type, lndp_var_list, lndp_prt_list, & 
+                            iseed_lndp, lndp_tau,lndp_lscale 
 !     For SPP physics parameterization perterbations
       namelist /nam_sppperts/spp_var_list, spp_prt_list, iseed_spp, &
       spp_tau,spp_lscale,spp_sigtop1, spp_sigtop2,spp_stddev_cutoff
@@ -101,9 +101,18 @@ module compns_stochy_mod
 ! perturbations are assigned once at the start of the forecast
 ! LNDP_TYPE = 2
 ! this is the newer land pert scheme, introduced and tested for impact on UFS/GDAS cycling stsyem
-! perturbations are assigned at each time step (for state variables), or each time parameters are updated 
-! and the perturbations evolve over time. 
+! see https://journals.ametsoc.org/view/journals/hydr/22/8/JHM-D-21-0016.1.xml
       lndp_type = 0 !
+! LNDP_MODEL_TYPE
+! integer indicating the model type for applying perturbations for lndp_type=2 scheme.
+! 1 - global model  
+! (cycling of prognostic variables between DA cycles, 
+!  parameters may be periodically updated during forecast)
+! 2 - regional model 
+! (short foreast, prognotic variables re-initialized each forecast, 
+!  parameters not updated during forecast) 
+! 3 - special case to apply perturbations only at start of forecast.
+      lndp_model_type = 0 !
       lndp_lscale  = -999.       ! length scales
       lndp_tau     = -999.       ! time scales
       iseed_lndp   = 0           ! random seeds (if 0 use system clock)
@@ -203,26 +212,32 @@ module compns_stochy_mod
          endif
       ENDIF
 !    compute frequencty to estimate dissipation timescale
-      IF (skebint == 0.) skebint=deltim
-      nsskeb=nint(skebint/deltim)                              ! skebint in seconds
-      IF(nsskeb<=0 .or. abs(nsskeb-skebint/deltim)>tol) THEN
-         WRITE(0,*) "SKEB interval is invalid",skebint
-        iret=9
-        return
-      ENDIF
-      IF (spptint == 0.) spptint=deltim
-      nssppt=nint(spptint/deltim)                              ! spptint in seconds
-      IF(nssppt<=0 .or. abs(nssppt-spptint/deltim)>tol) THEN
-         WRITE(0,*) "SPPT interval is invalid",spptint
-        iret=9
-        return
-      ENDIF
-      IF (shumint == 0.) shumint=deltim
-      nsshum=nint(shumint/deltim)                              ! shumint in seconds
-      IF(nsshum<=0 .or. abs(nsshum-shumint/deltim)>tol) THEN
-         WRITE(0,*) "SHUM interval is invalid",shumint
-        iret=9
-        return
+      IF (do_skeb) THEN
+          IF (skebint == 0.) skebint=deltim
+          nsskeb=nint(skebint/deltim)                              ! skebint in seconds
+          IF(nsskeb<=0 .or. abs(nsskeb-skebint/deltim)>tol) THEN
+             WRITE(0,*) "SKEB interval is invalid",skebint
+            iret=9
+            return
+          ENDIF
+      ENDIF 
+      IF (do_sppt) THEN
+          IF (spptint == 0.) spptint=deltim
+          nssppt=nint(spptint/deltim)                              ! spptint in seconds
+          IF(nssppt<=0 .or. abs(nssppt-spptint/deltim)>tol) THEN
+             WRITE(0,*) "SPPT interval is invalid",spptint
+            iret=9
+            return
+          ENDIF
+      ENDIF 
+      IF (do_shum) THEN
+          IF (shumint == 0.) shumint=deltim
+          nsshum=nint(shumint/deltim)                              ! shumint in seconds
+          IF(nsshum<=0 .or. abs(nsshum-shumint/deltim)>tol) THEN
+             WRITE(0,*) "SHUM interval is invalid",shumint
+            iret=9
+            return
+          ENDIF
       ENDIF
 !calculate ntrunc if not supplied
      if (ntrunc .LT. 1) then  
@@ -270,13 +285,7 @@ module compns_stochy_mod
                cycle
             else
                 n_var_lndp=n_var_lndp+1
-                lndp_var_list( n_var_lndp) = lndp_var_list(k)  ! for lndp_type==2: 
-                                                               ! for state variables, unit is pert per hour
-                                                               ! for parmaters, no time dimension in unit 
-                                                               ! since perturbations do not accumulate
-                                                               ! (i.e., global_cycle overwrites the paramaters 
-                                                               ! each time it's called, so any previous perturbations 
-                                                               ! are lost). 
+                lndp_var_list( n_var_lndp) = lndp_var_list(k)  
                 lndp_prt_list( n_var_lndp) = lndp_prt_list(k) 
             endif
         enddo 
@@ -290,7 +299,7 @@ module compns_stochy_mod
       
         if (lndp_type==1) then  
           if (me==0) print*, & 
-            'lndp_type=1, land perturbations will be applied to selected paramaters, using older scheme designed for S2S fcst spread' 
+            'lndp_type=1, land perturbations will be applied to selected paramaters, using older scheme designed for S2S fcst spread with the noah LSM'
            !  sanity-check requested input
            do k =1,n_var_lndp
                select case (lndp_var_list(k))
@@ -305,6 +314,8 @@ module compns_stochy_mod
         elseif(lndp_type==2) then
             if (me==0) print*, & 
             'land perturbations will be applied to selected paramaters, using newer scheme designed for DA ens spread'
+               ! check requested parameters have been coded. 
+               ! note, Noah-MP specific checks will be done later (since need to know lsm type)
                do k =1,n_var_lndp
                    select case (lndp_var_list(k))
                    case('vgf','smc','stc','alb', 'sal','emi','zol') 
@@ -315,6 +326,11 @@ module compns_stochy_mod
                       return
                    end select 
                enddo
+               if ( (lndp_model_type < 1) .or.  (lndp_model_type > 3) ) then 
+                  print*, 'ERROR: for lndp_type=2, must have lndp_model_type = 1,2,3' 
+                  iret = 10
+                  return
+               endif
         endif
 
      case default 
@@ -367,6 +383,7 @@ module compns_stochy_mod
          print *, ' do_shum : ', do_shum
          print *, ' do_skeb : ', do_skeb
          print *, ' lndp_type : ', lndp_type
+         print *, ' lndp_model_type : ', lndp_model_type
          if (lndp_type .NE. 0) print *, ' n_var_lndp : ', n_var_lndp
          print *, ' do_spp  : ', do_spp
          print *, ' n_var_spp : ', n_var_spp
@@ -429,7 +446,7 @@ module compns_stochy_mod
       epbl,epbl_lscale,epbl_tau,iseed_epbl,                                    &
       ocnsppt,ocnsppt_lscale,ocnsppt_tau,iseed_ocnsppt
 
-      namelist /nam_sfcperts/lndp_type,lndp_var_list, lndp_prt_list, iseed_lndp, & 
+      namelist /nam_sfcperts/lndp_type,lndp_model_type,lndp_var_list, lndp_prt_list, iseed_lndp, & 
       lndp_tau,lndp_lscale 
       
 
