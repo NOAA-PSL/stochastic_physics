@@ -284,7 +284,7 @@ subroutine update_cells_sgs(kstep,initialize_ca,iseed_ca,first_flag,restart,firs
 implicit none
 
 integer, intent(in)  :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca,isc,iec,jsc,jec,npx,npy
-integer(kind=kind_phys), intent(in) :: iseed_ca
+integer(8), intent(in) :: iseed_ca
 integer, intent(in)  :: iini(nxc,nyc,nca),initialize_ca,ilives_in(nxc,nyc,nca)
 integer, intent(in)  :: mytile
 real(kind_phys), intent(out) :: CA(nlon,nlat)
@@ -578,7 +578,7 @@ implicit none
 
 integer, intent(in) :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca,isc,iec,jsc,jec,npx,npy
 integer, intent(in) :: iini_g(nxc,nyc,nca), ilives_g(nxc,nyc)
-integer(kind=kind_phys), intent(in) :: iseed_ca
+integer(8), intent(in) :: iseed_ca
 real, intent(out) :: CA(nlon,nlat)
 logical, intent(in) :: first_time_step
 logical, intent(in) :: restart
