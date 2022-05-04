@@ -160,6 +160,7 @@
 !
 !$$$
       module mersenne_twister
+        use kinddef, only: kind_phys
         private
 !  Public declarations
         public random_stat
@@ -188,7 +189,7 @@
           integer:: mti=n+1
           integer:: mt(0:n-1)
           integer:: iset
-          real:: gset
+          real(kind_phys):: gset
         end type
 !  Saved data
         type(random_stat),save:: sstat
@@ -296,8 +297,8 @@
 !> This function generates random numbers in functional mode.
         function random_number_f() result(harvest)
           implicit none
-          real:: harvest
-          real h(1)
+          real(kind_phys):: harvest
+          real(kind_phys) :: h(1)
           if(sstat%mti.eq.n+1) call random_setseed_t(iseed,sstat)
           call random_number_t(h,sstat)
           harvest=h(1)
@@ -306,7 +307,7 @@
 !> This subroutine generates random numbers in interactive mode.
         subroutine random_number_i(harvest,inseed)
           implicit none
-          real,intent(out):: harvest(:)
+          real(kind_phys),intent(out):: harvest(:)
           integer,intent(in):: inseed
           type(random_stat) stat
           call random_setseed_t(inseed,stat)
@@ -316,7 +317,7 @@
 !> This subroutine generates random numbers in saved mode; overloads Fortran 90 standard.
         subroutine random_number_s(harvest)
           implicit none
-          real,intent(out):: harvest(:)
+          real(kind_phys),intent(out):: harvest(:)
           if(sstat%mti.eq.n+1) call random_setseed_t(iseed,sstat)
           call random_number_t(harvest,sstat)
         end subroutine
@@ -324,7 +325,7 @@
 !> This subroutine generates random numbers in thread-safe mode.
         subroutine random_number_t(harvest,stat)
           implicit none
-          real,intent(out):: harvest(:)
+          real(kind_phys),intent(out):: harvest(:)
           type(random_stat),intent(inout):: stat
           integer j,kk,y
           integer tshftu,tshfts,tshftt,tshftl
@@ -352,9 +353,9 @@
             y=ieor(y,iand(tshftt(y),tmaskc))
             y=ieor(y,tshftl(y))
             if(y.lt.0) then
-              harvest(j)=(real(y)+2.0**32)/(2.0**32-1.0)
+              harvest(j)=(real(y,kind_phys)+2.0_kind_phys**32)/(2.0_kind_phys**32-1.0_kind_phys)
             else
-              harvest(j)=real(y)/(2.0**32-1.0)
+              harvest(j)=real(y,kind_phys)/(2.0_kind_phys**32-1.0_kind_phys)
             endif
             stat%mti=stat%mti+1
           enddo
@@ -363,8 +364,8 @@
 !> This subrouitne generates Gaussian random numbers in functional mode.
         function random_gauss_f() result(harvest)
           implicit none
-          real:: harvest
-          real h(1)
+          real(kind_phys):: harvest
+          real(kind_phys) :: h(1)
           if(sstat%mti.eq.n+1) call random_setseed_t(iseed,sstat)
           call random_gauss_t(h,sstat)
           harvest=h(1)
@@ -373,7 +374,7 @@
 !> This subrouitne generates Gaussian random numbers in interactive mode.
         subroutine random_gauss_i(harvest,inseed)
           implicit none
-          real,intent(out):: harvest(:)
+          real(kind_phys),intent(out):: harvest(:)
           integer,intent(in):: inseed
           type(random_stat) stat
           call random_setseed_t(inseed,stat)
@@ -383,7 +384,7 @@
 !> This subroutine generates Gaussian random numbers in saved mode.
         subroutine random_gauss_s(harvest)
           implicit none
-          real,intent(out):: harvest(:)
+          real(kind_phys),intent(out):: harvest(:)
           if(sstat%mti.eq.n+1) call random_setseed_t(iseed,sstat)
           call random_gauss_t(harvest,sstat)
         end subroutine
@@ -391,10 +392,10 @@
 !> This subroutine generates Gaussian random numbers in thread-safe mode.
         subroutine random_gauss_t(harvest,stat)
           implicit none
-          real,intent(out):: harvest(:)
+          real(kind_phys),intent(out):: harvest(:)
           type(random_stat),intent(inout):: stat
           integer mx,my,mz,j
-          real r2(2),r,g1,g2
+          real(kind_phys) :: r2(2),r,g1,g2
           mz=size(harvest)
           if(mz.le.0) return
           mx=0
@@ -429,14 +430,14 @@
         contains
 !> This subroutine contains numerical Recipes algorithm to generate Gaussian random numbers.
           subroutine rgauss(r1,r2,r,g1,g2)
-            real,intent(in):: r1,r2
-            real,intent(out):: r,g1,g2
-            real v1,v2,fac
-            v1=2.*r1-1.
-            v2=2.*r2-1.
+            real(kind_phys),intent(in):: r1,r2
+            real(kind_phys),intent(out):: r,g1,g2
+            real(kind_phys) :: v1,v2,fac
+            v1=2.*r1-1._kind_phys
+            v2=2.*r2-1._kind_phys
             r=v1**2+v2**2
             if(r.lt.1.) then
-              fac=sqrt(-2.*log(r)/r)
+              fac=sqrt(-2._kind_phys*log(r)/r)
               g1=v1*fac
               g2=v2*fac
             endif
@@ -482,7 +483,7 @@
           type(random_stat),intent(inout):: stat
           integer,parameter:: mh=n
           integer i1,i2,mz
-          real h(mh)
+          real(kind_phys) :: h(mh)
           mz=size(iharvest)
           do i1=1,mz,mh
             i2=min((i1-1)+mh,mz)

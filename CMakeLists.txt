@@ -1,9 +1,22 @@
-if(32BIT)
-  message ("Force 64 bits in stochastic_physics")
+if(CCPP_32BIT)
+  message(STATUS "Compile stochastic_physics with 32-bit precision to match CCPP slow physics.")
+  add_definitions(-DCCPP_32BIT)
+  if(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -real-size 32")
+  elseif(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fdefault-real-4 -fdefault-double 8")
+  else()
+    message(FATAL_ERROR "SHOULD NOT GET HERE (1)")
+  endif()
+else()
+  message(STATUS "Compile stochastic_physics with 64-bit precision to match CCPP slow physics.")
+  remove_definitions(-DCCPP_32BIT)
   if(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
     set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -real-size 64")
   elseif(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
     set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fdefault-real-8")
+  else()
+    message(FATAL_ERROR "SHOULD NOT GET HERE (2)")
   endif()
 endif()
 
@@ -30,12 +43,6 @@ list(APPEND _stoch_phys_srcs
 
 add_library(stochastic_physics ${_stoch_phys_srcs})
 add_dependencies(stochastic_physics fms)
-
-if(32BIT)
-  target_compile_definitions(stochastic_physics PRIVATE INTERNAL_FILE_NML OVERLOAD_R4)
-else()
-  target_compile_definitions(stochastic_physics PRIVATE INTERNAL_FILE_NML)  
-endif()
 
 set_target_properties(stochastic_physics PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/mod)
 target_include_directories(stochastic_physics INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/mod>

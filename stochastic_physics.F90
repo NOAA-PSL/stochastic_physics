@@ -2,7 +2,7 @@
 !! the stochastic physics random pattern generators
 module stochastic_physics
 
-use kinddef, only : kind_dbl_prec
+use kinddef, only : kind_phys, kind_dbl_prec
 
 implicit none
 
@@ -42,27 +42,27 @@ integer, intent(out)                    :: iret
 
 integer,                  intent(in)    :: levs, nlunit, nthreads, mpiroot, mpicomm
 integer,                  intent(in)    :: blksz(:)
-real(kind=kind_dbl_prec), intent(in)    :: dtp
-real(kind=kind_dbl_prec), intent(out)   :: sppt_amp
+real(kind=kind_phys), intent(in)    :: dtp
+real(kind=kind_phys), intent(out)   :: sppt_amp
 character(len=*),         intent(in)    :: input_nml_file_in(:)
 character(len=*),         intent(in)    :: fn_nml
-real(kind=kind_dbl_prec), intent(in)    :: xlon(:,:)
-real(kind=kind_dbl_prec), intent(in)    :: xlat(:,:)
+real(kind=kind_phys), intent(in)    :: xlon(:,:)
+real(kind=kind_phys), intent(in)    :: xlat(:,:)
 logical,                  intent(in)    :: do_sppt_in, do_shum_in, do_skeb_in ,do_spp_in
 integer,                  intent(in)    :: lndp_type_in, n_var_lndp_in
 integer,                  intent(in)    :: n_var_spp_in
-real(kind=kind_dbl_prec), intent(in)    :: ak(:), bk(:) 
+real(kind=kind_phys), intent(in)    :: ak(:), bk(:) 
 logical,                  intent(out)   :: use_zmtnblck_out
 integer,                  intent(out)   :: skeb_npass_out
 character(len=3),         dimension(:), intent(out) :: lndp_var_list_out
-real(kind=kind_dbl_prec), dimension(:), intent(out) :: lndp_prt_list_out
+real(kind=kind_phys), dimension(:), intent(out) :: lndp_prt_list_out
 character(len=3),         dimension(:), intent(out) :: spp_var_list_out
-real(kind=kind_dbl_prec), dimension(:), intent(out) :: spp_prt_list_out
-real(kind=kind_dbl_prec), dimension(:), intent(out) :: spp_stddev_cutoff_out
+real(kind=kind_phys), dimension(:), intent(out) :: spp_prt_list_out
+real(kind=kind_phys), dimension(:), intent(out) :: spp_stddev_cutoff_out
 
 
 ! Local variables
-real(kind=kind_dbl_prec), parameter     :: con_pi =4.0d0*atan(1.0d0)
+real(kind=kind_phys), parameter     :: con_pi =4.0d0*atan(1.0d0)
 integer :: nblks,len
 real*8 :: PRSI(levs),PRSL(levs),dx
 real, allocatable :: skeb_vloc(:)
@@ -275,7 +275,7 @@ real,intent(in) :: geoLonT(nx,ny),geoLatT(nx,ny)
 logical,intent(in) :: pert_epbl_in,do_sppt_in
 integer,intent(in)    :: mpiroot, mpicomm
 integer, intent(out) :: iret
-real(kind=kind_dbl_prec), parameter     :: con_pi =4.0d0*atan(1.0d0)
+real(kind=kind_phys), parameter     :: con_pi =4.0d0*atan(1.0d0)
 
 real :: dx
 integer :: k,latghf,km
@@ -349,17 +349,17 @@ implicit none
 
 ! Interface variables
 integer,                  intent(in) :: levs, kdt
-real(kind=kind_dbl_prec), intent(in) :: fhour
+real(kind=kind_phys), intent(in) :: fhour
 integer,                  intent(in) :: blksz(:)
-real(kind=kind_dbl_prec), intent(inout) :: sppt_wts(:,:,:)
-real(kind=kind_dbl_prec), intent(inout) :: shum_wts(:,:,:)
-real(kind=kind_dbl_prec), intent(inout) :: skebu_wts(:,:,:)
-real(kind=kind_dbl_prec), intent(inout) :: skebv_wts(:,:,:)
-real(kind=kind_dbl_prec), intent(inout) :: sfc_wts(:,:,:)
-real(kind=kind_dbl_prec), intent(inout) :: spp_wts(:,:,:,:)
+real(kind=kind_phys), intent(inout) :: sppt_wts(:,:,:)
+real(kind=kind_phys), intent(inout) :: shum_wts(:,:,:)
+real(kind=kind_phys), intent(inout) :: skebu_wts(:,:,:)
+real(kind=kind_phys), intent(inout) :: skebv_wts(:,:,:)
+real(kind=kind_phys), intent(inout) :: sfc_wts(:,:,:)
+real(kind=kind_phys), intent(inout) :: spp_wts(:,:,:,:)
 integer,                  intent(in)    :: nthreads
 
-real,allocatable :: tmp_wts(:,:),tmpu_wts(:,:,:),tmpv_wts(:,:,:),tmpl_wts(:,:,:),tmp_spp_wts(:,:,:)
+real(kind_dbl_prec),allocatable :: tmp_wts(:,:),tmpu_wts(:,:,:),tmpv_wts(:,:,:),tmpl_wts(:,:,:),tmp_spp_wts(:,:,:)
 !D-grid
 integer :: k,v
 integer j,ierr,i
@@ -476,7 +476,7 @@ use stochy_namelist_def
 implicit none
 !type(ocean_grid_type),       intent(in) :: G
 real, intent(inout) :: sppt_wts(:,:),t_rp1(:,:),t_rp2(:,:)
-real, allocatable :: tmp_wts(:,:)
+real(kind_dbl_prec), allocatable :: tmp_wts(:,:)
 if (pert_epbl .OR. do_ocnsppt) then
    allocate(tmp_wts(gis_stochy_ocn%nx,gis_stochy_ocn%ny))
    if (pert_epbl) then

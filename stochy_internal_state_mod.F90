@@ -21,7 +21,7 @@
 !------
 !      use spectral_layout_mod
 
-
+      use kinddef
       implicit none
       private
 
@@ -45,24 +45,24 @@
       integer              ,allocatable ::  global_lats_h  (:)
       integer                           :: xhalo,yhalo
 
-      real,allocatable ::        epse  (:)
-      real,allocatable ::        epso  (:)
-      real,allocatable ::        epsedn(:)
-      real,allocatable ::        epsodn(:)
-      real,allocatable ::        kenorm_e(:)
-      real,allocatable ::        kenorm_o(:)
+      real(kind_dbl_prec),allocatable ::        epse  (:)
+      real(kind_dbl_prec),allocatable ::        epso  (:)
+      real(kind_dbl_prec),allocatable ::        epsedn(:)
+      real(kind_dbl_prec),allocatable ::        epsodn(:)
+      real(kind_dbl_prec),allocatable ::        kenorm_e(:)
+      real(kind_dbl_prec),allocatable ::        kenorm_o(:)
 
-      real,allocatable ::       snnp1ev(:)
-      real,allocatable ::       snnp1od(:)
+      real(kind_dbl_prec),allocatable ::       snnp1ev(:)
+      real(kind_dbl_prec),allocatable ::       snnp1od(:)
 
-      real,allocatable ::       plnev_a(:,:)
-      real,allocatable ::       plnod_a(:,:)
-      real,allocatable ::       plnew_a(:,:)
-      real,allocatable ::       plnow_a(:,:)
+      real(kind_dbl_prec),allocatable ::       plnev_a(:,:)
+      real(kind_dbl_prec),allocatable ::       plnod_a(:,:)
+      real(kind_dbl_prec),allocatable ::       plnew_a(:,:)
+      real(kind_dbl_prec),allocatable ::       plnow_a(:,:)
 
 
-      real,allocatable ::       trie_ls(:,:,:)
-      real,allocatable ::       trio_ls(:,:,:)
+      real(kind_dbl_prec),allocatable ::       trie_ls(:,:,:)
+      real(kind_dbl_prec),allocatable ::       trio_ls(:,:,:)
 
       integer              lotls
       integer              nlunit
@@ -71,7 +71,7 @@
       integer              lan,lat
       integer              nx,ny,nz
       integer, allocatable :: len(:)
-      real, allocatable :: parent_lons(:,:),parent_lats(:,:)
+      real(kind_dbl_prec), allocatable :: parent_lons(:,:),parent_lats(:,:)
 
 
 !
