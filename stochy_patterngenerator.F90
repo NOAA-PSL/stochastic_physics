@@ -243,7 +243,7 @@ module stochy_patterngenerator_mod
    real(kind_phys), intent(out) :: noise_o(len_trio_ls,2)
    ! generate white noise with unit variance in spectral space
    type(random_pattern), intent(inout) :: rpattern
-   real :: noise(2*ndimspec)
+   real(kind_dbl_prec) :: noise(2*ndimspec)
    integer nm,nn
    call random_gauss(noise,rpattern%rstate)
    noise(1) = 0.; noise(ndimspec+1) = 0.
