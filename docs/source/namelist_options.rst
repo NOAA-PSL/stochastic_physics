@@ -87,5 +87,5 @@ SPP options
    "SPP_SIGTOP1", "lower sigma level to taper perturbations to zero (default is 0.1)"
    "SPP_SIGTOP2", "upper sigma level to taper perturbations to zero (0.025)"
    "spp_stddev_cutoff","range to limit perturbations"
-   "spp_var_list","list of SPP parameters'
+   "spp_var_list","list of SPP parameters"
 
