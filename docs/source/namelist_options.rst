@@ -73,7 +73,7 @@ SKEB options
    "SKEB_SIGTOP2", "upper sigma level to taper perturbations to zero (0.025)"
    "SKEBINT", "Optional, interval in seconds to update random pattern.  Perturbations still get applied every time-step"
 
-newSPP options
+SPP options
 """"""""""""
 
 .. csv-table::
