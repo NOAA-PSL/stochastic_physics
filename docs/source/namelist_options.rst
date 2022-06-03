@@ -80,12 +80,26 @@ SPP options
    :header: "Option", "Description"
    :widths: 30, 50
 
-   "ISEED_SPP", "Seeds for setting the random number sequence (ignored if stochini is true)."
+   "SPP_VAR_LIST", "list of SPP parameters. Check compns_stochy.F90 for options"
+   "SPP_PRT_LIST", "magnitude of SPP perturbations"
    "SPP_TAU", "Decorrelation timescales in seconds (21600)"
    "SPP_LSCALE", "Decorrelation spatial scales in meters  (250)"
-   "spp_prt_list", "list of SPP perturbations"
+   "ISEED_SPP", "Seeds for setting the random number sequence (ignored if stochini is true)."
    "SPP_SIGTOP1", "lower sigma level to taper perturbations to zero (default is 0.1)"
    "SPP_SIGTOP2", "upper sigma level to taper perturbations to zero (0.025)"
-   "spp_stddev_cutoff", "range to limit perturbations"
-   "spp_var_list", "list of SPP parameters"
+   "SPP_STDDEV_CUTOFF", "range to limit perturbations"
+
+Land perturbation options
+""""""""""""
+
+.. csv-table::
+   :header: "Option", "Description"
+   :widths: 30, 50
+
+   "LNDP_TYPE", "0, no perturbations. 1, old scheme (Gehne et al. 2019); 2, new scheme (Draper)"
+   "LNDP_PRT_LIST", "magntiude of land perturbations"
+   "LNDP_VAR_LIST", "list of land perturbations parameters. Check compns_stochy.F90 for options"
+   "LNDP_TAU", "Decorrelation timescales in seconds (21600)"
+   "LNDP_LSCALE", "Decorrelation spatial scales in meters  (250)"
+   "ISEED_LNDP", "Seeds for setting the random number sequence (ignored if stochini is true)."
 
