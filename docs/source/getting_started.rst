@@ -6,5 +6,5 @@ You should get the full system at https://github.com/ufs-community/ufs-weather-m
 
 In order to enable stochastic physics in a model run, you will need to turn it on via `namelist options <namelist_options.html>`_
 
-If using the CIME workflow decribed at https://ufs-mrweather-app.readthedocs.io/en/latest/, please add do_sppt=T, etc. to user_nl_ufsatm in the case directory.
+If using the CIME workflow described at https://ufs-mrweather-app.readthedocs.io/en/latest/, please add do_sppt=T, etc. to user_nl_ufsatm in the case directory.
 

@@ -6,7 +6,7 @@
  *
  *The stochastic physics currently only works with the UFS-atmosphere model
  *
- *Currently, 3 stochastic schemes are used operationally at NCEP/EMC: Stochastic Kinetic Energy Backscatter (SKEB; Berner et al., 2009), Stochastically Perturbed Physics Tendencies (SPPT; Palmer et al., 2009), and Specific Humidity perturbations (SHUM), which is inspired by Tompkins and Berner, 2008. In addition there is the ability to perturb certain land model/surface parameters (Gehne et al, 2019), and a cellular automata scheme (Bengtsson et al. 20XX) which interacts directly with the convective parameterization.
+ *Currently, 3 stochastic schemes are used operationally at NCEP/EMC: Stochastic Kinetic Energy Backscatter (SKEB; Berner et al., 2009), Stochastically Perturbed Physics Tendencies (SPPT; Palmer et al., 2009), and Specific Humidity perturbations (SHUM), which is inspired by Tompkins and Berner, 2008. In addition there is the ability to perturb certain land model/surface parameters (Gehne et al, 2019), and a cellular automata scheme (Bengtsson et al. 2019) which interacts directly with the convective parameterization.
  *
  *SKEB adds wind perturbations to model state.  Perturbations are random in space/time, but amplitude is determined by a smoothed dissipation estimate provided by the dynamical core.
  *Addresses errors in the dynamics  - more active in the mid-latitudes

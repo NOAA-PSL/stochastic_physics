@@ -11,13 +11,12 @@ SPPT multiplies the physics tendencies by a random number O [0,2] before updatin
 
 SHUM multiply the low-level specific humidity by a small random number each time-step. It attempts to address missing physics (cold pools, gust fronts), most active in convective regions
 
-Land surface perturbations allow for land surface parameters such as Albedo, Soil Hydraulic Conductivity, LAI, and roughness lengths to vary in space. Addresses error in the land model and land-atmosphere interactions.  
+Land surface perturbations allow for land surface parameters such as Albedo, Soil Hydraulic Conductivity, LAI, and roughness lengths to vary in space. Addresses error in the land model and land-atmosphere interactions. The perturbation options are only available to NOAH and RUC-LSM land models.
 
 Due to the model’s numerics, any stochastic perturbation needs to be correlated in space and time in order to have the desired effect of upscale growth of the perturbations. This is achieved by creating a random pattern that has a specified decorrelation length-scale and is a first order auto-regressive process AR(1) in time with a specified decorrelation time-scale.  (The CA random pattern generator also satisfies this condition)
 
 Cellular automata is enabled through the physics namelist
 
-The land surface perturbation options are only available to NOAH and RUC-LSM land models.
 
 Stochastic Paramter Perturbation (SPP) is avaiable for the FV3_HRRR physics suite
 
