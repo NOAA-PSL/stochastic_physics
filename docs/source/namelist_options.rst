@@ -80,26 +80,6 @@ SPP options
    :header: "Option", "Description"
    :widths: 30, 50
 
-   "DO_SKEB", "logical to tell parent atmospheric model to use SKEB"
-   "SKEB", "Amplitudes of random patterns (0.5)"
-   "SKEB_TAU", "Decorrelation timescales in seconds (21600)"
-   "SKEB_LSCALE", "Decorrelation spatial scales in meters  (250)"
-   "ISEED_SKEB", "Seeds for setting the random number sequence (ignored if stochini is true)."
-   "SKEBNORM", "0-random pattern is stream function, 1-pattern is K.E. norm, 2-pattern is vorticity (default is 0)"
-   "SKEB_VARSPECT_OPT", "0-gaussian (default), 1-power law (not tested)"
-   "SKEB_NPASS", "number of passes of the del2 smoothing for the dissipation estimate (default is 11, minimum is 3)"
-   "SKEB_VDOF", "the number of degrees of freedom in the vertical for the SKEB random pattern (default is 5)"
-   "SKEB_SIGTOP1", "lower sigma level to taper perturbations to zero (default is 0.1)"
-   "SKEB_SIGTOP2", "upper sigma level to taper perturbations to zero (0.025)"
-   "SKEBINT", "Optional, interval in seconds to update random pattern.  Perturbations still get applied every time-step"
-
-SPP options
-""""""""""""
-
-.. csv-table::
-   :header: "Option", "Description"
-   :widths: 30, 50
-
    "ISEED_SPP", "Seeds for setting the random number sequence (ignored if stochini is true)."
    "SPP_TAU", "Decorrelation timescales in seconds (21600)"
    "SPP_LSCALE", "Decorrelation spatial scales in meters  (250)"
