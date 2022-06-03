@@ -11,8 +11,8 @@ General options
    "NTRUNC", "Optional, Spectral resolution (e.g. T126) of random patterns, default is for model to determine proper truncation"
    "LAT_S", "Optional, number of latitude points for the gaussian grid  (must be even), default is for model to determine gaussian grid"
    "LON_S", "Optional, number of longitude points for the gaussian grid (recommend 2xLAT_S, default is for model to determine gaussian grid"
-   "FHSTOCH", "Optional, forecast hour to write out random pattern in order to restart the pattern for a different forecast (used in DA), file is stoch_out.F<HHH>"
-   "STOCHINI", "Optional, set to true if wanting to read in a previous random pattern (input file needs to be named stoch_ini)."
+   "STOCHINI", "Optional, set to true if wanting to read in a previous random pattern"
+   "NEW_LSCALE", "Recommended, set to true if use the correct calculation for decorrelation legnth scale"
 
 SPPT options 
 """"""""""""
@@ -32,6 +32,9 @@ SPPT options
    "SPPT_SFCLIMIT", ".T.=tapers the SPPT perturbations to zero at model’s lowest level (helps reduce model crashes)"
    "SPPTINT", "Optional, interval in seconds to update random pattern.  Perturbations still get applied every time-step"
    "USE_ZMTNBLCK", ".T.=do not apply perturbations below the dividing streamline that is diagnosed by the gravity wave drag, mountain blocking scheme"
+   "PERT_MP", ".T.=apply SPPT perturbations to all microphysics specis. If .F. the SPPT is only applied to u,v,t,qv"
+   "PERT_RADTEND", ".T.=apply SPPT perturbations to cloudy sky radiation tendencies. If .F. then do not perturb any radiative tendencies"
+   "PERT_CLDS", ".T.=apply SPPT perturbations to fraction (only works for RRTMG radiation),  if using this option set PERT_RADTEND=.F."
 
 ``*``  **SPPT** uses 5 different patterns of varying time/length scales that are added together before being passed to physics
 
@@ -70,3 +73,38 @@ SKEB options
    "SKEB_SIGTOP2", "upper sigma level to taper perturbations to zero (0.025)"
    "SKEBINT", "Optional, interval in seconds to update random pattern.  Perturbations still get applied every time-step"
 
+SPP options
+""""""""""""
+
+.. csv-table::
+   :header: "Option", "Description"
+   :widths: 30, 50
+
+   "DO_SKEB", "logical to tell parent atmospheric model to use SKEB"
+   "SKEB", "Amplitudes of random patterns (0.5)"
+   "SKEB_TAU", "Decorrelation timescales in seconds (21600)"
+   "SKEB_LSCALE", "Decorrelation spatial scales in meters  (250)"
+   "ISEED_SKEB", "Seeds for setting the random number sequence (ignored if stochini is true)."
+   "SKEBNORM", "0-random pattern is stream function, 1-pattern is K.E. norm, 2-pattern is vorticity (default is 0)"
+   "SKEB_VARSPECT_OPT", "0-gaussian (default), 1-power law (not tested)"
+   "SKEB_NPASS", "number of passes of the del2 smoothing for the dissipation estimate (default is 11, minimum is 3)"
+   "SKEB_VDOF", "the number of degrees of freedom in the vertical for the SKEB random pattern (default is 5)"
+   "SKEB_SIGTOP1", "lower sigma level to taper perturbations to zero (default is 0.1)"
+   "SKEB_SIGTOP2", "upper sigma level to taper perturbations to zero (0.025)"
+   "SKEBINT", "Optional, interval in seconds to update random pattern.  Perturbations still get applied every time-step"
+
+SPP options
+""""""""""""
+
+.. csv-table::
+   :header: "Option", "Description"
+   :widths: 30, 50
+
+   "ISEED_SPP", "Seeds for setting the random number sequence (ignored if stochini is true)."
+   "SPP_TAU", "Decorrelation timescales in seconds (21600)"
+   "SPP_LSCALE", "Decorrelation spatial scales in meters  (250)"
+   "spp_prt_list", "list of SPP perturbations"
+   "SPP_SIGTOP1", "lower sigma level to taper perturbations to zero (default is 0.1)"
+   "SPP_SIGTOP2", "upper sigma level to taper perturbations to zero (0.025)"
+   "spp_stddev_cutoff","range to limit perturbations"
+   "spp_var_list","list of SPP parameters'
