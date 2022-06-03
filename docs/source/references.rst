@@ -1,7 +1,7 @@
 References     
 ==========
 
-Bengtsson, L., J. Dias, M. Gehne, P. Bechtold, J. Whitaker, 2019: Convectively Coupled Equatorial Wave Simulations Using the ECMWF IFS and the NOAA GFS Cumulus Convection Schemes in the NOAA GFS Model. Mon. Wea. Rev. 147, 4005 - 4025, `doi:10.1175/MWR-D-19-0195.1 <https://journals.ametsoc.org/view/journals/mwre/147/11/mwr-d-19-0195.1.xml>`
+Bengtsson, L., J. Dias, M. Gehne, P. Bechtold, J. Whitaker, 2019: Convectively Coupled Equatorial Wave Simulations Using the ECMWF IFS and the NOAA GFS Cumulus Convection Schemes in the NOAA GFS Model. Mon. Wea. Rev. 147, 4005 - 4025, `doi:10.1175/MWR-D-19-0195.1 <https://journals.ametsoc.org/view/journals/mwre/147/11/mwr-d-19-0195.1.xml>`_
 
 Berner, J., G. Shutts, M. Leutbecher, and T. Palmer, 2009: A spectral stochastic kinetic energy backscatter scheme and its impact on flow- dependent predictability in the ECMWF ensemble prediction system. J. Atmos. Sci., 66, 603–626, `doi:10.1175/2008JAS2677.1 <https://journals.ametsoc.org/doi/full/10.1175/2008JAS2677.1>`_
 
