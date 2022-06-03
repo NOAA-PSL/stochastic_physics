@@ -43,7 +43,7 @@ SHUM options
 
 .. csv-table::
    :header: "Option", "Description"
-   :widths: 20, 50
+   :widths: 30, 50
 
    "DO_SHUM", "logical to tell parent atmospheric model to use SHUM"
    "SHUM", "Amplitudes of random patterns (0.004)"
@@ -73,7 +73,7 @@ SKEB options
    "SKEB_SIGTOP2", "upper sigma level to taper perturbations to zero (0.025)"
    "SKEBINT", "Optional, interval in seconds to update random pattern.  Perturbations still get applied every time-step"
 
-SPP options
+newSPP options
 """"""""""""
 
 .. csv-table::
