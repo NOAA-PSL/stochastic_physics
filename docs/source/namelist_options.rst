@@ -93,7 +93,7 @@ Land perturbation options
    :header: "Option", "Description"
    :widths: 30, 50
 
-   "LNDP_TYPE", "0, no perturbations. 1, old scheme (Gehne et al. 2019); 2, new scheme (Draper)"
+   "LNDP_TYPE", "0, no perturbations. 1, old scheme (Gehne et al. 2019); 2, new scheme (Draper 2021)"
    "LNDP_VAR_LIST", "List of land perturbations parameters. Check compns_stochy.F90 for options"
    "LNDP_PRT_LIST", "Perturbation magnitudes used for each parameter perturbations."
    "LNDP_TAU", "Decorrelation timescales in seconds."
