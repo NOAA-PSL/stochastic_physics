@@ -1,6 +1,6 @@
 module lndp_apply_perts_mod
 
-    use kinddef, only : kind_dbl_prec
+    use kinddef, only : kind_dbl_prec, kind_phys
     use stochy_namelist_def
 
     implicit none
@@ -62,27 +62,27 @@ module lndp_apply_perts_mod
         integer,                      intent(in) :: n_var_lndp, lsoil, kdt, iopt_dveg
         integer,                      intent(in) :: lsm, lsm_noah, lsm_ruc, lsm_noahmp
         character(len=3),             intent(in) :: lndp_var_list(:)
-        real(kind=kind_dbl_prec),     intent(in) :: lndp_prt_list(:)
-        real(kind=kind_dbl_prec),     intent(in) :: dtf
-        real(kind=kind_dbl_prec),     intent(in) :: sfc_wts(:,:,:)
-        real(kind=kind_dbl_prec),     intent(in) :: xlon(:,:)
-        real(kind=kind_dbl_prec),     intent(in) :: xlat(:,:)
+        real(kind=kind_phys),     intent(in) :: lndp_prt_list(:)
+        real(kind=kind_phys),     intent(in) :: dtf
+        real(kind=kind_phys),     intent(in) :: sfc_wts(:,:,:)
+        real(kind=kind_phys),     intent(in) :: xlon(:,:)
+        real(kind=kind_phys),     intent(in) :: xlat(:,:)
         logical,                      intent(in) :: param_update_flag
                                         ! true =  parameters have just been updated by global_cycle
         integer,     intent(in) :: stype(:,:)
-        real(kind=kind_dbl_prec),     intent(in) :: smcmax(:)
-        real(kind=kind_dbl_prec),     intent(in) :: smcmin(:)
+        real(kind=kind_phys),     intent(in) :: smcmax(:)
+        real(kind=kind_phys),     intent(in) :: smcmin(:)
 
         ! intent(inout)
-        real(kind=kind_dbl_prec),     intent(inout) :: smc(:,:,:)
-        real(kind=kind_dbl_prec),     intent(inout) :: slc(:,:,:)
-        real(kind=kind_dbl_prec),     intent(inout) :: stc(:,:,:)
-        real(kind=kind_dbl_prec),     intent(inout) :: vfrac(:,:)
-        real(kind=kind_dbl_prec),     intent(inout) :: snoalb(:,:)
-        real(kind=kind_dbl_prec),     intent(inout) :: alnsf(:,:)
-        real(kind=kind_dbl_prec),     intent(inout) :: alnwf(:,:)
-        real(kind=kind_dbl_prec),     intent(inout) :: semis(:,:)
-        real(kind=kind_dbl_prec),     intent(inout) :: zorll(:,:)
+        real(kind=kind_phys),     intent(inout) :: smc(:,:,:)
+        real(kind=kind_phys),     intent(inout) :: slc(:,:,:)
+        real(kind=kind_phys),     intent(inout) :: stc(:,:,:)
+        real(kind=kind_phys),     intent(inout) :: vfrac(:,:)
+        real(kind=kind_phys),     intent(inout) :: snoalb(:,:)
+        real(kind=kind_phys),     intent(inout) :: alnsf(:,:)
+        real(kind=kind_phys),     intent(inout) :: alnwf(:,:)
+        real(kind=kind_phys),     intent(inout) :: semis(:,:)
+        real(kind=kind_phys),     intent(inout) :: zorll(:,:)
 
         ! intent(out)
         integer,                        intent(out) :: ierr
@@ -93,20 +93,20 @@ module lndp_apply_perts_mod
         integer         :: this_im, v, k
         logical         :: print_flag, do_pert_state, do_pert_param
 
-        real(kind=kind_dbl_prec) :: p, min_bound, max_bound, pert
-        real(kind=kind_dbl_prec) :: tmp_smc
-        real(kind=kind_dbl_prec) :: conv_hr2tstep, tfactor_state, tfactor_param
-        real(kind=kind_dbl_prec), dimension(lsoil) :: zslayer, smc_vertscale, stc_vertscale
+        real(kind=kind_phys) :: p, min_bound, max_bound, pert
+        real(kind=kind_phys) :: tmp_smc
+        real(kind=kind_phys) :: conv_hr2tstep, tfactor_state, tfactor_param
+        real(kind=kind_phys), dimension(lsoil) :: zslayer, smc_vertscale, stc_vertscale
 
         ! decrease in applied pert with depth
         !-- Noah lsm
-        real(kind=kind_dbl_prec), dimension(4), parameter  :: smc_vertscale_noah = (/1.0,0.5,0.25,0.125/)
-        real(kind=kind_dbl_prec), dimension(4), parameter  :: stc_vertscale_noah = (/1.0,0.5,0.25,0.125/)
-        real(kind=kind_dbl_prec), dimension(4), parameter  :: zs_noah = (/0.1, 0.3, 0.6, 1.0/)
+        real(kind=kind_phys), dimension(4), parameter  :: smc_vertscale_noah = (/1.0,0.5,0.25,0.125/)
+        real(kind=kind_phys), dimension(4), parameter  :: stc_vertscale_noah = (/1.0,0.5,0.25,0.125/)
+        real(kind=kind_phys), dimension(4), parameter  :: zs_noah = (/0.1, 0.3, 0.6, 1.0/)
         !-- RUC lsm
-        real(kind=kind_dbl_prec), dimension(9), parameter :: smc_vertscale_ruc = (/1.0,0.9,0.8,0.6,0.4,0.2,0.1,0.05,0./)
-        real(kind=kind_dbl_prec), dimension(9), parameter :: stc_vertscale_ruc = (/1.0,0.9,0.8,0.6,0.4,0.2,0.1,0.05,0./)
-        real(kind=kind_dbl_prec), dimension(9), parameter :: zs_ruc = (/0.05, 0.15, 0.20, 0.20, 0.40, 0.60, 0.60, 0.80, 1.00/)
+        real(kind=kind_phys), dimension(9), parameter :: smc_vertscale_ruc = (/1.0,0.9,0.8,0.6,0.4,0.2,0.1,0.05,0./)
+        real(kind=kind_phys), dimension(9), parameter :: stc_vertscale_ruc = (/1.0,0.9,0.8,0.6,0.4,0.2,0.1,0.05,0./)
+        real(kind=kind_phys), dimension(9), parameter :: zs_ruc = (/0.05, 0.15, 0.20, 0.20, 0.40, 0.60, 0.60, 0.80, 1.00/)
 
         ierr = 0
 
@@ -330,22 +330,22 @@ module lndp_apply_perts_mod
 
    ! intent in
     logical, intent(in)                 :: print_flag
-    real(kind=kind_dbl_prec), intent(in)    :: pert
+    real(kind=kind_phys), intent(in)    :: pert
     character(len=*), intent(in)        :: vname ! name of variable being perturbed
 
-    real(kind=kind_dbl_prec), optional, intent(in)    :: p ! flat-top paramater, 0 = no flat-top
+    real(kind=kind_phys), optional, intent(in)    :: p ! flat-top paramater, 0 = no flat-top
                                                        ! flat-top function is used for bounded variables
                                                        ! to reduce the magnitude of perturbations  near boundaries.
-    real(kind=kind_dbl_prec), optional, intent(in) :: vmin, vmax ! min,max bounds of variable being perturbed
+    real(kind=kind_phys), optional, intent(in) :: vmin, vmax ! min,max bounds of variable being perturbed
 
     ! intent (inout)
-    real(kind=kind_dbl_prec), intent(inout) :: state
+    real(kind=kind_phys), intent(inout) :: state
 
     ! intent out
     integer                             :: ierr
 
     !local
-    real(kind=kind_dbl_prec) :: z
+    real(kind=kind_phys) :: z
 
        if ( print_flag ) then
               write(*,*) 'LNDP - applying lndp to ',vname, ', initial value', state
@@ -385,8 +385,8 @@ module lndp_apply_perts_mod
 
         ! intent (in)
         integer,                  intent(in) :: blksz(:)
-        real(kind=kind_dbl_prec),     intent(in) :: xlon(:,:)
-        real(kind=kind_dbl_prec),     intent(in) :: xlat(:,:)
+        real(kind=kind_phys),     intent(in) :: xlon(:,:)
+        real(kind=kind_phys),     intent(in) :: xlat(:,:)
 
 
         ! intent (out)

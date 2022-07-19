@@ -24,12 +24,12 @@ module stochy_patterngenerator_mod
 !>@details A seperate instance of this type is needed for each pattern
  type,public :: random_pattern                ! start type define
 ! -----------------------------------------------
-    real(kind_dbl_prec), public :: lengthscale  ! length scale in m
-    real(kind_dbl_prec), public :: tau
-    real(kind_dbl_prec), public :: dt
-    real(kind_dbl_prec), public :: phi
-    real(kind_dbl_prec), public :: stdev
-    real(kind_evod), allocatable, dimension(:), public :: varspectrum, varspectrum1d, lap
+    real(kind_phys), public :: lengthscale  ! length scale in m
+    real(kind_phys), public :: tau
+    real(kind_phys), public :: dt
+    real(kind_phys), public :: phi
+    real(kind_phys), public :: stdev
+    real(kind_dbl_prec), allocatable, dimension(:), public :: varspectrum, varspectrum1d, lap
     integer, allocatable, dimension(:), public ::&
        degree,order,idx_e,idx_o
     integer, allocatable, dimension(:,:), public :: idx
@@ -51,7 +51,7 @@ module stochy_patterngenerator_mod
                                   nlon, nlat, jcap, ls_nodes, npatterns,&
                                   nlevs, varspect_opt,new_lscale)
 !\callgraph
-   real(kind_dbl_prec), intent(in),dimension(npatterns) :: lscale,tscale,stdev
+   real(kind_phys), intent(in),dimension(npatterns) :: lscale,tscale,stdev
    real, intent(in) :: delt
    integer, intent(in) :: nlon,nlat,jcap,npatterns,varspect_opt
    integer, intent(in) :: ls_nodes(ls_dim,3),nlevs
@@ -200,8 +200,8 @@ module stochy_patterngenerator_mod
  subroutine computevarspec(rpattern,dataspec,var)
 !\callgraph
     ! compute globally integrated variance from spectral coefficients
-    complex(kind_evod), intent(in) :: dataspec(ndimspec)
-    real(kind_evod), intent(out) ::  var
+    complex(kind_dbl_prec), intent(in) :: dataspec(ndimspec)
+    real(kind_dbl_prec), intent(out) ::  var
     type(random_pattern), intent(in) :: rpattern
     integer n
     var = 0.
@@ -220,8 +220,8 @@ module stochy_patterngenerator_mod
  subroutine computevarspec_r(rpattern,dataspec,var)
 !\callgraph
     ! compute globally integrated variance from spectral coefficients
-    real(kind_dbl_prec), intent(in) :: dataspec(2*ndimspec)
-    real(kind_dbl_prec), intent(out) ::  var
+    real(kind_phys), intent(in) :: dataspec(2*ndimspec)
+    real(kind_phys), intent(out) ::  var
     type(random_pattern), intent(in) :: rpattern
     integer n
     var = 0.
@@ -239,11 +239,11 @@ module stochy_patterngenerator_mod
 !! variance from real spectral c
  subroutine getnoise(rpattern,noise_e,noise_o)
 !\callgraph
-   real(kind_dbl_prec), intent(out) :: noise_e(len_trie_ls,2)
-   real(kind_dbl_prec), intent(out) :: noise_o(len_trio_ls,2)
+   real(kind_phys), intent(out) :: noise_e(len_trie_ls,2)
+   real(kind_phys), intent(out) :: noise_o(len_trio_ls,2)
    ! generate white noise with unit variance in spectral space
    type(random_pattern), intent(inout) :: rpattern
-   real :: noise(2*ndimspec)
+   real(kind_dbl_prec) :: noise(2*ndimspec)
    integer nm,nn
    call random_gauss(noise,rpattern%rstate)
    noise(1) = 0.; noise(ndimspec+1) = 0.
@@ -278,8 +278,8 @@ module stochy_patterngenerator_mod
 
     ! advance 1st-order autoregressive process with
     ! specified autocorrelation (phi) and variance spectrum (spectrum)
-    real(kind_dbl_prec) :: noise_e(len_trie_ls,2)
-    real(kind_dbl_prec) :: noise_o(len_trio_ls,2)
+    real(kind_phys) :: noise_e(len_trie_ls,2)
+    real(kind_phys) :: noise_o(len_trio_ls,2)
     type(random_pattern), intent(inout) :: rpattern
     logical, intent(in) :: skeb_first_call
     integer j,l,n,nn,nm,k,k2
@@ -317,8 +317,8 @@ module stochy_patterngenerator_mod
   integer, intent(in) :: varspect_opt
   logical, intent(in) :: new_lscale
   integer :: n
-  complex(kind_evod) noise(ndimspec)
-  real(kind_evod) var,rerth,inv_rerth_sq
+  complex(kind_dbl_prec) noise(ndimspec)
+  real(kind_dbl_prec) var,rerth,inv_rerth_sq
   rerth  =6.3712e+6      ! radius of earth (m)
   inv_rerth_sq=1.0/(rerth**2)
   ! 1d variance spectrum (as a function of total wavenumber)
@@ -364,8 +364,8 @@ module stochy_patterngenerator_mod
 !! restarting from a higher-resolution pattern
  subroutine chgres_pattern(pattern2din,pattern2dout,ntruncin,ntruncout)
 !\callgraph
-   real(kind_dbl_prec), intent(in) :: pattern2din((ntruncin+1)*(ntruncin+2))
-   real(kind_dbl_prec), intent(out) :: pattern2dout((ntruncout+1)*(ntruncout+2))
+   real(kind_phys), intent(in) :: pattern2din((ntruncin+1)*(ntruncin+2))
+   real(kind_phys), intent(out) :: pattern2dout((ntruncout+1)*(ntruncout+2))
    integer, intent(in) :: ntruncin,ntruncout
    integer             :: m,n,nm,ndimsspecin,ndimsspecout
    integer,allocatable, dimension(:,:):: idxin

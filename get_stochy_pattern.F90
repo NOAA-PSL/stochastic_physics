@@ -1,6 +1,6 @@
 !>@brief The module 'get_stochy_pattern_mod' contains the subroutines to retrieve the random pattern in the cubed-sphere grid
 module get_stochy_pattern_mod
- use kinddef, only : kind_dbl_prec, kind_evod
+ use kinddef
  use spectral_transforms, only : len_trie_ls,                       &
                                  len_trio_ls, ls_dim, stochy_la2ga,          &
                                  coslat_a, latg, levs, lonf, skeblevs,&
@@ -102,19 +102,19 @@ subroutine get_random_pattern_vector(rpattern,npatterns,&
  type(stochy_internal_state), intent(in) :: gis_stochy
  type(random_pattern), intent(inout) :: rpattern(npatterns)
 
- real(kind=kind_evod), dimension(len_trie_ls,2) ::  vrtspec_e,divspec_e
- real(kind=kind_evod), dimension(len_trio_ls,2) ::  vrtspec_o,divspec_o
+ real(kind=kind_dbl_prec), dimension(len_trie_ls,2) ::  vrtspec_e,divspec_e
+ real(kind=kind_dbl_prec), dimension(len_trio_ls,2) ::  vrtspec_o,divspec_o
  integer::   npatterns
 
  real(kind=kind_dbl_prec) :: upattern_3d(gis_stochy%nx,gis_stochy%ny,levs)
  real(kind=kind_dbl_prec) :: vpattern_3d(gis_stochy%nx,gis_stochy%ny,levs)
  real(kind=kind_dbl_prec) :: pattern_1d(gis_stochy%nx)
  integer i,j,lat,n,nn,k
- real(kind_dbl_prec), dimension(lonf,gis_stochy%lats_node_a,1):: wrk2du,wrk2dv
+ real(kind_phys), dimension(lonf,gis_stochy%lats_node_a,1):: wrk2du,wrk2dv
 
 ! logical lprint
 
- real, allocatable, dimension(:,:) :: workgu,workgv
+ real(kind_dbl_prec), allocatable, dimension(:,:) :: workgu,workgv
  integer kmsk0(lonf,gis_stochy%lats_node_a)
  kmsk0 = 0
  allocate(workgu(lonf,latg))
@@ -566,7 +566,7 @@ subroutine write_stoch_restart_ocn(sfile)
    integer, intent(in) :: np,varid1,varid2
    logical, intent(in) :: slice_of_3d
    integer, intent(out) :: iret
-   real(kind_dbl_prec), allocatable  :: pattern2d(:)
+   real(kind_phys), allocatable  :: pattern2d(:)
    integer nm,nn,arrlen,isize,ierr
    integer,allocatable :: isave(:)
    include 'netcdf.inc'
@@ -623,8 +623,8 @@ subroutine write_stoch_restart_ocn(sfile)
       real(kind=kind_dbl_prec), intent(in) :: trio_di(len_trio_ls,2)
       real(kind=kind_dbl_prec), intent(in) :: trie_ze(len_trie_ls,2)
       real(kind=kind_dbl_prec), intent(in) :: trio_ze(len_trio_ls,2)
-      real(kind=kind_dbl_prec), intent(out) :: uug(lonf,gis_stochy%lats_node_a)
-      real(kind=kind_dbl_prec), intent(out) :: vvg(lonf,gis_stochy%lats_node_a)
+      real(kind=kind_phys), intent(out) :: uug(lonf,gis_stochy%lats_node_a)
+      real(kind=kind_phys), intent(out) :: vvg(lonf,gis_stochy%lats_node_a)
 ! local vars
       real(kind=kind_dbl_prec) trie_ls(len_trie_ls,2,2)
       real(kind=kind_dbl_prec) trio_ls(len_trio_ls,2,2)
@@ -632,7 +632,7 @@ subroutine write_stoch_restart_ocn(sfile)
       real(kind=kind_dbl_prec) for_gr_a_2(lonf,2,gis_stochy%lats_dim_a)
       integer              i,k
       integer              lan,lat
-      real (kind=kind_dbl_prec) tx1
+      real (kind=kind_phys) tx1
 
       call dezouv_stochy(trie_di(:,:),       trio_ze(:,:), &
                   trie_ls(:,:,1), trio_ls(:,:,2), gis_stochy%epsedn,gis_stochy%epsodn, &

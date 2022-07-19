@@ -16,6 +16,8 @@ module stochy_data_mod
  use mersenne_twister, only : random_seed
  use compns_stochy_mod, only : compns_stochy
 
+ use kinddef, only: kind_phys
+
  implicit none
  private
  public :: init_stochdata,init_stochdata_ocn
@@ -31,12 +33,12 @@ module stochy_data_mod
  integer, public :: nspp =0 ! this is the number of different patterns (determined by the tau/lscale input) 
  real*8, public,allocatable :: sl(:)
 
- real(kind=kind_dbl_prec),public, allocatable :: vfact_sppt(:),vfact_shum(:),vfact_skeb(:),vfact_spp(:)
- real(kind=kind_dbl_prec),public, allocatable :: skeb_vwts(:,:)
+ real(kind=kind_phys),public, allocatable :: vfact_sppt(:),vfact_shum(:),vfact_skeb(:),vfact_spp(:)
+ real(kind=kind_phys),public, allocatable :: skeb_vwts(:,:)
  integer                 ,public, allocatable :: skeb_vpts(:,:)
  real(kind=kind_dbl_prec),public, allocatable :: gg_lats(:),gg_lons(:)
  real(kind=kind_dbl_prec),public :: wlon,rnlat,rad2deg
- real(kind=kind_dbl_prec),public, allocatable :: skebu_save(:,:,:),skebv_save(:,:,:)
+ real(kind=kind_phys),public, allocatable :: skebu_save(:,:,:),skebv_save(:,:,:)
  integer,public :: INTTYP
  type(stochy_internal_state),public :: gis_stochy,gis_stochy_ocn
 
@@ -53,7 +55,7 @@ module stochy_data_mod
    integer, intent(in) :: nlunit,nlevs
    character(len=*),  intent(in) :: input_nml_file(:)
    character(len=64), intent(in) :: fn_nml
-   real, intent(in) :: delt
+   real(kind_phys), intent(in) :: delt
    integer, intent(out) :: iret
    real :: ones(5)
 
@@ -62,7 +64,7 @@ module stochy_data_mod
    integer :: locl,indev,indod,indlsod,indlsev
    integer :: l,jbasev,jbasod
    integer :: jcapin,varid1,varid2
-   real(kind_dbl_prec),allocatable :: noise_e(:,:),noise_o(:,:)
+   real(kind_phys),allocatable :: noise_e(:,:),noise_o(:,:)
    include 'function_indlsod'
    include 'function_indlsev'
    include 'netcdf.inc'
@@ -72,7 +74,7 @@ module stochy_data_mod
    iret=0
 ! read in namelist
 
-   call compns_stochy (mype,size(input_nml_file,1),input_nml_file(:),fn_nml,nlunit,delt,iret)
+   call compns_stochy (mype,size(input_nml_file,1),input_nml_file(:),fn_nml,nlunit,real(delt,kind=kind_phys),iret)
   
    if (iret/=0) return  ! need to make sure that non-zero irets are being trapped.
    if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb)  .AND. (lndp_type==0) .AND. (.NOT. do_spp)) return
@@ -376,7 +378,7 @@ module stochy_data_mod
          endif
       endif
       ones = 1.
-      call patterngenerator_init(lndp_lscale(1:nlndp),delt,lndp_tau(1:nlndp),ones(1:nlndp),iseed_lndp,rpattern_sfc, &
+      call patterngenerator_init(lndp_lscale(1:nlndp),real(delt,kind_phys),lndp_tau(1:nlndp),ones(1:nlndp),iseed_lndp,rpattern_sfc, &
                                  lonf,latg,jcap,gis_stochy%ls_node,nlndp,n_var_lndp,0,new_lscale)
       do n=1,nlndp
          if (is_rootpe()) print *, 'Initialize random pattern for LNDP PERTS'
@@ -431,7 +433,7 @@ module stochy_data_mod
          endif
       endif
       ones = 1.
-      call patterngenerator_init(spp_lscale(1:nspp),delt,spp_tau(1:nspp),ones(1:nspp),iseed_spp,rpattern_spp, &
+      call patterngenerator_init(spp_lscale(1:nspp),real(delt,kind_phys),spp_tau(1:nspp),ones(1:nspp),iseed_spp,rpattern_spp, &
                                  lonf,latg,jcap,gis_stochy%ls_node,nspp,n_var_spp,0,new_lscale)
       do n=1,nspp
          if (is_rootpe()) print *, 'Initialize random pattern for SPP PERTS'
@@ -485,7 +487,7 @@ module stochy_data_mod
    integer :: l,jbasev,jbasod
    integer :: indev,indod,indlsod,indlsev,varid1,varid2,varid3,varid4,ierr
    
-   real(kind_dbl_prec),allocatable :: noise_e(:,:),noise_o(:,:)
+   real(kind_phys),allocatable :: noise_e(:,:),noise_o(:,:)
    include 'function_indlsod'
    include 'function_indlsev'
    include 'netcdf.inc'
@@ -700,8 +702,8 @@ subroutine read_pattern(rpattern,jcapin,lunptn,k,np,varid1,varid2,slice_of_3d,ir
    type(random_pattern), intent(inout) :: rpattern
    integer, intent(in) :: lunptn,np,varid1,varid2,jcapin
    logical, intent(in) :: slice_of_3d
-   real(kind_dbl_prec),allocatable  :: pattern2d(:),pattern2din(:)
-   real(kind_dbl_prec) :: stdevin,varin
+   real(kind_phys),allocatable  :: pattern2d(:),pattern2din(:)
+   real(kind_phys) :: stdevin,varin
    integer nm,nn,iret,ierr,isize,k,ndimspec2
    integer, allocatable :: isave(:)
    include 'netcdf.inc'

@@ -3,7 +3,7 @@ module update_ca
 !read and write restart routines, to restart fields 
 !on the ncellsxncells CA grid
 
-use kinddef,           only: kind_dbl_prec
+use kinddef
 use halo_exchange,    only: atmosphere_scalar_field_halo
 use random_numbers,   only: random_01_CB
 use mpi_wrapper,      only: mype,mp_reduce_min,mp_reduce_max
@@ -284,13 +284,13 @@ subroutine update_cells_sgs(kstep,initialize_ca,iseed_ca,first_flag,restart,firs
 implicit none
 
 integer, intent(in)  :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca,isc,iec,jsc,jec,npx,npy
-integer(kind=kind_dbl_prec), intent(in) :: iseed_ca
+integer(8), intent(in) :: iseed_ca
 integer, intent(in)  :: iini(nxc,nyc,nca),initialize_ca,ilives_in(nxc,nyc,nca)
 integer, intent(in)  :: mytile
-real,    intent(out) :: CA(nlon,nlat)
+real(kind_phys), intent(out) :: CA(nlon,nlat)
 integer, intent(out) :: ca_plumes(nlon,nlat)
 integer, intent(in)  :: nlives,nseed, nspinup, nf,ncells
-real,    intent(in)  :: nfracseed
+real(kind_phys), intent(in)  :: nfracseed
 logical, intent(in)  :: nca_plumes,restart,first_flag,first_time_step
 integer, allocatable  :: V(:),L(:),B(:)
 integer, allocatable  :: AG(:,:)
@@ -578,7 +578,7 @@ implicit none
 
 integer, intent(in) :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca,isc,iec,jsc,jec,npx,npy
 integer, intent(in) :: iini_g(nxc,nyc,nca), ilives_g(nxc,nyc)
-integer(kind=kind_dbl_prec), intent(in) :: iseed_ca
+integer(8), intent(in) :: iseed_ca
 real, intent(out) :: CA(nlon,nlat)
 logical, intent(in) :: first_time_step
 logical, intent(in) :: restart

@@ -12,7 +12,7 @@ subroutine cellular_automata_global(kstep,restart,first_time_step,ca1_cpl,ca2_cp
             ca_smooth,nspinup,blocksize,nsmooth,ca_amplitude,mpiroot,mpicomm)
 
 use mpi_f08
-use kinddef,           only: kind_dbl_prec
+use kinddef,           only: kind_dbl_prec, kind_phys
 use update_ca,         only: update_cells_global,define_ca_domain
 use halo_exchange,     only: atmosphere_scalar_field_halo
 use random_numbers,    only: random_01_CB
@@ -35,10 +35,10 @@ integer,              intent(in)    :: kstep,ncells,nca,nlives,nseed,nspinup,nsm
 type(MPI_Comm),       intent(in)    :: mpicomm
 integer(kind=kind_dbl_prec),  intent(in)    :: iseed_ca
 integer,              intent(in)    :: mytile
-real(kind=kind_dbl_prec), intent(in)    :: nfracseed,ca_amplitude
+real(kind=kind_phys), intent(in)    :: nfracseed,ca_amplitude
 logical,              intent(in)    :: ca_smooth,first_time_step, restart
 integer,              intent(in)    :: nblks,isc,iec,jsc,jec,npx,npy,nlev,blocksize
-real(kind=kind_dbl_prec), intent(out)   :: ca1_cpl(:,:),ca2_cpl(:,:),ca3_cpl(:,:)
+real(kind=kind_phys), intent(out)   :: ca1_cpl(:,:),ca2_cpl(:,:),ca3_cpl(:,:)
 type(domain2D),       intent(inout) :: domain_in
 type(block_control_type) :: Atm_block
 integer :: nlon, nlat, isize,jsize,nf,nn
@@ -52,8 +52,8 @@ integer :: nxncells, nyncells
 integer(8) :: count, count_rate, count_max, count_trunc,nx_full
 integer(8) :: iscale = 10000000000
 integer, allocatable :: iini_g(:,:,:),ilives_g(:,:)
-real(kind=kind_dbl_prec), allocatable :: field_out(:,:,:), field_smooth(:,:)
-real(kind=kind_dbl_prec), allocatable :: CA(:,:),CA1(:,:),CA2(:,:),CA3(:,:),CAprime(:,:)
+real(kind=kind_phys), allocatable :: field_out(:,:,:), field_smooth(:,:)
+real(kind=kind_phys), allocatable :: CA(:,:),CA1(:,:),CA2(:,:),CA3(:,:),CAprime(:,:)
 real*8              , allocatable :: noise(:,:,:)
 real*8               :: psum,CAmean,sq_diff,CAstdv,inv9
 real*8               :: Detmax,Detmin
