@@ -4,7 +4,7 @@ CMD ["/bin/bash"]
 
 ENV HOME=/home/builder
 
-COPY --chown=builder:builder stochastic_physics $HOME/stochastic_physics
+COPY --chown=builder:builder . $HOME/stochastic_physics
 
 USER builder
 
