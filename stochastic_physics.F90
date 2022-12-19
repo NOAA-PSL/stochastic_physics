@@ -19,13 +19,9 @@ contains
 !>@details It reads the stochastic physics namelist (nam_stoch and nam_sfcperts)
 !allocates and polulates the necessary arrays
 
-subroutine init_stochastic_physics(levs, blksz, dtp, sppt_amp, input_nml_file_in, fn_nml, nlunit, &
-    xlon,xlat, &
-    do_sppt_in, do_shum_in, do_skeb_in, lndp_type_in, n_var_lndp_in, use_zmtnblck_out, skeb_npass_out,    &
-    lndp_var_list_out, lndp_prt_list_out,                         &
-    n_var_spp_in, spp_var_list_out, spp_prt_list_out, spp_stddev_cutoff_out, do_spp_in,     &
-    ak, bk, nthreads, mpiroot, mpicomm, iret) 
-!\callgraph
+subroutine init_stochastic_physics(levs, blksz, dtp, sppt_amp, input_nml_file_in, fn_nml, nlunit, xlon,xlat, do_sppt_in, do_shum_in, do_skeb_in, lndp_type_in, n_var_lndp_in, use_zmtnblck_out, skeb_npass_out, lndp_var_list_out, lndp_prt_list_out, n_var_spp_in, spp_var_list_out, spp_prt_list_out, spp_stddev_cutoff_out, do_spp_in, ak, bk, nthreads, mpiroot, mpicomm, iret) 
+
+  !\callgraph
 !use stochy_internal_state_moa
 use stochy_data_mod, only : init_stochdata,gg_lats,gg_lons,nsppt, &
                             rad2deg,INTTYP,wlon,rnlat,gis_stochy, &
@@ -48,17 +44,17 @@ character(len=*),         intent(in)    :: input_nml_file_in(:)
 character(len=*),         intent(in)    :: fn_nml
 real(kind=kind_phys), intent(in)    :: xlon(:,:)
 real(kind=kind_phys), intent(in)    :: xlat(:,:)
-logical,                  intent(in)    :: do_sppt_in, do_shum_in, do_skeb_in ,do_spp_in
+logical,                  intent(in), optional    :: do_sppt_in, do_shum_in, do_skeb_in ,do_spp_in
 integer,                  intent(in)    :: lndp_type_in, n_var_lndp_in
-integer,                  intent(in)    :: n_var_spp_in
+integer,                  intent(in), optional :: n_var_spp_in
 real(kind=kind_phys), intent(in)    :: ak(:), bk(:) 
 logical,                  intent(out)   :: use_zmtnblck_out
-integer,                  intent(out)   :: skeb_npass_out
+integer,                  intent(out) :: skeb_npass_out
 character(len=3),         dimension(:), intent(out) :: lndp_var_list_out
 real(kind=kind_phys), dimension(:), intent(out) :: lndp_prt_list_out
-character(len=3),         dimension(:), intent(out) :: spp_var_list_out
-real(kind=kind_phys), dimension(:), intent(out) :: spp_prt_list_out
-real(kind=kind_phys), dimension(:), intent(out) :: spp_stddev_cutoff_out
+character(len=3),         dimension(:), intent(out), optional :: spp_var_list_out
+real(kind=kind_phys), dimension(:), intent(out), optional :: spp_prt_list_out
+real(kind=kind_phys), dimension(:), intent(out), optional :: spp_stddev_cutoff_out
 
 
 ! Local variables
@@ -351,13 +347,13 @@ implicit none
 integer,                  intent(in) :: levs, kdt
 real(kind=kind_phys), intent(in) :: fhour
 integer,                  intent(in) :: blksz(:)
-real(kind=kind_phys), intent(inout) :: sppt_wts(:,:,:)
-real(kind=kind_phys), intent(inout) :: shum_wts(:,:,:)
-real(kind=kind_phys), intent(inout) :: skebu_wts(:,:,:)
-real(kind=kind_phys), intent(inout) :: skebv_wts(:,:,:)
-real(kind=kind_phys), intent(inout) :: sfc_wts(:,:,:)
-real(kind=kind_phys), intent(inout) :: spp_wts(:,:,:,:)
-integer,                  intent(in)    :: nthreads
+real(kind=kind_phys), intent(inout), optional :: sppt_wts(:,:,:)
+real(kind=kind_phys), intent(inout), optional :: shum_wts(:,:,:)
+real(kind=kind_phys), intent(inout), optional :: skebu_wts(:,:,:)
+real(kind=kind_phys), intent(inout), optional :: skebv_wts(:,:,:)
+real(kind=kind_phys), intent(inout), optional :: sfc_wts(:,:,:)
+real(kind=kind_phys), intent(inout), optional :: spp_wts(:,:,:,:)
+integer,                 intent(in), optional :: nthreads
 
 real(kind_dbl_prec),allocatable :: tmp_wts(:,:),tmpu_wts(:,:,:),tmpv_wts(:,:,:),tmpl_wts(:,:,:),tmp_spp_wts(:,:,:)
 !D-grid
