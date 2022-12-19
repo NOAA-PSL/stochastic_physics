@@ -19,9 +19,13 @@ contains
 !>@details It reads the stochastic physics namelist (nam_stoch and nam_sfcperts)
 !allocates and polulates the necessary arrays
 
-subroutine init_stochastic_physics(levs, blksz, dtp, sppt_amp, input_nml_file_in, fn_nml, nlunit, xlon,xlat, do_sppt_in, do_shum_in, do_skeb_in, lndp_type_in, n_var_lndp_in, use_zmtnblck_out, skeb_npass_out, lndp_var_list_out, lndp_prt_list_out, n_var_spp_in, spp_var_list_out, spp_prt_list_out, spp_stddev_cutoff_out, do_spp_in, ak, bk, nthreads, mpiroot, mpicomm, iret) 
-
-  !\callgraph
+subroutine init_stochastic_physics(levs, blksz, dtp, sppt_amp, input_nml_file_in, fn_nml, nlunit, &
+    xlon,xlat, &
+    do_sppt_in, do_shum_in, do_skeb_in, lndp_type_in, n_var_lndp_in, use_zmtnblck_out, skeb_npass_out,    &
+    lndp_var_list_out, lndp_prt_list_out,                         &
+    n_var_spp_in, spp_var_list_out, spp_prt_list_out, spp_stddev_cutoff_out, do_spp_in,     &
+    ak, bk, nthreads, mpiroot, mpicomm, iret) 
+!\callgraph
 !use stochy_internal_state_moa
 use stochy_data_mod, only : init_stochdata,gg_lats,gg_lons,nsppt, &
                             rad2deg,INTTYP,wlon,rnlat,gis_stochy, &
@@ -55,7 +59,6 @@ real(kind=kind_phys), dimension(:), intent(out) :: lndp_prt_list_out
 character(len=3),         dimension(:), intent(out), optional :: spp_var_list_out
 real(kind=kind_phys), dimension(:), intent(out), optional :: spp_prt_list_out
 real(kind=kind_phys), dimension(:), intent(out), optional :: spp_stddev_cutoff_out
-
 
 ! Local variables
 real(kind=kind_phys), parameter     :: con_pi =4.0d0*atan(1.0d0)
