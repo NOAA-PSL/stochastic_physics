@@ -18,7 +18,6 @@ jobs:
       - name: docker build stochastic_physics unit test
         run: | 
          echo "docker build image stochastic_physics unit test"
-	 ls
          docker build -t stochastic_physics_test -f ./unit_tests/Dockerfile .
 
 
