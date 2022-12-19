@@ -1,0 +1,23 @@
+##############################################################
+# Rename the file extension to "._yaml" (remove "_") to enable
+##############################################################
+
+name:  Build and Push Images (Docker) 
+
+on:
+  # run it on push to the default repository branch
+  push:
+    branches: [feature/dockerfile]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build Docker Image .......
+    steps:
+      - uses: actions/checkout@v2          
+      - name: docker build stochastic_physics unit test
+        run: | 
+         echo "docker build image stochastic_physics unit test"
+         docker build -t stochastic_physics_test -f ./unit_tests/Dockerfile .
+
+
