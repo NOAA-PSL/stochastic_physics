@@ -1,10 +1,17 @@
-name: Sphinx build
+name: Automated documentation build
 
 on: push
+
+#  push:
+#    branches: [ "main" ]
+#  pull_request:
+#    branches: [ "main" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
     - uses: actions/checkout@v3
     - name: Build HTML
@@ -16,7 +23,7 @@ jobs:
         path: docs/build/html/
     - name: Deploy
       uses: peaceiris/actions-gh-pages@v3
-      if: github.ref == 'refs/heads/feature/dockerfile'
+      if: github.ref == 'refs/heads/feature/ci'
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: docs/build/html
