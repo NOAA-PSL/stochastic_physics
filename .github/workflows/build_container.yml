@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write    
     name: Build Docker Stochastic_Physics Unit Test Image
     steps:
       - uses: actions/checkout@v2          
