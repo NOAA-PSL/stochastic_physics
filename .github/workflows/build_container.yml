@@ -3,7 +3,9 @@ name:  Build stochastic physics unit test image (Docker)
 on:
   # run it on push to the default repository branch
   push:
-    branches: [feature/ci]
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
 
 jobs:
   build:
