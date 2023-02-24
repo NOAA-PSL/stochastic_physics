@@ -1,4 +1,4 @@
-name:  Build stochastic physics unit test images (Docker) 
+name:  Build stochastic physics unit test image (Docker) 
 
 on:
   # run it on push to the default repository branch
@@ -10,10 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write    
-    name: Build Docker Stochastic_Physics Unit Test Image
+    name: Build docker stochastic physics unit test image
     steps:
       - uses: actions/checkout@v2          
       - name: docker build stochastic_physics unit test image
         run: | 
          echo "docker build stochastic_physics unit test image"
-         docker build -t stochastic_physics_test -f ./unit_tests/Dockerfile 
+         docker build -t stochastic_physics_test -f ./unit_tests/Dockerfile .
