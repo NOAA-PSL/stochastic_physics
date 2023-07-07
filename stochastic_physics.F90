@@ -162,8 +162,16 @@ if (do_sppt) then
       endif
    enddo
    if (sppt_sfclimit) then
-       vfact_sppt(2)=vfact_sppt(3)*0.5
+!       vfact_sppt(2)=vfact_sppt(3)*0.5
+!       vfact_sppt(1)=0.0
+       vfact_sppt(7)=vfact_sppt(8)*0.75
+       vfact_sppt(6)=vfact_sppt(8)*0.5
+       vfact_sppt(5)=vfact_sppt(8)*0.25
+       vfact_sppt(4)=vfact_sppt(8)*0.125
+       vfact_sppt(3)=0.0
+       vfact_sppt(2)=0.0
        vfact_sppt(1)=0.0
+
    endif
    if (is_rootpe()) then
       do k=1,levs
