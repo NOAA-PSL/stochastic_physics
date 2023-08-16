@@ -40,14 +40,13 @@ logical, public  :: cold_start_ca_sgs=.true.,cold_start_ca_global=.true.
 contains
 
 !Compute CA domain:--------------------------------------------------------------------------
-subroutine define_ca_domain(domain_in,domain_out,ncells,nxncells_local,nyncells_local)
+subroutine define_ca_domain(domain_in,domain_out,halo,ncells,nxncells_local,nyncells_local)
 implicit none
 
 type(domain2D),intent(inout) :: domain_in
 type(domain2D),intent(inout) :: domain_out
-integer,intent(in)           :: ncells
+integer,intent(in)           :: ncells,halo
 integer,intent(out) :: nxncells_local, nyncells_local
-integer :: halo1 = 1
 integer :: layout(2)
 integer :: ntiles
 integer, allocatable :: pe_start(:), pe_end(:)
@@ -73,7 +72,7 @@ integer :: isc,iec,jsc,jec
     pe_start(n) = mpp_root_pe() + (n-1)*layout(1)*layout(2)
     pe_end(n)   = mpp_root_pe() +     n*layout(1)*layout(2)-1
   enddo
-  call define_cubic_mosaic(domain_out, nxncells_local-1, nyncells_local-1, layout, pe_start, pe_end, halo1 )
+  call define_cubic_mosaic(domain_out, nxncells_local-1, nyncells_local-1, layout, pe_start, pe_end, halo )
   deallocate(pe_start)
   deallocate(pe_end)
 
@@ -184,12 +183,12 @@ endif
 
 end subroutine write_ca_restart
 
-subroutine read_ca_restart(domain_in,ncells,nca,ncells_g,nca_g)
+subroutine read_ca_restart(domain_in,halo,ncells,nca,ncells_g,nca_g)
 !Read restart files
 implicit none
 type(FmsNetcdfDomainFile_t) :: CA_restart
 type(domain2D), intent(inout) :: domain_in
-integer,intent(in) :: ncells,nca,nca_g,ncells_g
+integer,intent(in) :: ncells,nca,nca_g,ncells_g,halo
 character(len=32)  :: fn_ca = 'ca_data.nc'
 
 character(len=64) :: fname
@@ -208,7 +207,7 @@ call mpp_get_global_domain(domain_in,xsize=nx,ysize=ny,position=CENTER)
  if (nca .gt. 0 ) then
     allocate(io_layout(2))
     io_layout=mpp_get_io_domain_layout(domain_in)
-    call define_ca_domain(domain_in,domain_sgs,ncells,nxncells,nyncells)
+    call define_ca_domain(domain_in,domain_sgs,halo,ncells,nxncells,nyncells)
     call mpp_define_io_domain(domain_sgs, io_layout)
     call mpp_get_compute_domain (domain_sgs,iscnx,iecnx,jscnx,jecnx)
     amiopen=open_file(CA_restart, trim(fname), 'read', domain=domain_sgs, is_restart=.true., dont_add_res_to_filename=.true.)
@@ -242,13 +241,13 @@ call mpp_get_global_domain(domain_in,xsize=nx,ysize=ny,position=CENTER)
 endif
 
 if (nca_g .gt. 0 ) then
-   domain_global=domain_in
    amiopen=open_file(CA_restart, trim(fname), 'read', domain=domain_global, is_restart=.true., dont_add_res_to_filename=.true.)
    if( amiopen ) then
       call register_axis(CA_restart, 'xaxis_2', 'X')
       call register_axis(CA_restart, 'yaxis_2', 'Y')
       call register_axis(CA_restart, 'nca_g', nca_g)
-      !call define_ca_domain(domain_in,domain_global,ncells_g,nxncells_g,nyncells_g)
+      call define_ca_domain(domain_in,domain_global,halo,ncells_g,nxncells_g,nyncells_g)
+      call mpp_define_io_domain(domain_global, io_layout)
       call mpp_get_compute_domain (domain_global,iscnx_g,iecnx_g,jscnx_g,jecnx_g)
       nxc = iecnx_g-iscnx_g+1
       nyc = jecnx_g-jscnx_g+1
@@ -276,9 +275,9 @@ endif
 
 end subroutine read_ca_restart
 
-subroutine update_cells_sgs(kstep,initialize_ca,iseed_ca,first_flag,restart,first_time_step,nca,nxc,nyc,nxch,nych,nlon,&
-                            nlat,isc,iec,jsc,jec, npx,npy,  &
-                            CA,ca_plumes,iini,ilives_in,nlives,     &
+subroutine update_cells_sgs(kstep,halo,dt,initialize_ca,iseed_ca,first_flag,restart,first_time_step,nca,nxc,nyc,nxch,nych,nlon,&
+                            nlat,isc,iec,jsc,jec,ca_advect, npx,npy,  &
+                            CA,ca_plumes,iini,ilives_in,uhigh,vhigh,dxhigh,nlives,     &
                             nfracseed,nseed,nspinup,nf,nca_plumes,ncells,mytile)
 
 implicit none
@@ -286,25 +285,26 @@ implicit none
 integer, intent(in)  :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca,isc,iec,jsc,jec,npx,npy
 integer(8), intent(in) :: iseed_ca
 integer, intent(in)  :: iini(nxc,nyc,nca),initialize_ca,ilives_in(nxc,nyc,nca)
-integer, intent(in)  :: mytile
+integer, intent(in)  :: mytile,halo
 real(kind_phys), intent(out) :: CA(nlon,nlat)
 integer, intent(out) :: ca_plumes(nlon,nlat)
 integer, intent(in)  :: nlives,nseed, nspinup, nf,ncells
-real(kind_phys), intent(in)  :: nfracseed
-logical, intent(in)  :: nca_plumes,restart,first_flag,first_time_step
+real(kind_phys), intent(in)  :: nfracseed,dt,dxhigh(nxc,nyc)
+real(kind_phys), intent(inout) :: uhigh(nxc,nyc),vhigh(nxc,nyc)
+logical, intent(in)  :: nca_plumes,restart,ca_advect,first_flag,first_time_step
 integer, allocatable  :: V(:),L(:),B(:)
 integer, allocatable  :: AG(:,:)
-integer              :: inci, incj, i, j, k,sub,spinup,it,halo,k_in,isize,jsize
-integer              :: ih, jh,kend, boardmax,livemax
+integer              :: inci, incj, i, j, k,sub,spinup,it,k_in,isize,jsize
+integer              :: ih, jh,kend, boardmax,livemax, Xn,Yn
 real,    allocatable :: board_halo(:,:,:)
-integer, dimension(nxc,nyc) :: neighbours, birth, thresh
+integer, dimension(nxc,nyc) :: neighbours,birth,thresh,adlives,adgrid
 integer, dimension(nxc,nyc) :: newcell, temp,newseed
 integer, dimension(ncells,ncells) :: onegrid
 integer(8)           :: nx_full,ny_full
 integer(8)           :: iscale = 10000000000
 logical, save        :: start_from_restart
-
-real, dimension(nxc,nyc) :: noise_b
+real, dimension(nxch,nych) :: adlives_halo,adgrid_halo
+real, dimension(nxc,nyc) :: noise_b,umax,vmax,umin,vmin,dyhigh
 integer(8) :: count, count_rate, count_max, count_trunc
 integer    :: count4
 integer*8            :: i1,j1
@@ -318,7 +318,6 @@ start_from_restart = .False.
 endif
 
 !-------------------------------------------------------------------------------------------------
-halo=1
 isize=nlon+2*halo
 jsize=nlat+2*halo
 k_in=1
@@ -334,7 +333,6 @@ k_in=1
   if(.not. allocated(board_halo))then
      allocate(board_halo(nxch,nych,1))
   endif
- 
 
  !Step 2: Initialize CA, if restart data exist (board,lives > 0) initialize from restart file, otherwise initialize at time-
  !step initialize_ca.
@@ -489,9 +487,75 @@ endif
    enddo
   enddo
 
+enddo !spinup
 
- enddo !spinup
+!ADVECTION OF CA CELLS:
+!Let the CFL criteria limit the maximum wind speed, such that the
+!advection (distance) of a single CA cell does not move outside the 
+!Halo region
+if(ca_advect)then
 
+  do j=1,nyc
+   do i=1,nxc
+      dyhigh(i,j)=dxhigh(i,j)
+      umax(i,j)=((dxhigh(i,j))*halo)/dt
+      vmax(i,j)=((dyhigh(i,j))*halo)/dt
+   enddo
+  enddo
+
+  umin(:,:) = -1.0*umax(:,:)
+  vmin(:,:) = -1.0*vmax(:,:)
+
+  do j=1,nyc
+   do i=1,nxc
+      uhigh(i,j)=MIN(uhigh(i,j),umax(i,j))
+      vhigh(i,j)=MIN(vhigh(i,j),vmax(i,j))
+      uhigh(i,j)=MAX(uhigh(i,j),umin(i,j))
+      vhigh(i,j)=MAX(vhigh(i,j),vmin(i,j))
+   enddo
+  enddo
+
+!Move CA cells in direction of the wind
+ 
+  adlives_halo(:,:)=0.
+  adgrid_halo(:,:)=0. 
+  do j=1,nyc
+   do i=1,nxc
+      ih=i+halo
+      jh=j+halo
+      Xn=ih+nint((uhigh(i,j)/dxhigh(i,j))*dt)
+      Yn=jh+nint((vhigh(i,j)/dyhigh(i,j))*dt)
+      adgrid_halo(Xn,Yn)=adgrid_halo(Xn,Yn)+board(i,j,nf)
+      adlives_halo(Xn,Yn)=adlives_halo(Xn,Yn)+lives(i,j,nf)
+   enddo
+  enddo
+
+  call atmosphere_scalar_field_halo (adgrid_halo, halo, nxch, nych, 1, &
+                                     iscnx, iecnx, jscnx, jecnx, &
+                                     nxncells, nyncells, domain_sgs)
+
+  call atmosphere_scalar_field_halo (adlives_halo, halo, nxch, nych, 1, &
+                                     iscnx, iecnx, jscnx, jecnx, &
+                                     nxncells, nyncells, domain_sgs)
+
+
+ !--- copy the advected fields from the halo-augmented fields
+ adgrid(1:nxc,1:nyc) =  nint(adgrid_halo(1+halo:nxc+halo,1+halo:nyc+halo))
+ adlives(1:nxc,1:nyc) = nint(adlives_halo(1+halo:nxc+halo,1+halo:nyc+halo))
+
+
+  do j=1,nyc
+   do i=1,nxc
+      lives(i,j,nf)=0.
+      board(i,j,nf)=0.
+      lives(i,j,nf)=adlives(i,j)
+      if(adgrid(i,j)>=1)then
+         board(i,j,nf)=1
+      endif
+   enddo
+  enddo 
+
+endif !advection
 
 !COARSE-GRAIN BACK TO NWP GRID
  
@@ -570,7 +634,7 @@ end subroutine update_cells_sgs
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine update_cells_global(kstep,first_time_step,iseed_ca,restart,nca,nxc,nyc,nxch,nych,nlon,nlat,isc,iec,jsc,jec, &
+subroutine update_cells_global(kstep,halo,first_time_step,iseed_ca,restart,nca,nxc,nyc,nxch,nych,nlon,nlat,isc,iec,jsc,jec, &
                         npx,npy,CA,iini_g,ilives_g,                &
                         nlives,ncells,nfracseed,nseed,nspinup,nf,mytile)
 
@@ -584,9 +648,9 @@ logical, intent(in) :: first_time_step
 logical, intent(in) :: restart
 integer, intent(in) :: nlives, ncells, nseed, nspinup, nf
 real, intent(in) :: nfracseed
-integer, intent(in) :: mytile
+integer, intent(in) :: mytile, halo
 integer,allocatable :: V(:),L(:)
-integer :: inci, incj, i, j, k ,sub,spinup,it,halo,k_in,isize,jsize
+integer :: inci, incj, i, j, k ,sub,spinup,it,k_in,isize,jsize
 integer :: ih, jh,kend
 real, allocatable :: board_halo(:,:,:)
 integer, dimension(nxc,nyc) :: neighbours, birth, thresh
@@ -600,7 +664,6 @@ integer*8            :: i1,j1
 
 !-------------------------------------------------------------------------------------------------
 
-halo=1
 isize=nlon+2*halo
 jsize=nlat+2*halo
 k_in=1

@@ -75,8 +75,8 @@ contains
    if (halo == 1) then
      call mpp_update_domains(data, domain_for_coupler, flags=mpp_flags, complete=.true.)
    ! Not needed for cellular automata code
-   !elseif (halo == 3) then
-   !  call mpp_update_domains(data, Atm(mytile)%domain, flags=mpp_flags, complete=.true.)
+   elseif (halo == 3) then
+     call mpp_update_domains(data, domain_for_coupler, flags=mpp_flags, complete=.true.)
    else
      call mpp_error(FATAL, modname//' - unsupported halo size')
    endif
