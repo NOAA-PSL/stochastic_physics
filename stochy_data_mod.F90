@@ -57,7 +57,7 @@ module stochy_data_mod
    character(len=64), intent(in) :: fn_nml
    real(kind_phys), intent(in) :: delt
    integer, intent(out) :: iret
-   real :: ones(5)
+   real :: ones(6)
 
    real :: rnn1
    integer :: nn,k,nm,stochlun,ierr,n
