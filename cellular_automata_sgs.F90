@@ -76,7 +76,7 @@ logical              :: nca_plumes
 logical,save         :: first_flag
 integer*8            :: i1,j1
 integer              :: ct
-real                 :: dz,grav
+real                 :: dz,invgrav
 
 !nca         :: switch for number of cellular automata to be used.
 !            :: for the moment only 1 CA can be used 
@@ -98,7 +98,7 @@ k_in=1
 u200=56
 u850=13
 !Gravitational acceleration: 
-grav=9.81
+invgrav=1./9.81
 
 nca_plumes = .true.
 
@@ -201,7 +201,7 @@ endif
       lakei(i,j)         = lake(blk,ix)
       dxi(i,j)           = dx(blk,ix)
       do k = 1,levs
-         heighti(i,j,k) = height(blk,ix,k)/grav
+         heighti(i,j,k) = height(blk,ix,k)*invgrav
       enddo
       do k = 2,levs
          zi(i,j,k)=0.5*(heighti(i,j,k)+heighti(i,j,k-1))
