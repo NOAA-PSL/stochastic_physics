@@ -3,7 +3,7 @@ Copyright 2020 The Regents of the University of Colorado
 The stochastic_physics code incorporated in the Unified Forecast System (UFS) 
 was jointly developed by the National Oceanic and Atmospheric Administration and the 
 University of Colorado, Boulder. The gold standard copy of the Code 
-will be maintained by NOAA at https://github.com/noaa-psl/stochastic_physics.
+will be maintained by NOAA at https://github.com/noaa-psd/stochastic_physics.
  
 In cooperation with the Copyright Holder, the National Oceanic and 
 Atmospheric Administration is releasing this code under the 
