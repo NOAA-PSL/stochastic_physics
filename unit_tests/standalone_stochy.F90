@@ -179,11 +179,7 @@ root_pe=mpp_root_pe()
 allocate(input_nml_file(1))
 input_nml_file='input.nml'
 comm=MPI_COMM_WORLD
-call init_stochastic_physics(nlevs, blksz, dtp, sppt_amp,                         &
-     input_nml_file, fn_nml, nlunit, xlon, xlat, do_sppt, do_shum,                &
-     do_skeb, lndp_type, n_var_lndp, use_zmtnblck, skeb_npass, &
-     lndp_var_list, lndp_prt_list,    &
-     ak, bk, nthreads, root_pe, comm, ierr)
+call init_stochastic_physics(nlevs, blksz, dtp, sppt_amp, input_nml_file, fn_nml, nlunit, xlon, xlat, do_sppt, do_shum, do_skeb, lndp_type, n_var_lndp, use_zmtnblck, skeb_npass, lndp_var_list, lndp_prt_list, ak=ak, bk=bk, nthreads=nthreads, mpiroot=root_pe, mpicomm=comm, iret=ierr)
 if (ierr .ne. 0) print *, 'ERROR init_stochastic_physics call' ! Draper - need proper error trapping here
 call get_outfile(fname)
 write(strid,'(I2.2)') my_id+1
