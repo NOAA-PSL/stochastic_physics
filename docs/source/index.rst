@@ -14,5 +14,5 @@ Welcome to UFS stochastic physics's documentation!
 Source Code Documentation
 ==========================
 
-#Doxygen generated (out of date) `content <https://noaa-psd.github.io/stochastic_physics/doxygen/index.html>`_
+Doxygen generated `content <https://noaa-psd.github.io/stochastic_physics/doxygen/index.html>`_
 
