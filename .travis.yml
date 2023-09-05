@@ -17,10 +17,7 @@ branches:
   only:
     - ufs_public_release
     - release/public-v1
-    - release/public-v2
-    - release/public-v2
     - release/ufs-v1.1.0
-    - master
 
 # Environment variables
 env:
