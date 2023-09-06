@@ -17,7 +17,7 @@ use update_ca,         only: update_cells_global,define_ca_domain
 use halo_exchange,     only: atmosphere_scalar_field_halo
 use random_numbers,    only: random_01_CB
 use mpp_domains_mod,   only: domain2D,mpp_get_global_domain,CENTER, mpp_get_data_domain, mpp_get_compute_domain,mpp_global_sum, &
-                             BITWISE_EFP_SUM, BITWISE_EXACT_SUM
+                             BITWISE_EFP_SUM, BITWISE_EXACT_SUM,mpp_define_io_domain,mpp_get_io_domain_layout
 use block_control_mod, only: block_control_type, define_blocks_packed
 use mpi_wrapper,       only: mp_reduce_sum,mp_reduce_max,mp_reduce_min, &
                              mpi_wrapper_initialize,mype,is_rootpe
@@ -52,6 +52,7 @@ integer :: nxncells, nyncells
 integer(8) :: count, count_rate, count_max, count_trunc,nx_full
 integer(8) :: iscale = 10000000000
 integer, allocatable :: iini_g(:,:,:),ilives_g(:,:)
+integer, allocatable :: io_layout(:)
 real(kind=kind_phys), allocatable :: field_out(:,:,:), field_smooth(:,:)
 real(kind=kind_phys), allocatable :: CA(:,:),CA1(:,:),CA2(:,:),CA3(:,:),CAprime(:,:)
 real*8              , allocatable :: noise(:,:,:)
@@ -75,7 +76,7 @@ if (first_time_step) then
    call mpi_wrapper_initialize(mpiroot,mpicomm)
 end if
 
-halo=1
+halo=3
 k_in=1
 
 !----------------------------------------------------------------------------
@@ -104,8 +105,12 @@ k_in=1
  !Get CA domain
 
  if(first_time_step)then 
-!    if (.not. restart) call define_ca_domain(domain_in,domain_global,ncells,nxncells_g,nyncells_g)
-     domain_global=domain_in
+    if (.not. restart) then
+       allocate(io_layout(2))
+       io_layout=mpp_get_io_domain_layout(domain_in)
+       call define_ca_domain(domain_in,domain_global,halo,ncells,nxncells_g,nyncells_g)
+       call mpp_define_io_domain(domain_global, io_layout)
+     endif
     call mpp_get_data_domain    (domain_global,isdnx_g,iednx_g,jsdnx_g,jednx_g)
     call mpp_get_compute_domain (domain_global,iscnx_g,iecnx_g,jscnx_g,jecnx_g)
  endif
@@ -205,7 +210,7 @@ k_in=1
 
     CA(:,:)=0.
 
-    call update_cells_global(kstep,first_time_step,iseed_ca,restart,nca,nxc,nyc,nxch,nych,nlon,nlat,isc,iec,jsc,jec, &
+    call update_cells_global(kstep,halo,first_time_step,iseed_ca,restart,nca,nxc,nyc,nxch,nych,nlon,nlat,isc,iec,jsc,jec, &
                             npx,npy,CA,iini_g,ilives_g,         &
                             nlives,ncells,nfracseed,nseed,nspinup,nf,mytile)
 

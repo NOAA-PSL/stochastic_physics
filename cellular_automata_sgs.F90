@@ -6,10 +6,10 @@ implicit none
 
 contains
 
-subroutine cellular_automata_sgs(kstep,dtf,restart,first_time_step,sst,lsmsk,lake,condition_cpl, &
+subroutine cellular_automata_sgs(kstep,dtf,restart,first_time_step,sst,lsmsk,lake,uwind,vwind,height,dx,condition_cpl, &
             ca_deep_cpl,ca_turb_cpl,ca_shal_cpl,domain_in, &
             nblks,isc,iec,jsc,jec,npx,npy,nlev,nthresh, mytile, &
-            nca,ncells,nlives,nfracseed,nseed,iseed_ca, &
+            nca,ncells,nlives,nfracseed,nseed,iseed_ca,ca_advect, &
             nspinup,ca_trigger,blocksize,mpiroot,mpicomm)
 
 use mpi_f08
@@ -38,6 +38,9 @@ implicit none
 ! swtich to new random number generator and improve computational efficiency
 ! and remove unsued code
 
+!L.Bengtsson, 2023-05
+!Add horizontal advection of CA cells
+
 !This routine produces an output field CA_DEEP for coupling to convection (saSAS).
 !CA_DEEP can be either number of plumes in a cluster (nca_plumes=true) or updraft 
 !area fraction (nca_plumes=false)
@@ -46,9 +49,9 @@ integer,intent(in) :: kstep,ncells,nca,nlives,nseed,nspinup,mpiroot,mytile
 type(MPI_Comm),intent(in) :: mpicomm
 integer(kind=kind_dbl_prec),           intent(in)    :: iseed_ca
 real(kind=kind_phys), intent(in)    :: nfracseed,dtf,nthresh
-logical,intent(in) :: restart,ca_trigger,first_time_step
+logical,intent(in) :: restart,ca_trigger,first_time_step,ca_advect
 integer, intent(in) :: nblks,isc,iec,jsc,jec,npx,npy,nlev,blocksize
-real(kind=kind_phys), intent(in)    :: sst(:,:),lsmsk(:,:),lake(:,:)
+real(kind=kind_phys), intent(in)    :: sst(:,:),lsmsk(:,:),lake(:,:),uwind(:,:,:),dx(:,:),vwind(:,:,:),height(:,:,:)
 real(kind=kind_phys), intent(inout) :: condition_cpl(:,:)
 real(kind=kind_phys), intent(inout) :: ca_deep_cpl(:,:)
 real(kind=kind_phys), intent(inout) :: ca_turb_cpl(:,:)
@@ -60,21 +63,22 @@ integer :: nlon, nlat, isize,jsize,nf,nn
 integer :: inci, incj, nxc, nyc, nxch, nych, nx, ny
 integer :: halo, k_in, i, j, k
 integer :: seed, ierr7,blk, ix, iix, count4,ih,jh
-integer :: blocksz,levs
+integer :: blocksz,levs,u200,u850
 integer, save :: initialize_ca
 integer(8) :: count, count_rate, count_max, count_trunc,nx_full
 integer(8) :: iscale = 10000000000
 integer, allocatable :: iini(:,:,:),ilives_in(:,:,:),ca_plumes(:,:),io_layout(:)
-real(kind=kind_phys), allocatable :: ssti(:,:),lsmski(:,:),lakei(:,:)
-real(kind=kind_phys), allocatable :: CA(:,:),condition(:,:),conditiongrid(:,:)
-real(kind=kind_phys), allocatable :: CA_DEEP(:,:)
+real(kind=kind_phys), allocatable :: ssti(:,:),lsmski(:,:),lakei(:,:),uwindi(:,:),vwindi(:,:),dxi(:,:),heighti(:,:,:)
+real(kind=kind_phys), allocatable :: CA(:,:),condition(:,:),uhigh(:,:),vhigh(:,:),dxhigh(:,:),conditiongrid(:,:)
+real(kind=kind_phys), allocatable :: CA_DEEP(:,:),zi(:,:,:),sumx(:,:)
 real*8              , allocatable :: noise(:,:,:)
-real(kind=kind_phys) :: condmax,condmaxinv,livesmax,livesmaxinv,factor,dx,pi,re
+real(kind=kind_phys) :: condmax,condmaxinv,livesmax,livesmaxinv,factor,pi,re
 logical,save         :: block_message=.true.
 logical              :: nca_plumes
 logical,save         :: first_flag
 integer*8            :: i1,j1
 integer              :: ct
+real                 :: dz,invgrav
 
 !nca         :: switch for number of cellular automata to be used.
 !            :: for the moment only 1 CA can be used 
@@ -90,8 +94,13 @@ if (first_time_step) then
    call mpi_wrapper_initialize(mpiroot,mpicomm)
 end if
 
-halo=1
+halo=3
 k_in=1
+!Right now these values are experimental:                                                                                                                                                                                     
+u200=56
+u850=13
+!Gravitational acceleration: 
+invgrav=1./9.81
 
 nca_plumes = .true.
 
@@ -134,15 +143,12 @@ endif
   if (.not.restart) then
       allocate(io_layout(2))
       io_layout=mpp_get_io_domain_layout(domain_in)
-      call define_ca_domain(domain_in,domain_sgs,ncells,nxncells,nyncells)
+      call define_ca_domain(domain_in,domain_sgs,halo,ncells,nxncells,nyncells)
       call mpp_define_io_domain(domain_sgs, io_layout)
   endif
   call mpp_get_data_domain    (domain_sgs,isdnx,iednx,jsdnx,jednx)
   call mpp_get_compute_domain (domain_sgs,iscnx,iecnx,jscnx,jecnx)
-  !write(1000+mpp_pe(),*) "nxncells,nyncells: ",nxncells,nyncells
-  !write(1000+mpp_pe(),*) "iscnx,iecnx,jscnx,jecnx: ",iscnx,iecnx,jscnx,jecnx
-  !write(1000+mpp_pe(),*) "isdnx,iednx,jsdnx,jednx: ",isdnx,iednx,jsdnx,jednx
-endif
+ endif
 
   nxc = iecnx-iscnx+1
   nyc = jecnx-jscnx+1
@@ -154,9 +160,18 @@ endif
  allocate(ssti(nlon,nlat))
  allocate(lsmski(nlon,nlat))
  allocate(lakei(nlon,nlat))
+ allocate(uwindi(nlon,nlat))
+ allocate(vwindi(nlon,nlat))
+ allocate(heighti(nlon,nlat,nlev))
+ allocate(zi(nlon,nlat,nlev))
+ allocate(sumx(nlon,nlat))
+ allocate(dxi(nlon,nlat))
  allocate(iini(nxc,nyc,nca))
  allocate(ilives_in(nxc,nyc,nca))
  allocate(condition(nxc,nyc))
+ allocate(uhigh(nxc,nyc))
+ allocate(dxhigh(nxc,nyc))
+ allocate(vhigh(nxc,nyc))
  allocate(conditiongrid(nlon,nlat))
  allocate(CA(nlon,nlat))
  allocate(ca_plumes(nlon,nlat))
@@ -165,6 +180,9 @@ endif
  !Initialize:
  ilives_in(:,:,:) = 0
  iini(:,:,:) = 0
+ sumx(:,:) = 0.
+ uwindi(:,:) = 0.
+ vwindi(:,:) =0.
 
  !Put the blocks of model fields into a 2d array - can't use nlev and blocksize directly,
  !because the arguments to define_blocks_packed are intent(inout) and not intent(in).
@@ -174,6 +192,7 @@ endif
  call define_blocks_packed('cellular_automata', Atm_block, isc, iec, jsc, jec, levs, &
                               blocksz, block_message)
 
+
  do blk = 1,Atm_block%nblks
   do ix = 1, Atm_block%blksz(blk)
       i = Atm_block%index(blk)%ii(ix) - isc + 1
@@ -182,13 +201,39 @@ endif
       ssti(i,j)          = sst(blk,ix)
       lsmski(i,j)        = lsmsk(blk,ix)
       lakei(i,j)         = lake(blk,ix)
+      dxi(i,j)           = dx(blk,ix)
+      do k = 1,levs
+         heighti(i,j,k) = height(blk,ix,k)*invgrav
+      enddo
+      do k = 2,levs
+         zi(i,j,k)=0.5*(heighti(i,j,k)+heighti(i,j,k-1))
+      enddo
+      do k = u850,u200
+         dz=zi(i,j,k)-zi(i,j,k-1)
+         uwindi(i,j)   = uwindi(i,j) + uwind(blk,ix,k)*dz
+         vwindi(i,j)   = vwindi(i,j) + vwind(blk,ix,k)*dz
+         sumx(i,j) = sumx(i,j) + dz
+      enddo
   enddo
  enddo
+
+ do blk = 1,Atm_block%nblks
+  do ix = 1, Atm_block%blksz(blk)
+      i = Atm_block%index(blk)%ii(ix) - isc + 1
+      j = Atm_block%index(blk)%jj(ix) - jsc + 1
+      uwindi(i,j)=uwindi(i,j)/sumx(i,j)
+      vwindi(i,j)=vwindi(i,j)/sumx(i,j)
+   enddo
+ enddo
+         
 
 !Initialize the CA when the condition field is populated
   do j=1,nyc
    do i=1,nxc
      condition(i,j)=conditiongrid(inci/ncells,incj/ncells)
+     uhigh(i,j)=uwindi(inci/ncells,incj/ncells)
+     vhigh(i,j)=vwindi(inci/ncells,incj/ncells)
+     dxhigh(i,j)=dxi(inci/ncells,incj/ncells)/ncells !dx on the finer grid
      if(i.eq.inci)then
      inci=inci+ncells
      endif
@@ -279,9 +324,9 @@ endif !  cold_start_ca_sgs
 
 !Calculate neighbours and update the automata
  do nf=1,nca
-  call update_cells_sgs(kstep,initialize_ca,iseed_ca,first_flag,restart,first_time_step,nca,nxc,nyc, &
-                        nxch,nych,nlon,nlat,isc,iec,jsc,jec, &
-                        npx,npy,CA,ca_plumes,iini,ilives_in,        &
+  call update_cells_sgs(kstep,halo,dtf,initialize_ca,iseed_ca,first_flag,restart,first_time_step,nca,nxc,nyc, &
+                        nxch,nych,nlon,nlat,isc,iec,jsc,jec,ca_advect, &
+                        npx,npy,CA,ca_plumes,iini,ilives_in,uhigh,vhigh,dxhigh, &
                         nlives,nfracseed,nseed,nspinup,nf,nca_plumes,ncells,mytile)
 
     if(nca_plumes)then
@@ -330,6 +375,11 @@ enddo
  deallocate(lakei)
  deallocate(iini)
  deallocate(ilives_in)
+ deallocate(uwindi)
+ deallocate(vwindi)
+ deallocate(uhigh)
+ deallocate(vhigh)
+ deallocate(dxhigh)
  deallocate(condition)
  deallocate(CA)
  deallocate(ca_plumes)
