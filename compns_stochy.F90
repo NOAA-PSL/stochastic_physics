@@ -62,7 +62,7 @@ module compns_stochy_mod
       skeb_sigtop1,skeb_sigtop2,skebnorm,sppt_sigtop1,sppt_sigtop2,&
       shum_sigefold,spptint,shumint,skebint,skeb_npass,use_zmtnblck,new_lscale, &
       epbl,epbl_lscale,epbl_tau,iseed_epbl,                                    &
-      ocnsppt,ocnsppt_lscale,ocnsppt_tau,iseed_ocnsppt
+      ocnsppt,ocnsppt_lscale,ocnsppt_tau,iseed_ocnsppt,pbl_taper
       namelist /nam_sfcperts/lndp_type,lndp_model_type, lndp_var_list, lndp_prt_list, & 
                             iseed_lndp, lndp_tau,lndp_lscale 
 !     For SPP physics parameterization perterbations
@@ -144,6 +144,7 @@ module compns_stochy_mod
       spp_sigtop2 = 0.025
 ! reduce amplitude of sppt near surface (lowest 2 levels)
       sppt_sfclimit = .false.
+      pbl_taper = (/0.0,0.5,1.0,1.0,1.0,1.0,1.0/)
 ! gaussian or power law variance spectrum for skeb (0: gaussian, 1:
 ! power law). If power law, skeb_lscale interpreted as a power not a
 ! length scale.
@@ -444,7 +445,7 @@ module compns_stochy_mod
       skeb_sigtop1,skeb_sigtop2,skebnorm,sppt_sigtop1,sppt_sigtop2,&
       shum_sigefold,spptint,shumint,skebint,skeb_npass,use_zmtnblck,new_lscale, &
       epbl,epbl_lscale,epbl_tau,iseed_epbl,                                    &
-      ocnsppt,ocnsppt_lscale,ocnsppt_tau,iseed_ocnsppt
+      ocnsppt,ocnsppt_lscale,ocnsppt_tau,iseed_ocnsppt,pbl_taper
 
       namelist /nam_sfcperts/lndp_type,lndp_model_type,lndp_var_list, lndp_prt_list, iseed_lndp, & 
       lndp_tau,lndp_lscale 
