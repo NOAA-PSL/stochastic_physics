@@ -58,7 +58,7 @@ logical,                  intent(out)   :: use_zmtnblck_out
 integer,                  intent(out)   :: skeb_npass_out
 character(len=3),         dimension(:), intent(out) :: lndp_var_list_out
 real(kind=kind_phys), dimension(:), intent(out) :: lndp_prt_list_out
-character(len=3),         dimension(:), intent(out) :: spp_var_list_out
+character(len=10),         dimension(:), intent(out) :: spp_var_list_out
 real(kind=kind_phys), dimension(:), intent(out) :: spp_prt_list_out
 real(kind=kind_phys), dimension(:), intent(out) :: spp_stddev_cutoff_out
 
