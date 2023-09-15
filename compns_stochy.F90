@@ -82,7 +82,7 @@ module compns_stochy_mod
       skeb             = -999.  ! stochastic KE backscatter amplitude
       lndp_var_list  = 'XXX'
       lndp_prt_list  = -999.
-      spp_var_list  = 'XXX'
+      spp_var_list  = 'XXXXXXXXXX'
       spp_prt_list  = -999.
 ! logicals
       do_sppt = .false.
@@ -346,7 +346,7 @@ module compns_stochy_mod
      ! count requested pert variables
      n_var_spp= 0
      do k =1,size(spp_var_list)
-         if  ( (spp_var_list(k) .EQ. 'XXX') .or. (spp_prt_list(k) .LE. 0.) ) then
+         if  ( (spp_var_list(k) .EQ. 'XXXXXXXXXX') .or. (spp_prt_list(k) .LE. 0.) ) then
             cycle
          else
              n_var_spp=n_var_spp+1
@@ -367,7 +367,7 @@ module compns_stochy_mod
          'SPP physics perturbations will be applied to selected parameters', n_var_spp
         do k =1,n_var_spp
             select case (spp_var_list(k))
-            case('pbl','sfc', 'mp','rad','gwd')
+            case('pbl','sfc', 'mp','rad','gwd','cu_deep')
                 if (me==0) print*, 'SPP physics perturbation will be applied to ', spp_var_list(k)
             case default
                print*, 'ERROR: SPP physics perturbation requested for new parameter - will need to be coded in spp_apply_pert', spp_var_list(k)

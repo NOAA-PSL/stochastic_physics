@@ -47,7 +47,7 @@
      &                                        , spp_sigtop1, spp_sigtop2
       integer n_var_spp
       integer(8),dimension(max_n_var_spp) ::iseed_spp
-      character(len=3), dimension(max_n_var_spp)         ::  spp_var_list
+      character(len=10), dimension(max_n_var_spp)         ::  spp_var_list
       real(kind=kind_phys), dimension(max_n_var_spp) ::  spp_prt_list
 
       end module stochy_namelist_def
