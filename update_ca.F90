@@ -8,15 +8,15 @@ use halo_exchange,    only: atmosphere_scalar_field_halo
 use random_numbers,   only: random_01_CB
 use mpi_wrapper,      only: mype,mp_reduce_min,mp_reduce_max
 use mpp_domains_mod,  only: domain2D,mpp_get_global_domain,CENTER, mpp_get_data_domain, mpp_get_compute_domain,mpp_get_ntile_count,&
-                            mpp_define_mosaic,mpp_get_layout,mpp_define_io_domain,mpp_get_io_domain_layout
+                            mpp_define_mosaic,mpp_get_layout,mpp_define_io_domain,mpp_get_io_domain_layout,mpp_get_domain_extents
 use mpp_mod,          only: mpp_error,  mpp_pe, mpp_root_pe, &
                             NOTE,   FATAL
 use fms2_io_mod,        only: FmsNetcdfDomainFile_t, unlimited,      &
-                                open_file, close_file,                 &
-                                register_axis, register_restart_field, &
-                                register_variable_attribute, register_field, &
-                                read_restart, write_restart, write_data,     &
-                                get_global_io_domain_indices, variable_exists
+                              open_file, close_file,                 &
+                              register_axis, register_restart_field, &
+                              register_variable_attribute, register_field, &
+                              read_restart, write_restart, write_data,     &
+                              get_global_io_domain_indices, variable_exists
 
 
 implicit none
@@ -48,6 +48,7 @@ type(domain2D),intent(inout) :: domain_out
 integer,intent(in)           :: ncells,halo
 integer,intent(out) :: nxncells_local, nyncells_local
 integer :: layout(2)
+integer, allocatable :: xextent(:,:), yextent(:,:)
 integer :: ntiles
 integer, allocatable :: pe_start(:), pe_end(:)
 
@@ -59,7 +60,12 @@ integer :: isc,iec,jsc,jec
   call mpp_get_global_domain(domain_in,xsize=nx,ysize=ny,position=CENTER)
   call mpp_get_layout(domain_in,layout)
   ntiles = mpp_get_ntile_count(domain_in)
-  !write(1000+mpp_pe(),*) "nx,ny: ",nx,ny
+  allocate(xextent(layout(1),ntiles))
+  allocate(yextent(layout(2),ntiles))
+  call mpp_get_domain_extents(domain_in,xextent,yextent)
+  xextent=xextent*ncells
+  yextent=yextent*ncells
+ !write(1000+mpp_pe(),*) "nx,ny: ",nx,ny
   !write(1000+mpp_pe(),*) "layout: ",layout
 
 !--- define mosaic for domain_out refined by 'ncells' from domain_in
@@ -72,9 +78,12 @@ integer :: isc,iec,jsc,jec
     pe_start(n) = mpp_root_pe() + (n-1)*layout(1)*layout(2)
     pe_end(n)   = mpp_root_pe() +     n*layout(1)*layout(2)-1
   enddo
-  call define_cubic_mosaic(domain_out, nxncells_local-1, nyncells_local-1, layout, pe_start, pe_end, halo )
+  call define_cubic_mosaic(domain_out, nxncells_local-1, nyncells_local-1, &
+                           layout, pe_start, pe_end, halo, ntiles, xextent, yextent )
   deallocate(pe_start)
   deallocate(pe_end)
+  deallocate(xextent)
+  deallocate(yextent)
 
 end subroutine define_ca_domain
 !---------------------------------------------------------------------------------------------
@@ -409,7 +418,7 @@ endif
  neighbours=0
  birth=0
  newcell=0
-
+ board_halo=0
  
  !--- copy board into the halo-augmented board_halo                                                         
  board_halo(1+halo:nxc+halo,1+halo:nyc+halo,1) = real(board(1:nxc,1:nyc,1),kind=8)
@@ -828,26 +837,29 @@ end subroutine update_cells_global
   ! and modified to make it simpler to use.
   ! domain_decomp in fv_mp_mod.F90 does something similar, but it does a
   ! few other unnecessary things (and requires more arguments).
-  subroutine define_cubic_mosaic(domain, ni, nj, layout, pe_start, pe_end, halo)
+  subroutine define_cubic_mosaic(domain, ni, nj, layout, pe_start, pe_end, halo, ntiles, xextent, yextent)
     type(domain2d), intent(inout) :: domain
-    integer,        intent(in)    :: ni, nj
+    integer,        intent(in)    :: ni, nj, ntiles, xextent(:,:), yextent(:,:)
     integer,        intent(in)    :: layout(:)
     integer,        intent(in)    :: pe_start(:), pe_end(:)
     integer,        intent(in)    :: halo
     !--- local variables
-    integer                       :: global_indices(4,6), layout2D(2,6)
-    integer, dimension(12)        :: istart1, iend1, jstart1, jend1, tile1
-    integer, dimension(12)        :: istart2, iend2, jstart2, jend2, tile2
-    integer                       :: ntiles, num_contact
+    integer,allocatable           :: global_indices(:,:), layout2D(:,:)
+    integer,allocatable           :: istart1(:), iend1(:), jstart1(:), jend1(:), tile1(:)
+    integer,allocatable           :: istart2(:), iend2(:), jstart2(:), jend2(:), tile2(:)
+    integer                       :: num_contact
     integer                       :: i
 
-    ntiles = 6
-    num_contact = 12
-    if(size(pe_start(:)) .NE. 6 .OR. size(pe_end(:)) .NE. 6 ) call mpp_error(FATAL, &
-         "define_cubic_mosaic: size of pe_start and pe_end should be 6")
     if(size(layout) .NE. 2) call mpp_error(FATAL, &
          "define_cubic_mosaic: size of layout should be 2")
-    do i = 1, 6
+
+    if(ntiles==6)then
+       num_contact = 12
+       allocate(global_indices(4,ntiles))
+       allocate(layout2D(2,ntiles))
+       allocate(istart1(num_contact), iend1(num_contact), jstart1(num_contact), jend1(num_contact), tile1(num_contact) )
+       allocate(istart2(num_contact), iend2(num_contact), jstart2(num_contact), jend2(num_contact), tile2(num_contact) )
+    do i = 1, ntiles
        layout2D(:,i) = layout(:)
        global_indices(1,i) = 1
        global_indices(2,i) = ni
@@ -914,11 +926,40 @@ end subroutine update_cells_global
     istart1(12) = ni; iend1(12) = ni; jstart1(12) = 1;     jend1(12) = nj
     istart2(12) = 1;  iend2(12) = 1;  jstart2(12) = 1;     jend2(12) = nj
 
+    else if(ntiles==1) then !Single tile
+
+     num_contact = 0
+
+     allocate(global_indices(4,ntiles))
+     allocate(layout2D(2,ntiles))
+     allocate(istart1(num_contact+1), iend1(num_contact+1), jstart1(num_contact+1), jend1(num_contact+1), tile1(num_contact+1) )
+     allocate(istart2(num_contact+1), iend2(num_contact+1), jstart2(num_contact+1), jend2(num_contact+1), tile2(num_contact+1) )
+
+     do i = 1, ntiles
+        layout2D(:,i) = layout(:)
+        global_indices(1,i) = 1
+        global_indices(2,i) = ni
+        global_indices(3,i) = 1
+        global_indices(4,i) = nj
+     enddo
+
+    else
+
+       call mpp_error(FATAL, &
+            "ntiles should be either 6 or 1 to run cellular automata")
+
+    endif !global or regional domain
+ 
     call mpp_define_mosaic(global_indices, layout2D, domain, ntiles, &
          num_contact, tile1, tile2, istart1, iend1, jstart1, jend1, &
          istart2, iend2, jstart2, jend2, pe_start, pe_end, symmetry=.true., &
-         whalo=halo, ehalo=halo, shalo=halo, nhalo=halo, &
-         name='CA cubic mosaic')
+         whalo=halo, ehalo=halo, shalo=halo, nhalo=halo,name='CA cubic mosaic', &
+         xextent=xextent, yextent=yextent)
+
+    deallocate(global_indices)
+    deallocate(layout2D)
+    deallocate(istart1, iend1, jstart1, jend1, tile1)
+    deallocate(istart2, iend2, jstart2, jend2, tile2)
 
   end subroutine define_cubic_mosaic
 
