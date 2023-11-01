@@ -27,6 +27,7 @@
       real(kind=kind_phys), dimension(5) :: shum,shum_lscale,shum_tau
       real(kind=kind_phys), dimension(5) :: epbl,epbl_lscale,epbl_tau
       real(kind=kind_phys), dimension(5) :: ocnsppt,ocnsppt_lscale,ocnsppt_tau
+      real(kind=kind_phys), dimension(7) :: pbl_taper
       integer,dimension(5) ::skeb_vfilt
       integer(kind=8),dimension(5) ::iseed_sppt,iseed_shum,iseed_skeb,iseed_epbl,iseed_ocnsppt,iseed_epbl2
       logical stochini,sppt_logit,new_lscale

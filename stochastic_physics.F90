@@ -164,8 +164,9 @@ if (do_sppt) then
       endif
    enddo
    if (sppt_sfclimit) then
-       vfact_sppt(2)=vfact_sppt(3)*0.5
-       vfact_sppt(1)=0.0
+       do k=1,7
+       vfact_sppt(k)=pbl_taper(k)
+       enddo
    endif
    if (is_rootpe()) then
       do k=1,levs

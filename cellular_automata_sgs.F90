@@ -17,7 +17,7 @@ use kinddef,           only: kind_phys,kind_dbl_prec
 use update_ca,         only: update_cells_sgs, define_ca_domain
 use random_numbers,    only: random_01_CB
 use mpp_domains_mod,   only: domain2D,mpp_get_global_domain,CENTER, mpp_get_data_domain, mpp_get_compute_domain,&
-                             mpp_define_io_domain,mpp_get_io_domain_layout
+                             mpp_define_io_domain,mpp_get_io_domain_layout,mpp_get_ntile_count
 use block_control_mod, only: block_control_type, define_blocks_packed
 use time_manager_mod, only: time_type
 use mpi_wrapper,       only: mype,mp_reduce_max, &
@@ -77,7 +77,7 @@ logical,save         :: block_message=.true.
 logical              :: nca_plumes
 logical,save         :: first_flag
 integer*8            :: i1,j1
-integer              :: ct
+integer              :: ct,ntiles
 real                 :: dz,invgrav
 
 !nca         :: switch for number of cellular automata to be used.
@@ -126,7 +126,8 @@ endif
 
  !Set time and length scales:
  call mpp_get_global_domain(domain_in,xsize=nx,ysize=ny,position=CENTER)
- 
+ ntiles = mpp_get_ntile_count(domain_in)
+
  if(mype == 1)then
  write(*,*)'ncells=',ncells
  write(*,*)'nlives=',nlives
@@ -350,6 +351,7 @@ endif !  cold_start_ca_sgs
 
 !Limit CA activity to the Tropical Ocean
 
+if(ntiles==6)then 
 do j=1,nlat
    do i=1,nlon
       if(ssti(i,j) < 300. .or. lsmski(i,j) /= 0. .or. lakei(i,j) > 0.0)then
@@ -357,6 +359,7 @@ do j=1,nlat
       endif
    enddo
 enddo
+endif
 
 !Put back into blocks 1D array to be passed to physics
 !or diagnostics output
