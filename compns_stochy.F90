@@ -156,7 +156,7 @@ module compns_stochy_mod
       spp_tau     = -999.       ! time scales
       spp_stddev_cutoff = 0     ! cutoff/limit for std-dev (zero==no limit applied)
       iseed_spp   = 0           ! random seeds (if 0 use system clock)
-      sppint      = 0           ! SPP time step interval
+      sppint      = 0           ! SPP interval in seconds
 
 #ifdef INTERNAL_FILE_NML
       read(input_nml_file, nml=nam_stochy)
