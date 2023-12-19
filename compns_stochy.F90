@@ -67,7 +67,7 @@ module compns_stochy_mod
                             iseed_lndp, lndp_tau,lndp_lscale 
 !     For SPP physics parameterization perterbations
       namelist /nam_sppperts/spp_var_list, spp_prt_list, iseed_spp, &
-      spp_tau,spp_lscale,spp_sigtop1, spp_sigtop2,spp_stddev_cutoff
+      sppint,spp_tau,spp_lscale,spp_sigtop1,spp_sigtop2,spp_stddev_cutoff
 
       rerth  =6.3712e+6      ! radius of earth (m)
       tol=0.01  ! tolerance for calculations
@@ -156,6 +156,7 @@ module compns_stochy_mod
       spp_tau     = -999.       ! time scales
       spp_stddev_cutoff = 0     ! cutoff/limit for std-dev (zero==no limit applied)
       iseed_spp   = 0           ! random seeds (if 0 use system clock)
+      sppint      = 0           ! SPP interval in seconds
 
 #ifdef INTERNAL_FILE_NML
       read(input_nml_file, nml=nam_stochy)
@@ -212,6 +213,9 @@ module compns_stochy_mod
             skeb=skeb*1.111e-9*sqrt(deltim)
          endif
       ENDIF
+      IF (spp_prt_list(1) > 0 ) THEN
+         do_spp=.true.
+      ENDIF
 !    compute frequencty to estimate dissipation timescale
       IF (do_skeb) THEN
           IF (skebint == 0.) skebint=deltim
@@ -236,6 +240,15 @@ module compns_stochy_mod
           nsshum=nint(shumint/deltim)                              ! shumint in seconds
           IF(nsshum<=0 .or. abs(nsshum-shumint/deltim)>tol) THEN
              WRITE(0,*) "SHUM interval is invalid",shumint
+            iret=9
+            return
+          ENDIF
+      ENDIF
+      IF (do_spp) THEN
+          IF (sppint == 0.) sppint=deltim
+          nsspp=nint(sppint/deltim)                                ! sppint in seconds
+          IF(nsspp<=0 .or. abs(nsspp-sppint/deltim)>tol) THEN
+             WRITE(0,*) "SPP interval is invalid",sppint
             iret=9
             return
           ENDIF

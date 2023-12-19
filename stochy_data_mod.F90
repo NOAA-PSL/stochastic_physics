@@ -433,7 +433,7 @@ module stochy_data_mod
          endif
       endif
       ones = 1.
-      call patterngenerator_init(spp_lscale(1:nspp),real(delt,kind_phys),spp_tau(1:nspp),ones(1:nspp),iseed_spp,rpattern_spp, &
+      call patterngenerator_init(spp_lscale(1:nspp),sppint,spp_tau(1:nspp),ones(1:nspp),iseed_spp,rpattern_spp, &
                                  lonf,latg,jcap,gis_stochy%ls_node,nspp,n_var_spp,0,new_lscale)
       do n=1,nspp
          if (is_rootpe()) print *, 'Initialize random pattern for SPP PERTS'
