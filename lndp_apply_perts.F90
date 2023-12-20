@@ -232,6 +232,8 @@ module lndp_apply_perts_mod
 
                              ! perturb total soil moisture
                              ! factor of sldepth*1000 converts from mm to m3/m3
+                             ! NOTE: smc in the pertlist specified in input.nml
+                             ! is in the unit of mm/hour
                              pert = sfc_wts(nb,i,v)*smc_vertscale(k)*lndp_prt_list(v)/(zslayer(k)*1000.)
                              pert = pert*tfactor_state
 
@@ -248,7 +250,7 @@ module lndp_apply_perts_mod
                     if (do_pert_state) then
                         do k=1,lsoil
                              pert = sfc_wts(nb,i,v)*stc_vertscale(k)*lndp_prt_list(v)
-                             pert = tfactor_state
+                             pert = pert*tfactor_state
                              call apply_pert('stc',pert,print_flag, stc(nb,i,k),ierr)
                         enddo
                     endif 

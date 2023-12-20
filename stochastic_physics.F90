@@ -343,7 +343,7 @@ use stochy_data_mod, only : nshum,rpattern_shum,rpattern_sppt,nsppt,rpattern_ske
                             rpattern_spp, nspp, vfact_spp
 use get_stochy_pattern_mod,only : get_random_pattern_scalar,get_random_pattern_vector, & 
                                   get_random_pattern_sfc,get_random_pattern_spp
-use stochy_namelist_def, only : do_shum,do_sppt,do_skeb,nssppt,nsshum,nsskeb,nsspp,sppt_logit,    & 
+use stochy_namelist_def, only : do_shum,do_sppt,do_skeb,nssppt,nsshum,nsskeb,nsspp,nslndp,sppt_logit,    & 
                                 lndp_type, n_var_lndp, n_var_spp, do_spp, spp_stddev_cutoff, spp_prt_list
 use mpi_wrapper, only: is_rootpe
 implicit none
@@ -432,6 +432,7 @@ if (do_skeb) then
 endif
 if ( lndp_type .EQ. 2  ) then 
     ! add time check?
+  if (mod(kdt,nslndp) == 1 .or. nslndp == 1) then
     allocate(tmpl_wts(gis_stochy%nx,gis_stochy%ny,n_var_lndp))
     call get_random_pattern_sfc(rpattern_sfc,nlndp,gis_stochy,tmpl_wts)
     DO blk=1,nblks
@@ -442,6 +443,7 @@ if ( lndp_type .EQ. 2  ) then
        ENDDO
     ENDDO
     deallocate(tmpl_wts)
+  endif
 endif
 if (n_var_spp .GE. 1) then
     if (mod(kdt,nsspp) == 1 .or. nsspp == 1) then
