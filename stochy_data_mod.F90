@@ -378,7 +378,7 @@ module stochy_data_mod
          endif
       endif
       ones = 1.
-      call patterngenerator_init(lndp_lscale(1:nlndp),real(delt,kind_phys),lndp_tau(1:nlndp),ones(1:nlndp),iseed_lndp,rpattern_sfc, &
+      call patterngenerator_init(lndp_lscale(1:nlndp),lndpint,lndp_tau(1:nlndp),ones(1:nlndp),iseed_lndp,rpattern_sfc, &
                                  lonf,latg,jcap,gis_stochy%ls_node,nlndp,n_var_lndp,0,new_lscale)
       do n=1,nlndp
          if (is_rootpe()) print *, 'Initialize random pattern for LNDP PERTS'

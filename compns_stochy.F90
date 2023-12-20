@@ -64,7 +64,7 @@ module compns_stochy_mod
       epbl,epbl_lscale,epbl_tau,iseed_epbl,                                    &
       ocnsppt,ocnsppt_lscale,ocnsppt_tau,iseed_ocnsppt,pbl_taper
       namelist /nam_sfcperts/lndp_type,lndp_model_type, lndp_var_list, lndp_prt_list, & 
-                            iseed_lndp, lndp_tau,lndp_lscale 
+                            iseed_lndp,lndpint,lndp_tau,lndp_lscale 
 !     For SPP physics parameterization perterbations
       namelist /nam_sppperts/spp_var_list, spp_prt_list, iseed_spp, &
       sppint,spp_tau,spp_lscale,spp_sigtop1,spp_sigtop2,spp_stddev_cutoff
@@ -157,6 +157,7 @@ module compns_stochy_mod
       spp_stddev_cutoff = 0     ! cutoff/limit for std-dev (zero==no limit applied)
       iseed_spp   = 0           ! random seeds (if 0 use system clock)
       sppint      = 0           ! SPP interval in seconds
+      lndpint     = 0           ! lndp interval in seconds
 
 #ifdef INTERNAL_FILE_NML
       read(input_nml_file, nml=nam_stochy)
@@ -253,6 +254,17 @@ module compns_stochy_mod
             return
           ENDIF
       ENDIF
+
+      IF (lndp_type > 0) THEN
+          IF (lndpint == 0.) lndpint=deltim
+          nslndp=nint(lndpint/deltim)       
+          IF(nslndp<=0 .or. abs(nslndp-lndpint/deltim)>tol) THEN
+             WRITE(0,*) "lndp interval is invalid",lndpint
+            iret=9
+            return
+          ENDIF
+      ENDIF
+
 !calculate ntrunc if not supplied
      if (ntrunc .LT. 1) then  
         if (me==0) print*,'ntrunc not supplied, calculating'
