@@ -10,7 +10,9 @@ pipeline {
         cleanWs()
         checkout scm
         sh '''
-          echo "Running on ${NODE_NAME}"
+          echo "Running Unit Tests on ${NODE_NAME}"
+          cd unit_tests
+          ./run_unit_tests.sh
         '''
       }
      }
