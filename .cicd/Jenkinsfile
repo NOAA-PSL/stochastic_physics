@@ -2,7 +2,7 @@ pipeline {
   agent none
   environment {
         GITHUB_TOKEN = credentials('GithubJenkinsNew')
-        GIT_URL = $GIT_URL
+        GIT_URL = ${GIT_URL}
     }
   stages {
   stage('Run Unit Tests') {
