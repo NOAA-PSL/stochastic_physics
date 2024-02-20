@@ -13,6 +13,7 @@ pipeline {
         cleanWs()
         checkout scm
         sh '''
+          env
           cd unit_tests
           echo "Running Unit Tests on ${NODE_NAME}"
         '''
