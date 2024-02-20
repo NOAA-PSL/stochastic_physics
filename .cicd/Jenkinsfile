@@ -1,5 +1,8 @@
 pipeline {
   agent none
+  environment {
+        GITHUB_TOKEN = credentials('GithubJenkinsNew')
+    }
   stages {
   stage('Run Unit Tests') {
         agent {
