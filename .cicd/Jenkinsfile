@@ -1,8 +1,7 @@
 pipeline {
   agent none
   environment {
-//        GITHUB_TOKEN = credentials('GithubJenkinsNew')
-        GITHUB_TOKEN = credentials('kb-github-test-token')
+        GITHUB_TOKEN = credentials('GithubJenkinsNew')
         AWS_ACCOUNT_ID = 211527314271
     }
   stages {
