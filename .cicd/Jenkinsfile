@@ -15,7 +15,7 @@ pipeline {
       }
      }
     }
-
+ }
    post {         
          success {     
              node('built-in') {
@@ -34,5 +34,4 @@ pipeline {
              }            
          }                  
      }
-  }
 }
