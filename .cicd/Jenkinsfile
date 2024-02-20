@@ -26,8 +26,9 @@ pipeline {
              node('built-in') {
                 echo 'This will run only if successful.'
                 sh ''' 
-                   GIT_OWNER=$(echo $GIT_URL | cut -d '/' -f4)
-                   GIT_REPO_NAME=$(echo $GIT_URL | cut -d '/' -f5 | cut -d '.' -f1)
+                   echo $GIT_URL
+                   export GIT_OWNER=$(echo $GIT_URL | cut -d '/' -f4)
+                   export GIT_REPO_NAME=$(echo $GIT_URL | cut -d '/' -f5 | cut -d '.' -f1)
                    echo "Testing successfully completed...removing label(s)"
           curl --silent -X DELETE -H "Accept: application/vnd.github.v3+json" -H "Authorization: Bearer ${GITHUB_TOKEN}"  https://api.github.com/repos/${GIT_OWNER}/${GIT_REPO_NAME}/issues/${CHANGE_ID}/labels -d '{"labels":["run-unit-tests"]}'
                   aws sns publish --topic-arn "arn:aws:sns:us-east-1:211527314271:Jenkins-CICD-Notifications" --region us-east-1 --message '{"version":"1.0","source":"custom","content":{"description":":sunny: Jenkins build *'"$JOB_NAME"' '"$BUILD_NUMBER"'* with *PR-'"$CHANGE_ID"'*  *succeeded*"}}'
