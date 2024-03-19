@@ -11,6 +11,7 @@ subroutine cellular_automata_global(kstep,restart,first_time_step,ca1_cpl,ca2_cp
             nca,ncells,nlives,nfracseed,nseed,iseed_ca, mytile, &
             ca_smooth,nspinup,blocksize,nsmooth,ca_amplitude,mpiroot,mpicomm)
 
+use mpi_f08
 use kinddef,           only: kind_dbl_prec, kind_phys
 use update_ca,         only: update_cells_global,define_ca_domain
 use halo_exchange,     only: atmosphere_scalar_field_halo
@@ -30,7 +31,8 @@ implicit none
 
 !This program evolves a cellular automaton uniform over the globe 
 
-integer,              intent(in)    :: kstep,ncells,nca,nlives,nseed,nspinup,nsmooth,mpiroot,mpicomm
+integer,              intent(in)    :: kstep,ncells,nca,nlives,nseed,nspinup,nsmooth,mpiroot
+type(MPI_Comm),       intent(in)    :: mpicomm
 integer(kind=kind_dbl_prec),  intent(in)    :: iseed_ca
 integer,              intent(in)    :: mytile
 real(kind=kind_phys), intent(in)    :: nfracseed,ca_amplitude
