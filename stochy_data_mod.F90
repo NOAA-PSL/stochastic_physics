@@ -485,11 +485,9 @@ module stochy_data_mod
    
    integer :: nn,nm,stochlun,n,jcapin
    integer :: l,jbasev,jbasod
-   integer :: indev,indod,indlsod,indlsev,varid1,varid2,varid3,varid4,ierr
+   integer :: indev,indod,varid1,varid2,varid3,varid4,ierr
    
    real(kind_phys),allocatable :: noise_e(:,:),noise_o(:,:)
-   include 'function_indlsod'
-   include 'function_indlsev'
    include 'netcdf.inc'
    stochlun=99
    levs=nlevs

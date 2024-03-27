@@ -296,7 +296,7 @@ if (cold_start_ca_sgs) then
             else
                ! don't rely on compiler to truncate integer(8) to integer(4) on
                ! overflow, do wrap around explicitly.
-               count4 = mod((iseed_ca+mytile)*(i1+nx_full*(j1-1))+ 2147483648, 4294967296) - 2147483648
+               count4 = mod((iseed_ca+mytile)*(i1+nx_full*(j1-1))+ 2147483648_8, 4294967296_8) - 2147483648_8
             endif
             ct=1
             do nf=1,nca
