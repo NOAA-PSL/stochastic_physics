@@ -395,7 +395,7 @@ if(mod(kstep,nseed)==0. .and. (kstep >= initialize_ca .or. start_from_restart))t
             count_trunc = iscale*(count/iscale)
             count4 = count - count_trunc + mytile *( i1+nx_full*(j1-1)) ! no need to multply by 7 since time will be different in sgs
          else
-            count4 = mod((iseed_ca*nf+mytile)*(i1+nx_full*(j1-1))+ 2147483648, 4294967296) - 2147483648
+            count4 = mod((iseed_ca*nf+mytile)*(i1+nx_full*(j1-1))+ 2147483648_8, 4294967296_8) - 2147483648_8
          endif
          noise_b(i,j)=real(random_01_CB(kstep,count4),kind=8)
       enddo
@@ -706,7 +706,7 @@ if(mod(kstep,nseed) == 0)then
             count_trunc = iscale*(count/iscale)
             count4 = count - count_trunc + mytile *( i1+nx_full*(j1-1)) ! no need to multply by 7 since time will be different in sgs
          else
-            count4 = mod(iseed_ca*nf+(7*mytile)*(i1+nx_full*(j1-1))+ 2147483648, 4294967296) - 2147483648
+            count4 = mod(iseed_ca*nf+(7*mytile)*(i1+nx_full*(j1-1))+ 2147483648_8, 4294967296_8) - 2147483648_8
          endif
          noise_b(i,j)=real(random_01_CB(kstep,count4),kind=8)
       enddo
