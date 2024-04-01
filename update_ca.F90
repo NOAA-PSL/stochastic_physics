@@ -289,6 +289,8 @@ subroutine update_cells_sgs(kstep,halo,dt,initialize_ca,iseed_ca,first_flag,rest
                             CA,ca_plumes,iini,ilives_in,uhigh,vhigh,dxhigh,nlives,     &
                             nfracseed,nseed,nspinup,nf,nca_plumes,ncells,mytile)
 
+use plumes_mod
+
 implicit none
 
 integer, intent(in)  :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca,isc,iec,jsc,jec,npx,npy

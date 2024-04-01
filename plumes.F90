@@ -1,3 +1,6 @@
+module plumes_mod
+
+contains
 subroutine plumes(V,L,AG,a,row,col,kend)
 implicit none
 
@@ -165,3 +168,5 @@ enddo
 
 
 end subroutine plumes
+
+end module plumes_mod
