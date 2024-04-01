@@ -1476,7 +1476,6 @@ module spectral_transforms
           i2 = iindx2(i)
           if(wrk(i) .eq. 0.0) then
             write(6,*) ' la2ga: error'
-            call sleep(2)
             stop
           endif
         enddo
