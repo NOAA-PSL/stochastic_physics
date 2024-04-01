@@ -723,11 +723,13 @@ module spectral_transforms
       END
 
       SUBROUTINE RADBG_STOCHY (IDO,IP,L1,IDL1,CC,C1,C2,CH,CH2,WA)
-      implicit real(kind=kind_dbl_prec) (A-H)
-      implicit real(kind=kind_dbl_prec) (O-Z)
+      implicit none
+      INTEGER :: IDO,IP,L1,IDL1
       REAL(kind_dbl_prec) :: CH(IDO,L1,IP), CC(IDO,IP,L1), C1(IDO,L1,IP), C2(IDL1,IP), &
                 CH2(IDL1,IP) , WA(*)
       REAL(kind_dbl_prec), parameter :: TPI=6.28318530717959
+      REAL(kind_dbl_prec) :: ARG, DCP, DSP, AI1, AI2, AR1, AR1H, DC2, DS2, AR2, AR2H
+      INTEGER :: I,J,K,IK, IDP2, IPP2, IPPH, JC, J2, IC, L, IS, IDIJ, NBD, LC
       ARG = TPI/FLOAT(IP)
       DCP = COS(ARG)
       DSP = SIN(ARG)
