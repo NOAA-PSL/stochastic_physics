@@ -158,8 +158,8 @@ module stochy_patterngenerator_mod
            !count4 = iseed(np) + member_id
            ! don't rely on compiler to truncate integer(8) to integer(4) on
            ! overflow, do wrap around explicitly.
-           !count4 = mod(iseed(np) + member_id + 2147483648, 4294967296) - 2147483648
-           count4 = mod(iseed(np) + 2147483648, 4294967296) - 2147483648
+           !count4 = mod(iseed(np) + member_id + 2147483648_8, 4294967296_8) - 2147483648_8
+           count4 = mod(iseed(np) + 2147483648_8, 4294967296_8) - 2147483648_8
            print *,'using seed',count4,iseed(np)!,member_id
          endif
       endif
