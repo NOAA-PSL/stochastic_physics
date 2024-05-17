@@ -16,6 +16,9 @@ pipeline {
         sh '''
           cd unit_tests
           echo "Running Unit Tests on ${NODE_NAME}"
+          sbatch run_standalone.sh
+          cd stochy_out
+          ls
         '''
       }
      }
