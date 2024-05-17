@@ -12,6 +12,7 @@ subroutine cellular_automata_sgs(kstep,dtf,restart,first_time_step,sst,lsmsk,lak
             nca,ncells,nlives,nfracseed,nseed,iseed_ca,ca_advect, &
             nspinup,ca_trigger,blocksize,mpiroot,mpicomm)
 
+use mpi_f08
 use kinddef,           only: kind_phys,kind_dbl_prec
 use update_ca,         only: update_cells_sgs, define_ca_domain
 use random_numbers,    only: random_01_CB
@@ -44,7 +45,8 @@ implicit none
 !CA_DEEP can be either number of plumes in a cluster (nca_plumes=true) or updraft 
 !area fraction (nca_plumes=false)
 
-integer,intent(in) :: kstep,ncells,nca,nlives,nseed,nspinup,mpiroot,mpicomm,mytile
+integer,intent(in) :: kstep,ncells,nca,nlives,nseed,nspinup,mpiroot,mytile
+type(MPI_Comm),intent(in) :: mpicomm
 integer(kind=kind_dbl_prec),           intent(in)    :: iseed_ca
 real(kind=kind_phys), intent(in)    :: nfracseed,dtf,nthresh
 logical,intent(in) :: restart,ca_trigger,first_time_step,ca_advect
@@ -294,7 +296,7 @@ if (cold_start_ca_sgs) then
             else
                ! don't rely on compiler to truncate integer(8) to integer(4) on
                ! overflow, do wrap around explicitly.
-               count4 = mod((iseed_ca+mytile)*(i1+nx_full*(j1-1))+ 2147483648, 4294967296) - 2147483648
+               count4 = mod((iseed_ca+mytile)*(i1+nx_full*(j1-1))+ 2147483648_8, 4294967296_8) - 2147483648_8
             endif
             ct=1
             do nf=1,nca
