@@ -17,6 +17,11 @@ pipeline {
           cd unit_tests
           echo "Running Unit Tests on ${NODE_NAME}"
           sbatch run_standalone.sh
+          pwd
+          cd ..
+          pwd
+          cd unit_tests
+          ls -l
           tail -f  out
         '''
       }
