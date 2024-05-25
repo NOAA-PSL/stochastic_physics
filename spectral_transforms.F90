@@ -39,7 +39,7 @@ module spectral_transforms
 
       implicit none
 !
-      external esmf_dgemm
+      external dgemm
 !     
       integer, intent(in)     :: nvars
       real(kind=kind_dbl_prec) flnev(len_trie_ls,2*nvars)
@@ -112,14 +112,14 @@ module spectral_transforms
 !           compute the sum of the even real      terms for each level
 !           compute the sum of the even imaginary terms for each level
 !
-        call esmf_dgemm('t', 'n', n2, latg2-lat1+1, (jcap+3-l)/2, &
+        call dgemm('t', 'n', n2, latg2-lat1+1, (jcap+3-l)/2, &
                         cons1, flnev(indev,1), len_trie_ls, plnev(indev,lat1), &
                         len_trie_ls, cons0,  apev(1,lat1), n2 )
 !
 !           compute the sum of the odd real      terms for each level
 !           compute the sum of the odd imaginary terms for each level
 !
-        call esmf_dgemm('t', 'n', n2, latg2-lat1+1, (jcap+2-l)/2,  &
+        call dgemm('t', 'n', n2, latg2-lat1+1, (jcap+2-l)/2,  &
                         cons1, flnod(indod,1), len_trio_ls, plnod(indod,lat1), &
                         len_trio_ls, cons0, apod(1,lat1), n2 )
 !
@@ -1539,6 +1539,8 @@ module spectral_transforms
       allocate ( gis_stochy%epsodn(len_trio_ls) )
       allocate ( gis_stochy%kenorm_e(len_trie_ls) )
       allocate ( gis_stochy%kenorm_o(len_trio_ls) )
+      allocate ( gis_stochy%gamma_e(len_trie_ls) )
+      allocate ( gis_stochy%gamma_o(len_trio_ls) )
 !
       allocate ( gis_stochy%snnp1ev(len_trie_ls) )
       allocate ( gis_stochy%snnp1od(len_trio_ls) )
@@ -1972,7 +1974,12 @@ module spectral_transforms
                                              cons2 = 2.d0, cons4 = 4.d0, &
                                              cons180 = 180.d0, &
                                              cons0p25 = 0.25d0
+#ifdef NO_QUAD_PRECISION
+      real(kind=kind_qdt_prec), parameter :: eps = 1.d-12
+#else
       real(kind=kind_qdt_prec), parameter :: eps = 1.d-20
+#endif
+
 !
 ! for better accuracy to select smaller number
 !     eps = 1.d-12
