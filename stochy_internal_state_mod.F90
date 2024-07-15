@@ -51,6 +51,8 @@
       real,allocatable ::        epsodn(:)
       real,allocatable ::        kenorm_e(:)
       real,allocatable ::        kenorm_o(:)
+      real,allocatable ::        gamma_e(:)
+      real,allocatable ::        gamma_o(:)
 
       real,allocatable ::       snnp1ev(:)
       real,allocatable ::       snnp1od(:)
