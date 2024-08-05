@@ -48,15 +48,16 @@
 /
 
 &gfs_physics_nml
+       do_spp         = .true.
        do_sppt        = .true.
        do_shum        = .true.
        do_skeb        = .true.
        lndp_type      = 2
        n_var_lndp     = 2
+       n_var_spp      = 6
 /
 
 &nam_sppperts
-       DO_SPP: true
        SPP_VAR_LIST: "pbl", "sfc", "mp", "rad", "gwd", "cu_deep"
        SPP_MAG_LIST: 0.2, 0.2, 0.75, 0.2, 0.2
        SPP_LSCALE: 150000.0, 150000.0, 150000.0, 150000.0, 150000.0
