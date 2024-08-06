@@ -54,7 +54,7 @@
        do_skeb        = .true.
        lndp_type      = 2
        n_var_lndp     = 2
-       n_var_spp      = 6
+       n_var_spp      = 5
 /
 
 &nam_sppperts
