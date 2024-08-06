@@ -17,6 +17,8 @@ module stochy_data_mod
  use mersenne_twister, only : random_seed
  use compns_stochy_mod, only : compns_stochy
 
+ use kinddef, only: kind_phys, kind_dbl_prec
+
  implicit none
  private
  public :: init_stochdata,init_stochdata_ocn
@@ -56,9 +58,9 @@ module stochy_data_mod
    integer, intent(in) :: nlunit,nlevs
    character(len=*),  intent(in) :: input_nml_file(:)
    character(len=64), intent(in) :: fn_nml
-   real, intent(in) :: delt
+   real(kind_phys), intent(in) :: delt
    integer, intent(out) :: iret
-   real :: ones(5)
+   real :: ones(6)
 
    real :: rnn1,gamma_sum
    integer :: nn,k,nm,stochlun,ierr,n
@@ -75,7 +77,7 @@ module stochy_data_mod
    iret=0
 ! read in namelist
 
-   call compns_stochy (mype,size(input_nml_file,1),input_nml_file(:),fn_nml,nlunit,delt,iret)
+   call compns_stochy (mype,size(input_nml_file,1),input_nml_file(:),fn_nml,nlunit,real(delt,kind=kind_phys),iret)
   
    if (iret/=0) return  ! need to make sure that non-zero irets are being trapped.
    if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb)  .AND. (lndp_type==0) .AND. (.NOT. do_spp)) return

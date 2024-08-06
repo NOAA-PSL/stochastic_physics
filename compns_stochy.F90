@@ -62,13 +62,13 @@ module compns_stochy_mod
       skeb_sigtop1,skeb_sigtop2,skebnorm,sppt_sigtop1,sppt_sigtop2,                 &
       shum_sigefold,spptint,shumint,skebint,skeb_npass,use_zmtnblck,new_lscale,     &
       epbl,epbl_lscale,epbl_tau,iseed_epbl,                                         &
-      ocnsppt,ocnsppt_lscale,ocnsppt_tau,iseed_ocnsppt,                             &  
+      ocnsppt,ocnsppt_lscale,ocnsppt_tau,iseed_ocnsppt,pbl_taper,                   &  
       ocnskeb,ocnskeb_lscale,ocnskeb_tau,iseed_ocnskeb
       namelist /nam_sfcperts/lndp_type,lndp_model_type, lndp_var_list, lndp_prt_list, & 
-                            iseed_lndp, lndp_tau,lndp_lscale 
+                            iseed_lndp,lndpint,lndp_tau,lndp_lscale 
 !     For SPP physics parameterization perterbations
       namelist /nam_sppperts/spp_var_list, spp_prt_list, iseed_spp, &
-      spp_tau,spp_lscale,spp_sigtop1, spp_sigtop2,spp_stddev_cutoff
+      sppint,spp_tau,spp_lscale,spp_sigtop1,spp_sigtop2,spp_stddev_cutoff
 
       rerth  =6.3712e+6      ! radius of earth (m)
       tol=0.01  ! tolerance for calculations
@@ -83,7 +83,7 @@ module compns_stochy_mod
       skeb             = -999.  ! stochastic KE backscatter amplitude
       lndp_var_list  = 'XXX'
       lndp_prt_list  = -999.
-      spp_var_list  = 'XXX'
+      spp_var_list  = 'XXXXXXXXXX'
       spp_prt_list  = -999.
 ! logicals
       do_sppt = .false.
@@ -145,6 +145,7 @@ module compns_stochy_mod
       spp_sigtop2 = 0.025
 ! reduce amplitude of sppt near surface (lowest 2 levels)
       sppt_sfclimit = .false.
+      pbl_taper = (/0.0,0.5,1.0,1.0,1.0,1.0,1.0/)
 ! gaussian or power law variance spectrum for skeb (0: gaussian, 1:
 ! power law). If power law, skeb_lscale interpreted as a power not a
 ! length scale.
@@ -156,6 +157,8 @@ module compns_stochy_mod
       spp_tau     = -999.       ! time scales
       spp_stddev_cutoff = 0     ! cutoff/limit for std-dev (zero==no limit applied)
       iseed_spp   = 0           ! random seeds (if 0 use system clock)
+      sppint      = 0           ! SPP interval in seconds
+      lndpint     = 0           ! lndp interval in seconds
 
 #ifdef INTERNAL_FILE_NML
       read(input_nml_file, nml=nam_stochy)
@@ -213,6 +216,9 @@ module compns_stochy_mod
             skeb=skeb*1.111e-9*sqrt(deltim)
          endif
       ENDIF
+      IF (spp_prt_list(1) > 0 ) THEN
+         do_spp=.true.
+      ENDIF
 !    compute frequencty to estimate dissipation timescale
       IF (do_skeb) THEN
           IF (skebint == 0.) skebint=deltim
@@ -241,6 +247,26 @@ module compns_stochy_mod
             return
           ENDIF
       ENDIF
+      IF (do_spp) THEN
+          IF (sppint == 0.) sppint=deltim
+          nsspp=nint(sppint/deltim)                                ! sppint in seconds
+          IF(nsspp<=0 .or. abs(nsspp-sppint/deltim)>tol) THEN
+             WRITE(0,*) "SPP interval is invalid",sppint
+            iret=9
+            return
+          ENDIF
+      ENDIF
+
+      IF (lndp_type > 0) THEN
+          IF (lndpint == 0.) lndpint=deltim
+          nslndp=nint(lndpint/deltim)       
+          IF(nslndp<=0 .or. abs(nslndp-lndpint/deltim)>tol) THEN
+             WRITE(0,*) "lndp interval is invalid",lndpint
+            iret=9
+            return
+          ENDIF
+      ENDIF
+
 !calculate ntrunc if not supplied
      if (ntrunc .LT. 1) then  
         if (me==0) print*,'ntrunc not supplied, calculating'
@@ -253,8 +279,8 @@ module compns_stochy_mod
        enddo
        if (lndp_type.GT.0) l_min=min(lndp_lscale(1),l_min)
        if (spp_prt_list(1).GT.0) l_min=min(spp_lscale(1),l_min)
-       !ntrunc=1.5*circ/l_min
-       ntrunc=circ/l_min
+       ntrunc=1.5*circ/l_min
+       !ntrunc=circ/l_min
        if (me==0) print*,'ntrunc calculated from l_min',l_min,ntrunc
      endif
      ! ensure lat_s is a mutiple of 4 with a reminader of two
@@ -347,7 +373,7 @@ module compns_stochy_mod
      ! count requested pert variables
      n_var_spp= 0
      do k =1,size(spp_var_list)
-         if  ( (spp_var_list(k) .EQ. 'XXX') .or. (spp_prt_list(k) .LE. 0.) ) then
+         if  ( (spp_var_list(k) .EQ. 'XXXXXXXXXX') .or. (spp_prt_list(k) .LE. 0.) ) then
             cycle
          else
              n_var_spp=n_var_spp+1
@@ -368,7 +394,7 @@ module compns_stochy_mod
          'SPP physics perturbations will be applied to selected parameters', n_var_spp
         do k =1,n_var_spp
             select case (spp_var_list(k))
-            case('pbl','sfc', 'mp','rad','gwd')
+            case('pbl','sfc', 'mp','rad','gwd','cu_deep')
                 if (me==0) print*, 'SPP physics perturbation will be applied to ', spp_var_list(k)
             case default
                print*, 'ERROR: SPP physics perturbation requested for new parameter - will need to be coded in spp_apply_pert', spp_var_list(k)
@@ -446,7 +472,7 @@ module compns_stochy_mod
       skeb_sigtop1,skeb_sigtop2,skebnorm,sppt_sigtop1,sppt_sigtop2,                 &
       shum_sigefold,spptint,shumint,skebint,skeb_npass,use_zmtnblck,new_lscale,     &
       epbl,epbl_lscale,epbl_tau,iseed_epbl,                                         &
-      ocnsppt,ocnsppt_lscale,ocnsppt_tau,iseed_ocnsppt,                             &
+      ocnsppt,ocnsppt_lscale,ocnsppt_tau,iseed_ocnsppt,pbl_taper,                   &
       ocnskeb,ocnskeb_lscale,ocnskeb_tau,iseed_ocnskeb
 
       namelist /nam_sfcperts/lndp_type,lndp_model_type,lndp_var_list, lndp_prt_list, iseed_lndp, & 

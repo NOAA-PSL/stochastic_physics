@@ -2,7 +2,8 @@
 !! the stochastic physics random pattern generators
 module stochastic_physics
 
-use kinddef, only : kind_dbl_prec
+use mpi_f08
+use kinddef, only : kind_phys, kind_dbl_prec
 
 implicit none
 
@@ -40,7 +41,8 @@ integer, intent(out)                    :: iret
 
 ! Interface variables
 
-integer,                  intent(in)    :: levs, nlunit, nthreads, mpiroot, mpicomm
+integer,                  intent(in)    :: levs, nlunit, nthreads, mpiroot
+type(MPI_Comm),           intent(in)    :: mpicomm
 integer,                  intent(in)    :: blksz(:)
 real(kind=kind_dbl_prec), intent(in)    :: dtp
 real(kind=kind_dbl_prec), intent(out)   :: sppt_amp
@@ -54,11 +56,11 @@ integer,                  intent(in)    :: n_var_spp_in
 real(kind=kind_dbl_prec), intent(in)    :: ak(:), bk(:) 
 logical,                  intent(out)   :: use_zmtnblck_out
 integer,                  intent(out)   :: skeb_npass_out
-character(len=3),         dimension(:), intent(out) :: lndp_var_list_out
-real(kind=kind_dbl_prec), dimension(:), intent(out) :: lndp_prt_list_out
-character(len=3),         dimension(:), intent(out) :: spp_var_list_out
-real(kind=kind_dbl_prec), dimension(:), intent(out) :: spp_prt_list_out
-real(kind=kind_dbl_prec), dimension(:), intent(out) :: spp_stddev_cutoff_out
+character(len=3), optional,         dimension(:), intent(out) :: lndp_var_list_out
+real(kind=kind_phys), optional, dimension(:), intent(out) :: lndp_prt_list_out
+character(len=10), optional, dimension(:), intent(out) :: spp_var_list_out
+real(kind=kind_phys), optional, dimension(:), intent(out) :: spp_prt_list_out
+real(kind=kind_phys), optional, dimension(:), intent(out) :: spp_stddev_cutoff_out
 
 
 ! Local variables
@@ -162,8 +164,9 @@ if (do_sppt) then
       endif
    enddo
    if (sppt_sfclimit) then
-       vfact_sppt(2)=vfact_sppt(3)*0.5
-       vfact_sppt(1)=0.0
+       do k=1,7
+       vfact_sppt(k)=pbl_taper(k)
+       enddo
    endif
    if (is_rootpe()) then
       do k=1,levs
@@ -278,8 +281,10 @@ real(kind=kind_dbl_prec), parameter     :: con_pi =4.0d0*atan(1.0d0)
 
 real :: dx
 integer :: k,latghf,km
+type(MPI_Comm) :: mpicomm_t ! FIXME once MOM6 updates to use mpi_f90 types
 rad2deg=180.0/con_pi
-call mpi_wrapper_initialize(mpiroot,mpicomm)
+mpicomm_t%mpi_val = mpicomm
+call mpi_wrapper_initialize(mpiroot,mpicomm_t)
 gis_stochy_ocn%nodes = npes
 gis_stochy_ocn%mype = mype
 gis_stochy_ocn%nx=nx  
@@ -347,7 +352,7 @@ use stochy_data_mod, only : nshum,rpattern_shum,rpattern_sppt,nsppt,rpattern_ske
                             rpattern_spp, nspp, vfact_spp
 use get_stochy_pattern_mod,only : get_random_pattern_scalar,get_random_pattern_vector, & 
                                   get_random_pattern_sfc,get_random_pattern_spp
-use stochy_namelist_def, only : do_shum,do_sppt,do_skeb,nssppt,nsshum,nsskeb,sppt_logit,    & 
+use stochy_namelist_def, only : do_shum,do_sppt,do_skeb,nssppt,nsshum,nsskeb,nsspp,nslndp,sppt_logit,    & 
                                 lndp_type, n_var_lndp, n_var_spp, do_spp, spp_stddev_cutoff, spp_prt_list
 use mpi_wrapper, only: is_rootpe
 implicit none
@@ -356,15 +361,15 @@ implicit none
 integer,                  intent(in) :: levs, kdt
 real(kind=kind_dbl_prec), intent(in) :: fhour
 integer,                  intent(in) :: blksz(:)
-real(kind=kind_dbl_prec), intent(inout) :: sppt_wts(:,:,:)
-real(kind=kind_dbl_prec), intent(inout) :: shum_wts(:,:,:)
-real(kind=kind_dbl_prec), intent(inout) :: skebu_wts(:,:,:)
-real(kind=kind_dbl_prec), intent(inout) :: skebv_wts(:,:,:)
-real(kind=kind_dbl_prec), intent(inout) :: sfc_wts(:,:,:)
-real(kind=kind_dbl_prec), intent(inout) :: spp_wts(:,:,:,:)
+real(kind=kind_phys), intent(inout), optional :: sppt_wts(:,:,:)
+real(kind=kind_phys), intent(inout), optional :: shum_wts(:,:,:)
+real(kind=kind_phys), intent(inout), optional :: skebu_wts(:,:,:)
+real(kind=kind_phys), intent(inout), optional :: skebv_wts(:,:,:)
+real(kind=kind_phys), intent(inout), optional :: sfc_wts(:,:,:)
+real(kind=kind_phys), intent(inout), optional :: spp_wts(:,:,:,:)
 integer,                  intent(in)    :: nthreads
 
-real,allocatable :: tmp_wts(:,:),tmpu_wts(:,:,:),tmpv_wts(:,:,:),tmpl_wts(:,:,:),tmp_spp_wts(:,:,:)
+real(kind_dbl_prec),allocatable :: tmp_wts(:,:),tmpu_wts(:,:,:),tmpv_wts(:,:,:),tmpl_wts(:,:,:),tmp_spp_wts(:,:,:)
 !D-grid
 integer :: k,v
 integer j,ierr,i
@@ -436,6 +441,7 @@ if (do_skeb) then
 endif
 if ( lndp_type .EQ. 2  ) then 
     ! add time check?
+  if (mod(kdt,nslndp) == 1 .or. nslndp == 1) then
     allocate(tmpl_wts(gis_stochy%nx,gis_stochy%ny,n_var_lndp))
     call get_random_pattern_sfc(rpattern_sfc,nlndp,gis_stochy,tmpl_wts)
     DO blk=1,nblks
@@ -446,23 +452,26 @@ if ( lndp_type .EQ. 2  ) then
        ENDDO
     ENDDO
     deallocate(tmpl_wts)
+  endif
 endif
 if (n_var_spp .GE. 1) then
-    allocate(tmp_spp_wts(gis_stochy%nx,gis_stochy%ny,n_var_spp))
-    call get_random_pattern_spp(rpattern_spp,nspp,gis_stochy,tmp_spp_wts)
-     DO v=1,n_var_spp
-       DO blk=1,nblks
-         len=blksz(blk)
-         DO k=1,levs
-           if (spp_stddev_cutoff(v).gt.0.0) then
-             spp_wts(blk,1:len,k,v)=MAX(MIN(tmp_spp_wts(1:len,blk,v)*vfact_spp(k),spp_stddev_cutoff(v)),-1.0*spp_stddev_cutoff(v))*spp_prt_list(v)
-           else
-             spp_wts(blk,1:len,k,v)=tmp_spp_wts(1:len,blk,v)*vfact_spp(k)*spp_prt_list(v)
-           endif
-         ENDDO
-       ENDDO
-     ENDDO
-    deallocate(tmp_spp_wts)
+    if (mod(kdt,nsspp) == 1 .or. nsspp == 1) then
+       allocate(tmp_spp_wts(gis_stochy%nx,gis_stochy%ny,n_var_spp))
+       call get_random_pattern_spp(rpattern_spp,nspp,gis_stochy,tmp_spp_wts)
+        DO v=1,n_var_spp
+          DO blk=1,nblks
+            len=blksz(blk)
+            DO k=1,levs
+              if (spp_stddev_cutoff(v).gt.0.0) then
+                spp_wts(blk,1:len,k,v)=MAX(MIN(tmp_spp_wts(1:len,blk,v)*vfact_spp(k),spp_stddev_cutoff(v)),-1.0*spp_stddev_cutoff(v))*spp_prt_list(v)
+              else
+                spp_wts(blk,1:len,k,v)=tmp_spp_wts(1:len,blk,v)*vfact_spp(k)*spp_prt_list(v)
+              endif
+            ENDDO
+          ENDDO
+        ENDDO
+       deallocate(tmp_spp_wts)
+    end if
 endif
  deallocate(tmp_wts)
  deallocate(tmpu_wts)
@@ -478,7 +487,7 @@ use get_stochy_pattern_mod,only : get_random_pattern_scalar
 use stochy_namelist_def
 implicit none
 real, intent(inout) :: sppt_wts(:,:),t_rp1(:,:),t_rp2(:,:),skeb_wts(:,:)
-real, allocatable :: tmp_wts(:,:)
+real(kind_dbl_prec), allocatable :: tmp_wts(:,:)
 if (pert_epbl .OR. do_ocnsppt .OR. do_ocnskeb ) then
    allocate(tmp_wts(gis_stochy_ocn%nx,gis_stochy_ocn%ny))
    if (pert_epbl) then
@@ -486,28 +495,27 @@ if (pert_epbl .OR. do_ocnsppt .OR. do_ocnskeb ) then
       t_rp1(:,:)=2.0/(1+exp(-1*tmp_wts))
       call get_random_pattern_scalar(rpattern_epbl2,nepbl,gis_stochy_ocn,tmp_wts)
       t_rp2(:,:)=2.0/(1+exp(-1*tmp_wts))
-!   else
-!      t_rp1(:,:)=1.0
-!      t_rp2(:,:)=1.0
+   else
+      t_rp1(:,:)=1.0
+      t_rp2(:,:)=1.0
    endif
    if (do_ocnsppt) then
       call get_random_pattern_scalar(rpattern_ocnsppt,nocnsppt,gis_stochy_ocn,tmp_wts)
       sppt_wts=2.0/(1+exp(-1*tmp_wts))
-!   else
-!      sppt_wts=1.0
+   else
+      sppt_wts=1.0
    endif
    if (do_ocnskeb) then
       call get_random_pattern_scalar(rpattern_ocnskeb,nocnskeb,gis_stochy_ocn,skeb_wts,normalize=.true.)
-!   else
-!      skeb_wts=1.0
+   else
+      skeb_wts=1.0
    endif
-   !print*,'after get_random_pattern_scalar',skeb_wts(1,1)
    deallocate(tmp_wts)
-!else
-!   sppt_wts(:,:)=1.0
-!   skeb_wts(:,:)=1.0
-!   t_rp1(:,:)=1.0
-!   t_rp2(:,:)=1.0
+else
+   sppt_wts(:,:)=1.0
+   skeb_wts(:,:)=1.0
+   t_rp1(:,:)=1.0
+   t_rp2(:,:)=1.0
 endif
 
 end subroutine run_stochastic_physics_ocn

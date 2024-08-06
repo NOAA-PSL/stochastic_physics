@@ -1,4 +1,4 @@
-!>nbrief The module 'stochy_patterngenerator_mod' contains the derived type random_pattern
+!>@brief The module 'stochy_patterngenerator_mod' contains the derived type random_pattern
 !! which controls the characteristics of the random pattern
 !! This is a modified version of the original one stochy_patterngenerator.F90, where the 
 !! the random patterns are not properly normalized
@@ -150,7 +150,6 @@ module stochy_patterngenerator_mod
       rpattern(np)%lengthscale = lscale(np)
       rpattern(np)%dt = delt
       rpattern(np)%phi = exp(-delt/tscale(np))
-      !rpattern(np)%phi = 0
       rpattern(np)%stdev = stdev(np)
       allocate(rpattern(np)%varspectrum(ndimspec))
       allocate(rpattern(np)%varspectrum1d(0:ntrunc))
@@ -170,8 +169,8 @@ module stochy_patterngenerator_mod
            !count4 = iseed(np) + member_id
            ! don't rely on compiler to truncate integer(8) to integer(4) on
            ! overflow, do wrap around explicitly.
-           !count4 = mod(iseed(np) + member_id + 2147483648, 4294967296) - 2147483648
-           count4 = mod(iseed(np) + 2147483648, 4294967296) - 2147483648
+           !count4 = mod(iseed(np) + member_id + 2147483648_8, 4294967296_8) - 2147483648_8
+           count4 = mod(iseed(np) + 2147483648_8, 4294967296_8) - 2147483648_8
            print *,'using seed',count4,iseed(np)!,member_id
          endif
       endif
@@ -180,7 +179,6 @@ module stochy_patterngenerator_mod
       rpattern(np)%seed = count4
       ! set seed (to be the same) on all tasks. Save random state.
       call random_setseed(rpattern(np)%seed,rpattern(np)%rstate)
-      !print*,'calling setvarspect',bn_local
       if (varspect_opt .lt. 0 .or. varspect_opt .gt. 1) then
          if (is_rootpe()) then
             print *,'WARNING: illegal value for varspect_opt (should be 0,1,or 2), using 0 (gaussian spectrum)...'
@@ -413,14 +411,12 @@ module stochy_patterngenerator_mod
      if (new_lscale) then
         !fix for proper lengthscale
         print*, 'Proper lengthscale condition'
-!        print*, 'rpattern lap:',rpattern%lap
         rpattern%varspectrum = exp((rpattern%lengthscale*0.25)**2*rpattern%lap*inv_rerth_sq)
         do n=0,ntrunc
            rpattern%varspectrum1d(n) = exp(-(rpattern%lengthscale*0.25)**2*float(n)*(float(n)+1.)*inv_rerth_sq)
         enddo
      else
         print*, 'Not proper lengthscale condition'
-        !print*, 'rpattern lap:',rpattern%lap     
         rpattern%varspectrum = exp(rpattern%lengthscale**2*rpattern%lap/(4.*rerth**2))
         do n=0,ntrunc
            rpattern%varspectrum1d(n) = exp(-rpattern%lengthscale**2*(float(n)*(float(n)+1.))/(4.*rerth**2))
@@ -437,15 +433,8 @@ module stochy_patterngenerator_mod
      ! scaling factors for spectral coeffs of white noise pattern with unit variance
      rpattern%varspectrum(1) = 0
      rpattern%varspectrum(2:) = rpattern%degree(2:)**(rpattern%lengthscale)
-
-     !do n=0,ntrunc
-     !      rpattern%varspectrum1d(n) = float(n)**(rpattern%lengthscale)
-     !enddo
-     ! scaling factors for spectral coeffs of white noise pattern with unit variance
-     !rpattern%varspectrum = sqrt(ntrunc*(rpattern%degree**(rpattern%lengthscale)))
-     !rpattern%varspectrum = rpattern%degree**(rpattern%lengthscale)! modified following equation 4 in Berner et al 2009
   endif
-  print*, 'Berner Normalization:',berner_normalize
+  !print*, 'Berner Normalization:',berner_normalize
 
   if (.not. berner_normalize) then ! normalize the GEFS way
      noise = 0.

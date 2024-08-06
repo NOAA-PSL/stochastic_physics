@@ -1,6 +1,6 @@
 !>@brief The module 'get_stochy_pattern_mod' contains the subroutines to retrieve the random pattern in the cubed-sphere grid
 module get_stochy_pattern_mod
- use kinddef, only : kind_dbl_prec, kind_evod
+ use kinddef, only : kind_dbl_prec
  use spectral_transforms, only : len_trie_ls,                       &
                                  len_trio_ls, ls_dim, stochy_la2ga,          &
                                  coslat_a, latg, levs, lonf, skeblevs,&
@@ -103,8 +103,8 @@ subroutine get_random_pattern_vector(rpattern,npatterns,&
  type(stochy_internal_state), intent(in) :: gis_stochy
  type(random_pattern), intent(inout) :: rpattern(npatterns)
 
- real(kind=kind_evod), dimension(len_trie_ls,2) ::  vrtspec_e,divspec_e
- real(kind=kind_evod), dimension(len_trio_ls,2) ::  vrtspec_o,divspec_o
+ real(kind=kind_dbl_prec), dimension(len_trie_ls,2) ::  vrtspec_e,divspec_e
+ real(kind=kind_dbl_prec), dimension(len_trio_ls,2) ::  vrtspec_o,divspec_o
  integer::   npatterns
 
  real(kind=kind_dbl_prec) :: upattern_3d(gis_stochy%nx,gis_stochy%ny,levs)
@@ -115,7 +115,7 @@ subroutine get_random_pattern_vector(rpattern,npatterns,&
 
 ! logical lprint
 
- real, allocatable, dimension(:,:) :: workgu,workgv
+ real(kind_dbl_prec), allocatable, dimension(:,:) :: workgu,workgv
  integer kmsk0(lonf,gis_stochy%lats_node_a)
  kmsk0 = 0
  allocate(workgu(lonf,latg))
@@ -249,16 +249,13 @@ subroutine get_random_pattern_scalar(rpattern,npatterns,&
  do n=1,npatterns
     if (present(normalize)) then
        if (normalize) then
-          !print*,'calling patterngenerator_advance norm'
           call patterngenerator_advance_jb(rpattern(n))
           call scalarspect_to_gaugrid_norm(rpattern(n),gis_stochy,  wrk2d,1)
        else
-          !print*,'calling patterngenerator_advance'
           call patterngenerator_advance(rpattern(n),1,.false.)
           call scalarspect_to_gaugrid(rpattern(n),gis_stochy, wrk2d,1)
        endif
     else
-       !print*,'calling patterngenerator_advance'
        call patterngenerator_advance(rpattern(n),1,.false.)
        call scalarspect_to_gaugrid(rpattern(n),gis_stochy, wrk2d,1)
     endif

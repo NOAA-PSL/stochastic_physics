@@ -3,20 +3,20 @@ module update_ca
 !read and write restart routines, to restart fields 
 !on the ncellsxncells CA grid
 
-use kinddef,           only: kind_dbl_prec
+use kinddef
 use halo_exchange,    only: atmosphere_scalar_field_halo
 use random_numbers,   only: random_01_CB
 use mpi_wrapper,      only: mype,mp_reduce_min,mp_reduce_max
 use mpp_domains_mod,  only: domain2D,mpp_get_global_domain,CENTER, mpp_get_data_domain, mpp_get_compute_domain,mpp_get_ntile_count,&
-                            mpp_define_mosaic,mpp_get_layout,mpp_define_io_domain,mpp_get_io_domain_layout
+                            mpp_define_mosaic,mpp_get_layout,mpp_define_io_domain,mpp_get_io_domain_layout,mpp_get_domain_extents
 use mpp_mod,          only: mpp_error,  mpp_pe, mpp_root_pe, &
                             NOTE,   FATAL
 use fms2_io_mod,        only: FmsNetcdfDomainFile_t, unlimited,      &
-                                open_file, close_file,                 &
-                                register_axis, register_restart_field, &
-                                register_variable_attribute, register_field, &
-                                read_restart, write_restart, write_data,     &
-                                get_global_io_domain_indices, variable_exists
+                              open_file, close_file,                 &
+                              register_axis, register_restart_field, &
+                              register_variable_attribute, register_field, &
+                              read_restart, write_restart, write_data,     &
+                              get_global_io_domain_indices, variable_exists
 
 
 implicit none
@@ -34,20 +34,21 @@ integer,public :: isdnx_g,iednx_g,jsdnx_g,jednx_g
 integer,public :: iscnx_g,iecnx_g,jscnx_g,jecnx_g
 integer*8, public :: csum
 type(domain2D),public :: domain_sgs,domain_global
+logical, public  :: cold_start_ca_sgs=.true.,cold_start_ca_global=.true.
 
 
 contains
 
 !Compute CA domain:--------------------------------------------------------------------------
-subroutine define_ca_domain(domain_in,domain_out,ncells,nxncells_local,nyncells_local)
+subroutine define_ca_domain(domain_in,domain_out,halo,ncells,nxncells_local,nyncells_local)
 implicit none
 
 type(domain2D),intent(inout) :: domain_in
 type(domain2D),intent(inout) :: domain_out
-integer,intent(in)           :: ncells
+integer,intent(in)           :: ncells,halo
 integer,intent(out) :: nxncells_local, nyncells_local
-integer :: halo1 = 1
 integer :: layout(2)
+integer, allocatable :: xextent(:,:), yextent(:,:)
 integer :: ntiles
 integer, allocatable :: pe_start(:), pe_end(:)
 
@@ -59,7 +60,12 @@ integer :: isc,iec,jsc,jec
   call mpp_get_global_domain(domain_in,xsize=nx,ysize=ny,position=CENTER)
   call mpp_get_layout(domain_in,layout)
   ntiles = mpp_get_ntile_count(domain_in)
-  !write(1000+mpp_pe(),*) "nx,ny: ",nx,ny
+  allocate(xextent(layout(1),ntiles))
+  allocate(yextent(layout(2),ntiles))
+  call mpp_get_domain_extents(domain_in,xextent,yextent)
+  xextent=xextent*ncells
+  yextent=yextent*ncells
+ !write(1000+mpp_pe(),*) "nx,ny: ",nx,ny
   !write(1000+mpp_pe(),*) "layout: ",layout
 
 !--- define mosaic for domain_out refined by 'ncells' from domain_in
@@ -72,9 +78,12 @@ integer :: isc,iec,jsc,jec
     pe_start(n) = mpp_root_pe() + (n-1)*layout(1)*layout(2)
     pe_end(n)   = mpp_root_pe() +     n*layout(1)*layout(2)-1
   enddo
-  call define_cubic_mosaic(domain_out, nxncells_local-1, nyncells_local-1, layout, pe_start, pe_end, halo1 )
+  call define_cubic_mosaic(domain_out, nxncells_local-1, nyncells_local-1, &
+                           layout, pe_start, pe_end, halo, ntiles, xextent, yextent )
   deallocate(pe_start)
   deallocate(pe_end)
+  deallocate(xextent)
+  deallocate(yextent)
 
 end subroutine define_ca_domain
 !---------------------------------------------------------------------------------------------
@@ -88,7 +97,7 @@ character(len=*), optional, intent(in)    :: timestamp
 character(len=32)  :: fn_ca = 'ca_data.nc'
 
 type(FmsNetcdfDomainFile_t) :: CA_restart
-integer :: id_restart,ncells,nx,ny,i
+integer :: id_restart,nx,ny,i
 integer :: is,ie,js,je,nca,nca_g
 
 integer, allocatable, dimension(:) :: buffer
@@ -183,40 +192,31 @@ endif
 
 end subroutine write_ca_restart
 
-subroutine read_ca_restart(domain_in,scells,nca,ncells_g,nca_g)
+subroutine read_ca_restart(domain_in,halo,ncells,nca,ncells_g,nca_g)
 !Read restart files
 implicit none
 type(FmsNetcdfDomainFile_t) :: CA_restart
 type(domain2D), intent(inout) :: domain_in
-integer,intent(in) :: scells,nca,nca_g,ncells_g
+integer,intent(in) :: ncells,nca,nca_g,ncells_g,halo
 character(len=32)  :: fn_ca = 'ca_data.nc'
 
 character(len=64) :: fname
 integer :: id_restart
 integer :: nxc,nyc,i
 real    :: pi,re,dx
-integer :: ncells,nx,ny
+integer :: nx,ny
 character(5)  :: indir='INPUT'
 logical :: amiopen
 integer, allocatable, dimension(:) :: io_layout(:)
 
 
-
-
 call mpp_get_global_domain(domain_in,xsize=nx,ysize=ny,position=CENTER)
-
-!Set time and length scales:                                                                                                                          
- pi=3.14159
- re=6371000.
- dx=0.5*pi*re/real(nx)
- ncells=int(dx/real(scells))
- ncells= MIN(ncells,10)
 
  fname = trim(indir)//'/'//trim(fn_ca)
  if (nca .gt. 0 ) then
     allocate(io_layout(2))
     io_layout=mpp_get_io_domain_layout(domain_in)
-    call define_ca_domain(domain_in,domain_sgs,ncells,nxncells,nyncells)
+    call define_ca_domain(domain_in,domain_sgs,halo,ncells,nxncells,nyncells)
     call mpp_define_io_domain(domain_sgs, io_layout)
     call mpp_get_compute_domain (domain_sgs,iscnx,iecnx,jscnx,jecnx)
     amiopen=open_file(CA_restart, trim(fname), 'read', domain=domain_sgs, is_restart=.true., dont_add_res_to_filename=.true.)
@@ -242,19 +242,21 @@ call mpp_get_global_domain(domain_in,xsize=nx,ysize=ny,position=CENTER)
       call mpp_error(NOTE,'reading CA_sgs restart data from INPUT/ca_data.tile*.nc')
       call read_restart(CA_restart)
       call close_file(CA_restart)
+      cold_start_ca_sgs=.false.
     else
       call mpp_error(NOTE,'No CA_sgs restarts - cold starting CA')
+      cold_start_ca_sgs=.true.
     endif
 endif
 
 if (nca_g .gt. 0 ) then
-   domain_global=domain_in
    amiopen=open_file(CA_restart, trim(fname), 'read', domain=domain_global, is_restart=.true., dont_add_res_to_filename=.true.)
    if( amiopen ) then
       call register_axis(CA_restart, 'xaxis_2', 'X')
       call register_axis(CA_restart, 'yaxis_2', 'Y')
       call register_axis(CA_restart, 'nca_g', nca_g)
-      !call define_ca_domain(domain_in,domain_global,ncells_g,nxncells_g,nyncells_g)
+      call define_ca_domain(domain_in,domain_global,halo,ncells_g,nxncells_g,nyncells_g)
+      call mpp_define_io_domain(domain_global, io_layout)
       call mpp_get_compute_domain (domain_global,iscnx_g,iecnx_g,jscnx_g,jecnx_g)
       nxc = iecnx_g-iscnx_g+1
       nyc = jecnx_g-jscnx_g+1
@@ -271,44 +273,49 @@ if (nca_g .gt. 0 ) then
       call mpp_error(NOTE,'reading CA_global restart data from INPUT/ca_data.tile*.nc')
       call read_restart(CA_restart)
       call close_file(CA_restart)
+      cold_start_ca_global=.false.
       
    else
       call mpp_error(NOTE,'No CA_global restarts - cold starting CA')
+      cold_start_ca_global=.true.
    endif
 endif
 
 
 end subroutine read_ca_restart
 
-subroutine update_cells_sgs(kstep,initialize_ca,iseed_ca,first_flag,restart,first_time_step,nca,nxc,nyc,nxch,nych,nlon,&
-                            nlat,isc,iec,jsc,jec, npx,npy,  &
-                            CA,ca_plumes,iini,ilives_in,nlives,     &
+subroutine update_cells_sgs(kstep,halo,dt,initialize_ca,iseed_ca,first_flag,restart,first_time_step,nca,nxc,nyc,nxch,nych,nlon,&
+                            nlat,isc,iec,jsc,jec,ca_advect, npx,npy,  &
+                            CA,ca_plumes,iini,ilives_in,uhigh,vhigh,dxhigh,nlives,     &
                             nfracseed,nseed,nspinup,nf,nca_plumes,ncells,mytile)
+
+use plumes_mod
 
 implicit none
 
 integer, intent(in)  :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca,isc,iec,jsc,jec,npx,npy
-integer(kind=kind_dbl_prec), intent(in) :: iseed_ca
+integer(8), intent(in) :: iseed_ca
 integer, intent(in)  :: iini(nxc,nyc,nca),initialize_ca,ilives_in(nxc,nyc,nca)
-integer, intent(in)  :: mytile
-real,    intent(out) :: CA(nlon,nlat)
+integer, intent(in)  :: mytile,halo
+real(kind_phys), intent(out) :: CA(nlon,nlat)
 integer, intent(out) :: ca_plumes(nlon,nlat)
 integer, intent(in)  :: nlives,nseed, nspinup, nf,ncells
-real,    intent(in)  :: nfracseed
-logical, intent(in)  :: nca_plumes,restart,first_flag,first_time_step
+real(kind_phys), intent(in)  :: nfracseed,dt,dxhigh(nxc,nyc)
+real(kind_phys), intent(inout) :: uhigh(nxc,nyc),vhigh(nxc,nyc)
+logical, intent(in)  :: nca_plumes,restart,ca_advect,first_flag,first_time_step
 integer, allocatable  :: V(:),L(:),B(:)
 integer, allocatable  :: AG(:,:)
-integer              :: inci, incj, i, j, k,sub,spinup,it,halo,k_in,isize,jsize
-integer              :: ih, jh,kend, boardmax,livemax
+integer              :: inci, incj, i, j, k,sub,spinup,it,k_in,isize,jsize
+integer              :: ih, jh,kend, boardmax,livemax, Xn,Yn
 real,    allocatable :: board_halo(:,:,:)
-integer, dimension(nxc,nyc) :: neighbours, birth, thresh
+integer, dimension(nxc,nyc) :: neighbours,birth,thresh,adlives,adgrid
 integer, dimension(nxc,nyc) :: newcell, temp,newseed
 integer, dimension(ncells,ncells) :: onegrid
 integer(8)           :: nx_full,ny_full
 integer(8)           :: iscale = 10000000000
 logical, save        :: start_from_restart
-
-real, dimension(nxc,nyc) :: noise_b
+real, dimension(nxch,nych) :: adlives_halo,adgrid_halo
+real, dimension(nxc,nyc) :: noise_b,umax,vmax,umin,vmin,dyhigh
 integer(8) :: count, count_rate, count_max, count_trunc
 integer    :: count4
 integer*8            :: i1,j1
@@ -322,21 +329,21 @@ start_from_restart = .False.
 endif
 
 !-------------------------------------------------------------------------------------------------
-halo=1
 isize=nlon+2*halo
 jsize=nlat+2*halo
 k_in=1
  
   if (.not. allocated(board))then
      allocate(board(nxc,nyc,nca))
+     board=0.0
   endif
   if (.not. allocated(lives))then
      allocate(lives(nxc,nyc,nca))
+     lives=0.0
   endif
   if(.not. allocated(board_halo))then
      allocate(board_halo(nxch,nych,1))
   endif
- 
 
  !Step 2: Initialize CA, if restart data exist (board,lives > 0) initialize from restart file, otherwise initialize at time-
  !step initialize_ca.
@@ -390,7 +397,7 @@ if(mod(kstep,nseed)==0. .and. (kstep >= initialize_ca .or. start_from_restart))t
             count_trunc = iscale*(count/iscale)
             count4 = count - count_trunc + mytile *( i1+nx_full*(j1-1)) ! no need to multply by 7 since time will be different in sgs
          else
-            count4 = mod((iseed_ca*nf+mytile)*(i1+nx_full*(j1-1))+ 2147483648, 4294967296) - 2147483648
+            count4 = mod((iseed_ca*nf+mytile)*(i1+nx_full*(j1-1))+ 2147483648_8, 4294967296_8) - 2147483648_8
          endif
          noise_b(i,j)=real(random_01_CB(kstep,count4),kind=8)
       enddo
@@ -413,7 +420,7 @@ endif
  neighbours=0
  birth=0
  newcell=0
-
+ board_halo=0
  
  !--- copy board into the halo-augmented board_halo                                                         
  board_halo(1+halo:nxc+halo,1+halo:nyc+halo,1) = real(board(1:nxc,1:nyc,1),kind=8)
@@ -491,9 +498,75 @@ endif
    enddo
   enddo
 
+enddo !spinup
 
- enddo !spinup
+!ADVECTION OF CA CELLS:
+!Let the CFL criteria limit the maximum wind speed, such that the
+!advection (distance) of a single CA cell does not move outside the 
+!Halo region
+if(ca_advect)then
 
+  do j=1,nyc
+   do i=1,nxc
+      dyhigh(i,j)=dxhigh(i,j)
+      umax(i,j)=((dxhigh(i,j))*halo)/dt
+      vmax(i,j)=((dyhigh(i,j))*halo)/dt
+   enddo
+  enddo
+
+  umin(:,:) = -1.0*umax(:,:)
+  vmin(:,:) = -1.0*vmax(:,:)
+
+  do j=1,nyc
+   do i=1,nxc
+      uhigh(i,j)=MIN(uhigh(i,j),umax(i,j))
+      vhigh(i,j)=MIN(vhigh(i,j),vmax(i,j))
+      uhigh(i,j)=MAX(uhigh(i,j),umin(i,j))
+      vhigh(i,j)=MAX(vhigh(i,j),vmin(i,j))
+   enddo
+  enddo
+
+!Move CA cells in direction of the wind
+ 
+  adlives_halo(:,:)=0.
+  adgrid_halo(:,:)=0. 
+  do j=1,nyc
+   do i=1,nxc
+      ih=i+halo
+      jh=j+halo
+      Xn=ih+nint((uhigh(i,j)/dxhigh(i,j))*dt)
+      Yn=jh+nint((vhigh(i,j)/dyhigh(i,j))*dt)
+      adgrid_halo(Xn,Yn)=adgrid_halo(Xn,Yn)+board(i,j,nf)
+      adlives_halo(Xn,Yn)=adlives_halo(Xn,Yn)+lives(i,j,nf)
+   enddo
+  enddo
+
+  call atmosphere_scalar_field_halo (adgrid_halo, halo, nxch, nych, 1, &
+                                     iscnx, iecnx, jscnx, jecnx, &
+                                     nxncells, nyncells, domain_sgs)
+
+  call atmosphere_scalar_field_halo (adlives_halo, halo, nxch, nych, 1, &
+                                     iscnx, iecnx, jscnx, jecnx, &
+                                     nxncells, nyncells, domain_sgs)
+
+
+ !--- copy the advected fields from the halo-augmented fields
+ adgrid(1:nxc,1:nyc) =  nint(adgrid_halo(1+halo:nxc+halo,1+halo:nyc+halo))
+ adlives(1:nxc,1:nyc) = nint(adlives_halo(1+halo:nxc+halo,1+halo:nyc+halo))
+
+
+  do j=1,nyc
+   do i=1,nxc
+      lives(i,j,nf)=0.
+      board(i,j,nf)=0.
+      lives(i,j,nf)=adlives(i,j)
+      if(adgrid(i,j)>=1)then
+         board(i,j,nf)=1
+      endif
+   enddo
+  enddo 
+
+endif !advection
 
 !COARSE-GRAIN BACK TO NWP GRID
  
@@ -572,7 +645,7 @@ end subroutine update_cells_sgs
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine update_cells_global(kstep,first_time_step,iseed_ca,restart,nca,nxc,nyc,nxch,nych,nlon,nlat,isc,iec,jsc,jec, &
+subroutine update_cells_global(kstep,halo,first_time_step,iseed_ca,restart,nca,nxc,nyc,nxch,nych,nlon,nlat,isc,iec,jsc,jec, &
                         npx,npy,CA,iini_g,ilives_g,                &
                         nlives,ncells,nfracseed,nseed,nspinup,nf,mytile)
 
@@ -580,15 +653,15 @@ implicit none
 
 integer, intent(in) :: kstep,nxc,nyc,nlon,nlat,nxch,nych,nca,isc,iec,jsc,jec,npx,npy
 integer, intent(in) :: iini_g(nxc,nyc,nca), ilives_g(nxc,nyc)
-integer(kind=kind_dbl_prec), intent(in) :: iseed_ca
+integer(8), intent(in) :: iseed_ca
 real, intent(out) :: CA(nlon,nlat)
 logical, intent(in) :: first_time_step
 logical, intent(in) :: restart
 integer, intent(in) :: nlives, ncells, nseed, nspinup, nf
 real, intent(in) :: nfracseed
-integer, intent(in) :: mytile
+integer, intent(in) :: mytile, halo
 integer,allocatable :: V(:),L(:)
-integer :: inci, incj, i, j, k ,sub,spinup,it,halo,k_in,isize,jsize
+integer :: inci, incj, i, j, k ,sub,spinup,it,k_in,isize,jsize
 integer :: ih, jh,kend
 real, allocatable :: board_halo(:,:,:)
 integer, dimension(nxc,nyc) :: neighbours, birth, thresh
@@ -602,7 +675,6 @@ integer*8            :: i1,j1
 
 !-------------------------------------------------------------------------------------------------
 
-halo=1
 isize=nlon+2*halo
 jsize=nlat+2*halo
 k_in=1
@@ -611,7 +683,7 @@ k_in=1
  if (.not. allocated(lives_g)) allocate(lives_g(nxc,nyc,nca))
  if (.not. allocated(board_halo)) allocate(board_halo(nxch,nych,1))   
 
-  if(first_time_step .and. .not. restart)then
+  if(first_time_step .and. cold_start_ca_global)then
    do j=1,nyc
     do i=1,nxc
      board_g(i,j,nf) = iini_g(i,j,nf)
@@ -636,7 +708,7 @@ if(mod(kstep,nseed) == 0)then
             count_trunc = iscale*(count/iscale)
             count4 = count - count_trunc + mytile *( i1+nx_full*(j1-1)) ! no need to multply by 7 since time will be different in sgs
          else
-            count4 = mod(iseed_ca*nf+(7*mytile)*(i1+nx_full*(j1-1))+ 2147483648, 4294967296) - 2147483648
+            count4 = mod(iseed_ca*nf+(7*mytile)*(i1+nx_full*(j1-1))+ 2147483648_8, 4294967296_8) - 2147483648_8
          endif
          noise_b(i,j)=real(random_01_CB(kstep,count4),kind=8)
       enddo
@@ -652,7 +724,7 @@ if(mod(kstep,nseed) == 0)then
    enddo
 endif
 
-  if(first_time_step .and. .not. restart)then
+  if(first_time_step .and. cold_start_ca_global)then
   spinup=nspinup
   else
   spinup = 1
@@ -767,26 +839,29 @@ end subroutine update_cells_global
   ! and modified to make it simpler to use.
   ! domain_decomp in fv_mp_mod.F90 does something similar, but it does a
   ! few other unnecessary things (and requires more arguments).
-  subroutine define_cubic_mosaic(domain, ni, nj, layout, pe_start, pe_end, halo)
+  subroutine define_cubic_mosaic(domain, ni, nj, layout, pe_start, pe_end, halo, ntiles, xextent, yextent)
     type(domain2d), intent(inout) :: domain
-    integer,        intent(in)    :: ni, nj
+    integer,        intent(in)    :: ni, nj, ntiles, xextent(:,:), yextent(:,:)
     integer,        intent(in)    :: layout(:)
     integer,        intent(in)    :: pe_start(:), pe_end(:)
     integer,        intent(in)    :: halo
     !--- local variables
-    integer                       :: global_indices(4,6), layout2D(2,6)
-    integer, dimension(12)        :: istart1, iend1, jstart1, jend1, tile1
-    integer, dimension(12)        :: istart2, iend2, jstart2, jend2, tile2
-    integer                       :: ntiles, num_contact
+    integer,allocatable           :: global_indices(:,:), layout2D(:,:)
+    integer,allocatable           :: istart1(:), iend1(:), jstart1(:), jend1(:), tile1(:)
+    integer,allocatable           :: istart2(:), iend2(:), jstart2(:), jend2(:), tile2(:)
+    integer                       :: num_contact
     integer                       :: i
 
-    ntiles = 6
-    num_contact = 12
-    if(size(pe_start(:)) .NE. 6 .OR. size(pe_end(:)) .NE. 6 ) call mpp_error(FATAL, &
-         "define_cubic_mosaic: size of pe_start and pe_end should be 6")
     if(size(layout) .NE. 2) call mpp_error(FATAL, &
          "define_cubic_mosaic: size of layout should be 2")
-    do i = 1, 6
+
+    if(ntiles==6)then
+       num_contact = 12
+       allocate(global_indices(4,ntiles))
+       allocate(layout2D(2,ntiles))
+       allocate(istart1(num_contact), iend1(num_contact), jstart1(num_contact), jend1(num_contact), tile1(num_contact) )
+       allocate(istart2(num_contact), iend2(num_contact), jstart2(num_contact), jend2(num_contact), tile2(num_contact) )
+    do i = 1, ntiles
        layout2D(:,i) = layout(:)
        global_indices(1,i) = 1
        global_indices(2,i) = ni
@@ -853,11 +928,40 @@ end subroutine update_cells_global
     istart1(12) = ni; iend1(12) = ni; jstart1(12) = 1;     jend1(12) = nj
     istart2(12) = 1;  iend2(12) = 1;  jstart2(12) = 1;     jend2(12) = nj
 
+    else if(ntiles==1) then !Single tile
+
+     num_contact = 0
+
+     allocate(global_indices(4,ntiles))
+     allocate(layout2D(2,ntiles))
+     allocate(istart1(num_contact+1), iend1(num_contact+1), jstart1(num_contact+1), jend1(num_contact+1), tile1(num_contact+1) )
+     allocate(istart2(num_contact+1), iend2(num_contact+1), jstart2(num_contact+1), jend2(num_contact+1), tile2(num_contact+1) )
+
+     do i = 1, ntiles
+        layout2D(:,i) = layout(:)
+        global_indices(1,i) = 1
+        global_indices(2,i) = ni
+        global_indices(3,i) = 1
+        global_indices(4,i) = nj
+     enddo
+
+    else
+
+       call mpp_error(FATAL, &
+            "ntiles should be either 6 or 1 to run cellular automata")
+
+    endif !global or regional domain
+ 
     call mpp_define_mosaic(global_indices, layout2D, domain, ntiles, &
          num_contact, tile1, tile2, istart1, iend1, jstart1, jend1, &
          istart2, iend2, jstart2, jend2, pe_start, pe_end, symmetry=.true., &
-         whalo=halo, ehalo=halo, shalo=halo, nhalo=halo, &
-         name='CA cubic mosaic')
+         whalo=halo, ehalo=halo, shalo=halo, nhalo=halo,name='CA cubic mosaic', &
+         xextent=xextent, yextent=yextent)
+
+    deallocate(global_indices)
+    deallocate(layout2D)
+    deallocate(istart1, iend1, jstart1, jend1, tile1)
+    deallocate(istart2, iend2, jstart2, jend2, tile2)
 
   end subroutine define_cubic_mosaic
 
