@@ -63,7 +63,7 @@ module stochy_patterngenerator_mod
    integer(8), intent(inout) :: iseed(npatterns)
    integer m,j,l,n,nm,nn,np,indev1,indev2,indod1,indod2
    integer(8) count, count_rate, count_max, count_trunc
-   integer(8) :: iscale = 10000000000
+   integer(8) :: iscale = 10000000000_8
    integer count4, ierr
    logical :: bn_local ! berner normalization
 !   integer  member_id
@@ -170,7 +170,7 @@ module stochy_patterngenerator_mod
            ! don't rely on compiler to truncate integer(8) to integer(4) on
            ! overflow, do wrap around explicitly.
            !count4 = mod(iseed(np) + member_id + 2147483648_8, 4294967296_8) - 2147483648_8
-           count4 = mod(iseed(np) + 2147483648_8, 4294967296_8) - 2147483648_8
+           count4 = int(mod(int(iseed(np), 8) + 2147483648_8, 4294967296_8) - 2147483648_8)
            print *,'using seed',count4,iseed(np)!,member_id
          endif
       endif

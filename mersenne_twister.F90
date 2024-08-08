@@ -176,7 +176,7 @@
         integer,parameter:: n=624
         integer,parameter:: m=397
         integer,parameter:: mata=-1727483681     !< constant vector a
-        integer,parameter:: umask=-2147483648    !< most significant w-r bits
+        integer,parameter:: umask=-2147483647-1  !< most significant w-r bits
         integer,parameter:: lmask =2147483647    !< least significant r bits
         integer,parameter:: tmaskb=-1658038656   !< tempering parameter
         integer,parameter:: tmaskc=-272236544    !< tempering parameter
