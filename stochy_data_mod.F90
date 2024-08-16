@@ -10,7 +10,8 @@ module stochy_data_mod
  use constants_mod, only : radius
  use mpi_wrapper, only: mp_bcst, is_rootpe, mype
  use stochy_patterngenerator_mod, only: random_pattern, patterngenerator_init,&
- getnoise, patterngenerator_advance,ndimspec,chgres_pattern,computevarspec_r
+ getnoise, getnoise_un, patterngenerator_advance, patterngenerator_advance_jb, ndimspec, &
+ chgres_pattern, computevarspec_r
  use stochy_internal_state_mod
 ! use mersenne_twister_stochy, only : random_seed
  use mersenne_twister, only : random_seed
@@ -23,9 +24,11 @@ module stochy_data_mod
  public :: init_stochdata,init_stochdata_ocn
 
  type(random_pattern), public, save, allocatable, dimension(:) :: &
-       rpattern_sppt,rpattern_shum,rpattern_skeb, rpattern_sfc,rpattern_epbl1,rpattern_epbl2,rpattern_ocnsppt,rpattern_spp
+       rpattern_sppt,rpattern_shum,rpattern_skeb, rpattern_sfc,rpattern_epbl1,rpattern_epbl2,&
+       rpattern_ocnsppt,rpattern_spp,rpattern_ocnskeb
  integer, public :: nepbl=0
  integer, public :: nocnsppt=0
+ integer, public :: nocnskeb=0
  integer, public :: nsppt=0
  integer, public :: nshum=0
  integer, public :: nskeb=0
@@ -59,7 +62,7 @@ module stochy_data_mod
    integer, intent(out) :: iret
    real :: ones(6)
 
-   real :: rnn1
+   real :: rnn1,gamma_sum
    integer :: nn,k,nm,stochlun,ierr,n
    integer :: locl,indev,indod,indlsod,indlsev
    integer :: l,jbasev,jbasod
@@ -483,19 +486,21 @@ module stochy_data_mod
    real, intent(in) :: delt
    integer, intent(out) :: iret
    
-   integer :: nn,nm,stochlun,n,jcapin
+   integer :: nn,nm,stochlun,n,jcapin,n2
    integer :: l,jbasev,jbasod
-   integer :: indev,indod,varid1,varid2,varid3,varid4,ierr
+   integer :: varid1,varid2,varid3,varid4,ierr
+   real :: gamma_sum,pi
    
    real(kind_phys),allocatable :: noise_e(:,:),noise_o(:,:)
    include 'netcdf.inc'
    stochlun=99
    levs=nlevs
 
+   pi    = 4.0d0*atan(1.0d0)
    iret=0
    call compns_stochy_ocn (delt,iret)
    if(is_rootpe()) print*,'in init stochdata_ocn'
-   if ( (.NOT. pert_epbl) .AND. (.NOT. do_ocnsppt) ) return
+   if ( (.NOT. pert_epbl) .AND. (.NOT. do_ocnsppt) .AND. (.NOT. do_ocnskeb) ) return
    call initialize_spectral(gis_stochy_ocn)
    if (iret/=0) return
    allocate(noise_e(len_trie_ls,2),noise_o(len_trio_ls,2))
@@ -516,12 +521,21 @@ module stochy_data_mod
      endif
    enddo
 
+   do n=1,size(ocnskeb)
+     if (ocnskeb(n) > 0) then
+        nocnskeb=nocnskeb+1
+     else
+        exit
+     endif
+   enddo
+
    if (nepbl > 0) then 
       allocate(rpattern_epbl1(nepbl))
       allocate(rpattern_epbl2(nepbl))
    endif
 
    if (nocnsppt > 0) allocate(rpattern_ocnsppt(nocnsppt))
+   if (nocnskeb > 0) allocate(rpattern_ocnskeb(nocnskeb))
 
 !  if stochini is true, then read in pattern from a file
    if (is_rootpe()) then
@@ -684,6 +698,67 @@ module stochy_data_mod
               rpattern_ocnsppt(n)%spec_o(nn,2,1) = rpattern_ocnsppt(n)%stdev*rpattern_ocnsppt(n)%spec_o(nn,2,1)*rpattern_ocnsppt(n)%varspectrum(nm)
             enddo
             call patterngenerator_advance(rpattern_ocnsppt(n),1,.false.)
+         endif
+      enddo
+   endif
+
+   if (nocnskeb > 0) then
+      if (is_rootpe()) then
+         if (stochini) then
+            ierr=NF90_INQ_VARID(stochlun,"ocnskeb_seed", varid1)
+            if (ierr .NE. 0) then
+               write(0,*) 'error inquring OCNSPPT seed'
+               iret = ierr
+               return
+            end if
+            ierr=NF90_INQ_VARID(stochlun,"ocnskeb_spec", varid2)
+            if (ierr .NE. 0) then
+               write(0,*) 'error inquring OCNSPPT spec'
+               iret = ierr
+               return
+            end if
+         endif
+      endif
+      if (is_rootpe()) print *, 'Initialize random pattern for ocnskeb'
+      call patterngenerator_init(ocnskeb_lscale(1:nocnskeb),ocnskebint,ocnskeb_tau(1:nocnskeb),ocnskeb(1:nocnskeb),iseed_ocnskeb,rpattern_ocnskeb, &
+           lonf,latg,jcap,gis_stochy_ocn%ls_node,nocnskeb,1,0,new_lscale,.true.)
+
+      do n=1,nocnskeb
+         if (stochini) then
+            call read_pattern(rpattern_ocnskeb(n),jcapin,stochlun,1,n,varid1,varid2,.false.,ierr)
+            if (ierr .NE. 0) then
+               write(0,*) 'error reading OCNSKEB pattern'
+               iret = ierr
+               return
+            end if
+         else
+            call getnoise_un(rpattern_ocnskeb(n),noise_e,noise_o)
+            !call getnoise(rpattern_ocnskeb(n),noise_e,noise_o)
+            do nn=1,len_trie_ls
+               rpattern_ocnskeb(n)%spec_e(nn,1,1)=noise_e(nn,1)
+               rpattern_ocnskeb(n)%spec_e(nn,2,1)=noise_e(nn,2)
+               nm = rpattern_ocnskeb(n)%idx_e(nn)
+               if (nm .eq. 0) cycle
+               rpattern_ocnskeb(n)%spec_e(nn,1,1) = rpattern_ocnskeb(n)%stdev*rpattern_ocnskeb(n)%spec_e(nn,1,1)*rpattern_ocnskeb(n)%varspectrum(nm)
+               rpattern_ocnskeb(n)%spec_e(nn,2,1) = rpattern_ocnskeb(n)%stdev*rpattern_ocnskeb(n)%spec_e(nn,2,1)*rpattern_ocnskeb(n)%varspectrum(nm)
+            enddo
+            do nn=1,len_trio_ls
+               rpattern_ocnskeb(n)%spec_o(nn,1,1)=noise_o(nn,1)
+               rpattern_ocnskeb(n)%spec_o(nn,2,1)=noise_o(nn,2)
+               nm = rpattern_ocnskeb(n)%idx_o(nn)
+               if (nm .eq. 0) cycle
+               rpattern_ocnskeb(n)%spec_o(nn,1,1) = rpattern_ocnskeb(n)%stdev*rpattern_ocnskeb(n)%spec_o(nn,1,1)*rpattern_ocnskeb(n)%varspectrum(nm)
+               rpattern_ocnskeb(n)%spec_o(nn,2,1) = rpattern_ocnskeb(n)%stdev*rpattern_ocnskeb(n)%spec_o(nn,2,1)*rpattern_ocnskeb(n)%varspectrum(nm)
+            enddo
+            print*,'calling patterngenerator_advance norm init'
+            call patterngenerator_advance_jb(rpattern_ocnskeb(n))
+            !call patterngenerator_advance(rpattern_ocnskeb(n))
+!             if (is_rootpe()) then
+!             print*,'after advance'
+!             do nn=1,81,5
+!                print*,nn,rpattern_ocnskeb(n)%spec_o(nn,1,1),noise_o(nn,1)
+!             enddo
+!             endif
          endif
       enddo
    endif
