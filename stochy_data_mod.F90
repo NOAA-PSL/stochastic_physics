@@ -43,7 +43,7 @@ module stochy_data_mod
  real(kind=kind_dbl_prec),public :: wlon,rnlat,rad2deg
  real(kind=kind_dbl_prec),public, allocatable :: skebu_save(:,:,:),skebv_save(:,:,:)
  integer,public :: INTTYP
- type(stochy_internal_state),public :: gis_stochy,gis_stochy_ocn
+ type(stochy_internal_state),public :: gis_stochy,gis_stochy_ocn,gis_stochy_ocn_skeb
 
  contains
 !>@brief The subroutine 'init_stochdata' determins which stochastic physics
@@ -502,8 +502,14 @@ module stochy_data_mod
    iret=0
    call compns_stochy_ocn (delt,iret)
    if(is_rootpe()) print*,'in init stochdata_ocn'
-   if ( (.NOT. pert_epbl) .AND. (.NOT. do_ocnsppt) .AND. (.NOT. do_ocnskeb) ) return
-   call initialize_spectral(gis_stochy_ocn)
+!    if ( (.NOT. pert_epbl) .AND. (.NOT. do_ocnsppt) .AND. (.NOT. do_ocnskeb) ) return
+!    call initialize_spectral(gis_stochy_ocn)
+   if ( pert_epbl .OR. do_ocnsppt .OR. do_ocnskeb ) then
+      if ( pert_epbl .OR. do_ocnsppt ) call initialize_spectral(gis_stochy_ocn)
+      if ( do_ocnskeb ) call initialize_spectral(gis_stochy_ocn_skeb)
+   else
+      return
+   endif
    if (iret/=0) return
    allocate(noise_e(len_trie_ls,2),noise_o(len_trio_ls,2))
 ! determine number of random patterns to be used for each scheme.
@@ -723,7 +729,7 @@ module stochy_data_mod
       endif
       if (is_rootpe()) print *, 'Initialize random pattern for ocnskeb'
       call patterngenerator_init(ocnskeb_lscale(1:nocnskeb),ocnskebint,ocnskeb_tau(1:nocnskeb),ocnskeb(1:nocnskeb),iseed_ocnskeb,rpattern_ocnskeb, &
-           lonf,latg,jcap,gis_stochy_ocn%ls_node,nocnskeb,1,0,new_lscale,.true.)
+           lonf,latg,jcap,gis_stochy_ocn_skeb%ls_node,nocnskeb,1,0,new_lscale,.true.)
 
       do n=1,nocnskeb
          if (stochini) then
