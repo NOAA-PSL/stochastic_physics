@@ -18,6 +18,7 @@ module load hpc-intel/2018.4
 module load hpc-impi/2018.4
 
 module load ufs_common
+#test
 
 setenv CC mpiicc
 setenv CXX mpiicpc
