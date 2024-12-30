@@ -10,6 +10,7 @@ pipeline {
           label 'hera' 
         }
       steps {
+        ignore(FAILURE){
           script {
         cleanWs()
         checkout scm
@@ -27,6 +28,7 @@ pipeline {
       }
      }
     }
+  }
  }
    post {         
          always {
