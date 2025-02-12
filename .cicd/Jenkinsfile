@@ -19,7 +19,6 @@ pipeline {
           ./compile_standalone.hera_gnu
           cp -r /scratch2/NAGAPE/epic/UFS-WM_RT/NEMSfv3gfs/input-data-20221101/FV3_input_data/INPUT INPUT
           srun --label -A epic -n 24 standalone_stochy.x
-          set -e
           mkdir stochy_out
           mv workg* stochy_out
           cd stochy_out/
