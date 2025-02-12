@@ -55,19 +55,20 @@
        lndp_type      = 2
        n_var_lndp     = 2
        n_var_spp      = 5
-/
-
-&nam_sppperts
-       SPP_VAR_LIST: "pbl", "sfc", "mp", "rad", "gwd", "cu_deep"
-       SPP_MAG_LIST: 0.2, 0.2, 0.75, 0.2, 0.2
-       SPP_LSCALE: 150000.0, 150000.0, 150000.0, 150000.0, 150000.0
-       SPP_TSCALE: 21600.0, 21600.0, 21600.0, 21600.0, 21600.0
-       SPP_SIGTOP1: 0.1, 0.1, 0.1, 0.1, 0.1
-       SPP_SIGTOP2: 0.025, 0.025, 0.025, 0.025, 0.025
-       SPP_STDDEV_CUTOFF: 1.5, 1.5, 2.5, 1.5, 1.5
-       ISEED_SPP: 4, 5, 6, 7, 8
 
 /
+
+&nam_sppperts       
+    iseed_spp = 4,4,4,4,4
+    spp_lscale = 250000.0,250000.0,250000.0,250000.0,250000.0
+    spp_prt_list = 0.2,0.2,0.75,0.2,0.2
+    spp_sigtop1 = 0.1,0.1,0.1,0.1,0.1
+    spp_sigtop2 = 0.025,0.025,0.025,0.025,0.025
+    spp_stddev_cutoff = 1.5,1.5,2.5,1.5,1.5
+    spp_tau = 21600.0,21600.0,21600.0,21600.0,21600.0
+    spp_var_list = 'pbl','sfc','mp','rad','gwd'    
+/
+
 &nam_stochy
   SKEBNORM=1,
   SKEB_NPASS=30,
@@ -87,6 +88,7 @@
   ISEED_SKEB=2,
   ISEED_SPPT=3,
   STOCHINI=.false.
+
 /
 &nam_sfcperts
   lndp_type=2
