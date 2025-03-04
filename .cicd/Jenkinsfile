@@ -2,7 +2,7 @@ pipeline {
   agent none
   environment {
         GITHUB_TOKEN = credentials('GithubJenkinsNew')
-        AWS_ACCOUNT_ID = 211527314271
+        AWS_ACCOUNT_ID = credentials('AWS_PROD_ACCOUNT_ID')
     }
   stages {
   stage('Run Unit Tests') {
