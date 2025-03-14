@@ -5,8 +5,33 @@ DEBUG=YES
 source ./module-setup.sh
 module purge
 module use $( pwd -P )
-if [ $DEBUG == 'YES' ]; then
-   module load modules.stoch_gnu_dbg
+if [ $DEBUG == 'NO' ]; then
+module use /scratch2/NCEPDEV/stmp1/role.epic/installs/gnu/modulefiles
+module use /scratch2/NCEPDEV/stmp1/role.epic/installs/openmpi/modulefiles
+module use /scratch2/NCEPDEV/stmp1/role.epic/spack-stack/spack-stack-1.6.0_gnu13/envs/fms-2024.01/install/modulefiles/Core
+module load stack-gcc/13.3.0
+module load stack-openmpi/4.1.6
+module load cmake/3.23.1
+module load nccmp/1.9.0.1
+module load jasper/2.0.32
+  module load zlib/1.2.13
+ module load libpng/1.6.37
+  module load hdf5/1.14.0
+  module load netcdf-c/4.9.2
+  module load netcdf-fortran/4.6.1
+  module load parallelio/2.5.10
+  module load esmf/8.6.0
+  module load fms/2024.01
+  module load bacio/2.4.1
+  module load crtm/2.4.0
+  module load g2/3.5.1
+  module load g2tmpl/1.13.0
+ module load ip/4.3.0
+  module load sp/2.5.0
+  module load w3emc/2.10.0
+  module load gftl-shared/1.6.1
+  module load mapl/2.40.3-esmf-8.6.0
+  module load scotch/7.0.4
 else
    module load modules.stoch_gnu
 fi

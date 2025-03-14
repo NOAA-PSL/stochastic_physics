@@ -1,0 +1,59 @@
+pipeline {
+  agent none
+  environment {
+        GITHUB_TOKEN = credentials('GithubJenkinsNew')
+        AWS_ACCOUNT_ID = credentials('AWS_PROD_ACCOUNT_ID')
+    }
+  stages {
+  stage('Run Unit Tests') {
+        agent {
+          label 'hera' 
+        }
+      steps {
+          script {
+        cleanWs()
+        checkout scm
+        sh '''
+          cd unit_tests
+          echo "Running Unit Tests on ${NODE_NAME}"
+          ./compile_standalone.hera_gnu
+          cp -r /scratch2/NAGAPE/epic/UFS-WM_RT/NEMSfv3gfs/input-data-20221101/FV3_input_data/INPUT INPUT
+          srun --label -A epic -n 24 standalone_stochy.x
+          mkdir stochy_out
+          mv workg* stochy_out
+          cd stochy_out/
+          ls
+        '''
+      }
+    }
+  }
+ }
+   post {         
+         always {
+             node('built-in') {
+                sh ''' 
+                   GIT_OWNER=$(echo $CHANGE_URL | cut -d '/' -f4)
+                   GIT_REPO_NAME=$(echo $CHANGE_URL | cut -d '/' -f5 | cut -d '.' -f1)
+                   echo "Testing successfully completed...removing label(s)"
+          curl --silent -X DELETE -H "Accept: application/vnd.github.v3+json" -H "Authorization: Bearer ${GITHUB_TOKEN}"  https://api.github.com/repos/${GIT_OWNER}/${GIT_REPO_NAME}/issues/${CHANGE_ID}/labels -d '{"labels":["run-unit-tests"]}'
+               '''
+             }
+        }
+         success {     
+             node('built-in') {
+                echo 'This will run only if successful.'
+                sh ''' 
+                  aws sns publish --topic-arn "arn:aws:sns:us-east-1:${AWS_ACCOUNT_ID}:Jenkins-CICD-Notifications" --region us-east-1 --message '{"version":"1.0","source":"custom","content":{"description":":sunny: Jenkins build *'"$JOB_NAME"' '"$BUILD_NUMBER"'* with *PR-'"$CHANGE_ID"'*  *succeeded*"}}'
+               '''     
+             }         
+         }             
+         failure {
+             node('built-in') { 
+                echo 'This will run only if the run was marked as unstable.'
+                sh '''      
+                  aws sns publish --topic-arn "arn:aws:sns:us-east-1:${AWS_ACCOUNT_ID}:Jenkins-CICD-Notifications" --region us-east-1 --message '{"version":"1.0","source":"custom","content":{"description":":warning: Jenkins build *'"$JOB_NAME"' '"$BUILD_NUMBER"'* with *PR-'"$CHANGE_ID"'*  *failed!*"}}'
+               '''        
+             }            
+         }                  
+     }
+}
