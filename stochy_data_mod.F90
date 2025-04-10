@@ -34,7 +34,7 @@ module stochy_data_mod
  integer, public :: nskeb=0
  integer, public :: nlndp=0 ! this is the number of different patterns (determined by the tau/lscale input) 
  integer, public :: nspp =0 ! this is the number of different patterns (determined by the tau/lscale input) 
- real*8, public,allocatable :: sl(:)
+ real(kind=kind_dbl_prec), public,allocatable :: sl(:)
 
  real(kind=kind_phys),public, allocatable :: vfact_sppt(:),vfact_shum(:),vfact_skeb(:),vfact_spp(:)
  real(kind=kind_phys),public, allocatable :: skeb_vwts(:,:)
@@ -58,9 +58,9 @@ module stochy_data_mod
    integer, intent(in) :: nlunit,nlevs
    character(len=*),  intent(in) :: input_nml_file(:)
    character(len=64), intent(in) :: fn_nml
-   real(kind_phys), intent(in) :: delt
+   real(kind=kind_phys), intent(in) :: delt
    integer, intent(out) :: iret
-   real :: ones(6)
+   real(kind=kind_dbl_prec) :: ones(6)
 
    real :: rnn1,gamma_sum
    integer :: nn,k,nm,stochlun,ierr,n
@@ -483,13 +483,13 @@ module stochy_data_mod
 ! initialize random patterns.  A spinup period of spinup_efolds times the
 ! temporal time scale is run for each pattern.
    integer, intent(in) :: nlevs
-   real, intent(in) :: delt
+   real(kind=kind_dbl_prec), intent(in) :: delt
    integer, intent(out) :: iret
    
    integer :: nn,nm,stochlun,n,jcapin,n2
    integer :: l,jbasev,jbasod
    integer :: varid1,varid2,varid3,varid4,ierr
-   real :: gamma_sum,pi
+   real(kind=kind_dbl_prec) :: gamma_sum,pi
    
    real(kind_dbl_prec),allocatable :: noise_e(:,:),noise_o(:,:)
    include 'netcdf.inc'
@@ -779,7 +779,7 @@ subroutine read_pattern(rpattern,jcapin,lunptn,k,np,varid1,varid2,slice_of_3d,ir
    integer, intent(in) :: lunptn,np,varid1,varid2,jcapin
    logical, intent(in) :: slice_of_3d
    real(kind_dbl_prec),allocatable  :: pattern2d(:),pattern2din(:)
-   real(kind_phys) :: stdevin,varin
+   real(kind_dbl_prec) :: stdevin,varin
    integer nm,nn,iret,ierr,isize,k,ndimspec2
    integer, allocatable :: isave(:)
    include 'netcdf.inc'

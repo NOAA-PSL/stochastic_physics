@@ -281,18 +281,18 @@ use mpi_wrapper,          only : mpi_wrapper_initialize, mype, npes, is_rootpe
 
 ! Arguments
 implicit none
-real,     intent(in) :: delt
+real(kind=kind_dbl_prec),     intent(in) :: delt
 integer,  intent(in) :: nxT, nyT, nz
-real,     intent(in) :: geoLonT(nxT, nyT), geoLatT(nxT, nyT)
+real(kind=kind_dbl_prec),     intent(in) :: geoLonT(nxT, nyT), geoLatT(nxT, nyT)
 integer,  intent(in) :: nxB, nyB
-real,     intent(in) :: geoLonB(nxB, nyB), geoLatB(nxB, nyB)
+real(kind=kind_dbl_prec),     intent(in) :: geoLonB(nxB, nyB), geoLatB(nxB, nyB)
 logical,  intent(in) :: pert_epbl_in, do_sppt_in, do_skeb_in
 integer,  intent(in) :: mpiroot, mpicomm
 integer, intent(out) :: iret
 
 ! Local variables
 real(kind=kind_dbl_prec), parameter  :: con_pi = 4.0d0 * atan(1.0d0)
-real                                 :: dx
+real(kind=kind_dbl_prec)             :: dx
 integer                              :: k, latghf, km
 type(MPI_Comm)                       :: mpicomm_t ! FIXME once MOM6 updates to use mpi_f90 types
 
@@ -398,7 +398,7 @@ real(kind=kind_phys), intent(inout), optional :: sfc_wts(:,:,:)
 real(kind=kind_phys), intent(inout), optional :: spp_wts(:,:,:,:)
 integer,                  intent(in)    :: nthreads
 
-real(kind_phys),allocatable :: tmp_wts(:,:),tmpu_wts(:,:,:),tmpv_wts(:,:,:),tmpl_wts(:,:,:),tmp_spp_wts(:,:,:)
+real(kind_dbl_prec),allocatable :: tmp_wts(:,:),tmpu_wts(:,:,:),tmpv_wts(:,:,:),tmpl_wts(:,:,:),tmp_spp_wts(:,:,:)
 !D-grid
 integer :: k,v
 integer j,ierr,i
@@ -522,8 +522,8 @@ use stochy_data_mod,        only : nepbl, nocnsppt, nocnskeb, rpattern_epbl1, &
 use get_stochy_pattern_mod, only : get_random_pattern_scalar
 use stochy_namelist_def
 implicit none
-real, intent(inout) :: sppt_wts(:,:), t_rp1(:,:), t_rp2(:,:), skeb_wts(:,:)
-real(kind_phys), allocatable :: tmp_wts(:,:)
+real(kind_dbl_prec), intent(inout) :: sppt_wts(:,:), t_rp1(:,:), t_rp2(:,:), skeb_wts(:,:)
+real(kind_dbl_prec), allocatable :: tmp_wts(:,:)
 
 if (pert_epbl .OR. do_ocnsppt) then
    allocate(tmp_wts(gis_stochy_ocn%nx, gis_stochy_ocn%ny))

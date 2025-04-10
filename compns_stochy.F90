@@ -457,10 +457,10 @@ module compns_stochy_mod
       implicit none
 
 
-      real,                 intent(in)  :: deltim
+      real(kind=kind_dbl_prec),              intent(in)  :: deltim
       integer,              intent(out) :: iret
-      real tol,l_min
-      real :: rerth,circ
+      real(kind=kind_dbl_prec) tol,l_min
+      real(kind=kind_dbl_prec) :: rerth,circ
       integer k,ios,nlunit
       integer,parameter :: four=4
 
