@@ -16,16 +16,16 @@ public :: finalize_stochastic_physics
 contains
 
 !>@brief The subroutine 'init_stochastic_physics' initializes the stochastic
-!!pattern genertors
+!!pattern generators
 !>@details It reads the stochastic physics namelist (nam_stoch and nam_sfcperts)
-!allocates and polulates the necessary arrays
+!allocates and populates the necessary arrays
 
 subroutine init_stochastic_physics(levs, blksz, dtp, sppt_amp, input_nml_file_in, fn_nml, nlunit, &
     xlon,xlat, &
     do_sppt_in, do_shum_in, do_skeb_in, lndp_type_in, n_var_lndp_in, use_zmtnblck_out, skeb_npass_out,    &
     lndp_var_list_out, lndp_prt_list_out,                         &
     n_var_spp_in, spp_var_list_out, spp_prt_list_out, spp_stddev_cutoff_out, do_spp_in,     &
-    ak, bk, nthreads, mpiroot, mpicomm, iret) 
+    ak, bk, nthreads, mpiroot, mpicomm, iret)
 !\callgraph
 !use stochy_internal_state_moa
 use stochy_data_mod, only : init_stochdata,gg_lats,gg_lons,nsppt, &
@@ -53,7 +53,7 @@ real(kind=kind_phys), intent(in)    :: xlat(:,:)
 logical,                  intent(in)    :: do_sppt_in, do_shum_in, do_skeb_in ,do_spp_in
 integer,                  intent(in)    :: lndp_type_in, n_var_lndp_in
 integer,                  intent(in)    :: n_var_spp_in
-real(kind=kind_phys), intent(in)    :: ak(:), bk(:) 
+real(kind=kind_phys), intent(in)    :: ak(:), bk(:)
 logical,                  intent(out)   :: use_zmtnblck_out
 integer,                  intent(out)   :: skeb_npass_out
 character(len=3), optional,         dimension(:), intent(out) :: lndp_var_list_out
@@ -64,7 +64,7 @@ real(kind=kind_phys), optional, dimension(:), intent(out) :: spp_stddev_cutoff_o
 
 
 ! Local variables
-real(kind=kind_phys), parameter     :: con_pi =4.0d0*atan(1.0d0)
+real(kind=kind_dbl_prec), parameter     :: con_pi =4.0d0*atan(1.0d0)
 integer :: nblks,len
 real*8 :: PRSI(levs),PRSL(levs),dx
 real, allocatable :: skeb_vloc(:)
@@ -101,27 +101,27 @@ if (iret .ne. 0) return
 if (do_sppt_in.neqv.do_sppt) then
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
                    & ' namelist settings do_sppt and sppt'
-   iret = 20 
+   iret = 20
    return
 else if (do_shum_in.neqv.do_shum) then
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
                    & ' namelist settings do_shum and shum'
-   iret = 20 
+   iret = 20
    return
 else if (do_skeb_in.neqv.do_skeb) then
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
                    & ' namelist settings do_skeb and skeb'
-   iret = 20 
+   iret = 20
    return
 else if (lndp_type_in /= lndp_type) then
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
                    & ' namelist settings lndp_type in physics and nam_sfcperts'
-   iret = 20 
+   iret = 20
    return
 else if (n_var_lndp_in /=  n_var_lndp) then
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
                    & ' namelist settings n_var_lndp in physics nml, and lndp_* in nam_sfcperts'
-   iret = 20 
+   iret = 20
    return
 else if (n_var_spp_in .ne. n_var_spp) then
    write(0,'(*(a))') 'Logic error in stochastic_physics_init: incompatible', &
@@ -261,72 +261,106 @@ RNLAT=gg_lats(1)*2-gg_lats(2)
 end subroutine init_stochastic_physics
 
 !!!!!!!!!!!!!!!!!!!!
-subroutine init_stochastic_physics_ocn(delt,geoLonT,geoLatT,nx,ny,nz,pert_epbl_in,do_sppt_in, &
-                                       mpiroot, mpicomm, iret)
-use stochy_data_mod, only : init_stochdata_ocn,gg_lats,gg_lons,&
-                            rad2deg,INTTYP,wlon,rnlat,gis_stochy_ocn
-use spectral_transforms , only : latg,lonf,colrad_a
-!use MOM_grid, only : ocean_grid_type   
+!>@brief The subroutine 'init_stochastic_physics_ocn' initializes the stochastic
+!!pattern generators for ocean stochastics
+!>@details It reads the stochastic physics namelist (nam_stoch and nam_sfcperts)
+!allocates and populates the necessary arrays
+subroutine init_stochastic_physics_ocn(delt, geoLonT, geoLatT, nxT, nyT, nz, &
+                                             geoLonB, geoLatB, nxB, nyB, &
+                                             pert_epbl_in, do_sppt_in, &
+                                             do_skeb_in, mpiroot, mpicomm, iret)
+
+! Use statements
+use stochy_data_mod,      only : init_stochdata_ocn, gg_lats, gg_lons, &
+                                 rad2deg, INTTYP, wlon, rnlat, &
+                                 gis_stochy_ocn, gis_stochy_ocn_skeb
+use spectral_transforms , only : latg, lonf, colrad_a
 use stochy_namelist_def
-use mersenne_twister, only: random_gauss
-use mpi_wrapper, only : mpi_wrapper_initialize,mype,npes,is_rootpe
+use mersenne_twister,     only : random_gauss
+use mpi_wrapper,          only : mpi_wrapper_initialize, mype, npes, is_rootpe
 
+! Arguments
 implicit none
-real,intent(in)  :: delt
-integer,intent(in) :: nx,ny,nz
-real,intent(in) :: geoLonT(nx,ny),geoLatT(nx,ny)
-logical,intent(in) :: pert_epbl_in,do_sppt_in
-integer,intent(in)    :: mpiroot, mpicomm
+real(kind=kind_dbl_prec),     intent(in) :: delt
+integer,  intent(in) :: nxT, nyT, nz
+real(kind=kind_dbl_prec),     intent(in) :: geoLonT(nxT, nyT), geoLatT(nxT, nyT)
+integer,  intent(in) :: nxB, nyB
+real(kind=kind_dbl_prec),     intent(in) :: geoLonB(nxB, nyB), geoLatB(nxB, nyB)
+logical,  intent(in) :: pert_epbl_in, do_sppt_in, do_skeb_in
+integer,  intent(in) :: mpiroot, mpicomm
 integer, intent(out) :: iret
-real(kind=kind_phys), parameter     :: con_pi =4.0d0*atan(1.0d0)
 
-real :: dx
-integer :: k,latghf,km
-type(MPI_Comm) :: mpicomm_t ! FIXME once MOM6 updates to use mpi_f90 types
-rad2deg=180.0/con_pi
+! Local variables
+real(kind=kind_dbl_prec), parameter  :: con_pi = 4.0d0 * atan(1.0d0)
+real(kind=kind_dbl_prec)             :: dx
+integer                              :: k, latghf, km
+type(MPI_Comm)                       :: mpicomm_t ! FIXME once MOM6 updates to use mpi_f90 types
+
+
+rad2deg = 180.0 / con_pi
 mpicomm_t%mpi_val = mpicomm
-call mpi_wrapper_initialize(mpiroot,mpicomm_t)
-gis_stochy_ocn%nodes = npes
-gis_stochy_ocn%mype = mype
-gis_stochy_ocn%nx=nx  
-gis_stochy_ocn%ny=ny
-allocate(gis_stochy_ocn%len(ny))
-allocate(gis_stochy_ocn%parent_lons(nx,ny))
-allocate(gis_stochy_ocn%parent_lats(nx,ny))
-gis_stochy_ocn%len(:)=nx
-gis_stochy_ocn%parent_lons=geoLonT
-gis_stochy_ocn%parent_lats=geoLatT
+call mpi_wrapper_initialize(mpiroot, mpicomm_t)
 
-INTTYP=0 ! bilinear interpolation
-km=nz
-call init_stochdata_ocn(km,delt,iret)
+! gis_stochy_ocn is used for ePBL and SPPT
+gis_stochy_ocn%nodes  = npes
+gis_stochy_ocn%mype   = mype
+gis_stochy_ocn%nx     = nxT
+gis_stochy_ocn%ny     = nyT
+allocate(gis_stochy_ocn%len(nyT))
+allocate(gis_stochy_ocn%parent_lons(nxT, nyT))
+allocate(gis_stochy_ocn%parent_lats(nxT, nyT))
+gis_stochy_ocn%len(:) = nxT
+gis_stochy_ocn%parent_lons = geoLonT
+gis_stochy_ocn%parent_lats = geoLatT
+
+! gis_stochy_ocn_skeb is used for SKEB
+gis_stochy_ocn_skeb%nodes  = npes
+gis_stochy_ocn_skeb%mype   = mype
+gis_stochy_ocn_skeb%nx     = nxB
+gis_stochy_ocn_skeb%ny     = nyB
+allocate(gis_stochy_ocn_skeb%len(nyB))
+allocate(gis_stochy_ocn_skeb%parent_lons(nxB, nyB))
+allocate(gis_stochy_ocn_skeb%parent_lats(nxB, nyB))
+gis_stochy_ocn_skeb%len(:) = nxB
+gis_stochy_ocn_skeb%parent_lons = geoLonB
+gis_stochy_ocn_skeb%parent_lats = geoLatB
+
+INTTYP = 0 ! bilinear interpolation
+km     = nz
+call init_stochdata_ocn(km, delt, iret)
 if (do_sppt_in.neqv.do_ocnsppt) then
-   write(0,'(*(a))') 'Logic error in stochastic_physics_ocn_init: incompatible', &
-                   & ' namelist settings do_sppt and sppt'
-   iret = 20 
+   write(0, '(*(a))') 'Logic error in stochastic_physics_ocn_init: incompatible', &
+                    & ' namelist settings do_sppt and sppt'
+   iret = 20
    return
 else if (pert_epbl_in.neqv.pert_epbl) then
-   write(0,'(*(a))') 'Logic error in stochastic_physics_ocn_init: incompatible', &
-                   & ' namelist settings pert_epbl and epbl'
-   iret = 20 
+   write(0, '(*(a))') 'Logic error in stochastic_physics_ocn_init: incompatible', &
+                    & ' namelist settings pert_epbl and epbl'
+   iret = 20
+   return
+else if (do_skeb_in.neqv.do_ocnskeb) then
+   write(0, '(*(a))') 'Logic error in stochastic_physics_ocn_init: incompatible', &
+                    & ' namelist settings do_skeb and skeb'
+   iret = 20
    return
 end if
 
 ! get interpolation weights
 ! define gaussian grid lats and lons
-latghf=latg/2
+latghf = latg / 2
 allocate(gg_lats(latg))
 allocate(gg_lons(lonf))
-do k=1,latghf
-   gg_lats(k)=-1.0*colrad_a(latghf-k+1)*rad2deg
-   gg_lats(latg-k+1)=-1*gg_lats(k)
-enddo
-dx=360.0/lonf
-do k=1,lonf
-  gg_lons(k)=dx*(k-1)
-enddo
-WLON=gg_lons(1)-(gg_lons(2)-gg_lons(1))
-RNLAT=gg_lats(1)*2-gg_lats(2)
+do k = 1, latghf
+   gg_lats(k) = -1.0 * colrad_a(latghf - k + 1) * rad2deg
+   gg_lats(latg - k + 1) = -1 * gg_lats(k)
+end do
+dx = 360.0 / lonf
+do k = 1, lonf
+  gg_lons(k) = dx * (k - 1)
+end do
+WLON  = gg_lons(1) - (gg_lons(2)-gg_lons(1))
+RNLAT = gg_lats(1)*2 - gg_lats(2)
+print*, 'finished ocean init'
 end subroutine init_stochastic_physics_ocn
 
 !!!!!!!!!!!!!!!!!!!!
@@ -335,9 +369,9 @@ end subroutine init_stochastic_physics_ocn
 !>@brief The subroutine 'run_stochastic_physics' updates the random patterns if
 !!necessary
 !>@details It updates the AR(1) in spectral space
-!allocates and polulates the necessary arrays
+!allocates and populates the necessary arrays
 
-subroutine run_stochastic_physics(levs, kdt, fhour, blksz, sppt_wts, shum_wts, skebu_wts,  & 
+subroutine run_stochastic_physics(levs, kdt, fhour, blksz, sppt_wts, shum_wts, skebu_wts,  &
                                   skebv_wts, sfc_wts, spp_wts, nthreads)
 
 !\callgraph
@@ -345,9 +379,9 @@ subroutine run_stochastic_physics(levs, kdt, fhour, blksz, sppt_wts, shum_wts, s
 use stochy_data_mod, only : nshum,rpattern_shum,rpattern_sppt,nsppt,rpattern_skeb,nskeb,&
                             gis_stochy,vfact_sppt,vfact_shum,vfact_skeb, rpattern_sfc, nlndp, &
                             rpattern_spp, nspp, vfact_spp
-use get_stochy_pattern_mod,only : get_random_pattern_scalar,get_random_pattern_vector, & 
+use get_stochy_pattern_mod,only : get_random_pattern_scalar,get_random_pattern_vector, &
                                   get_random_pattern_sfc,get_random_pattern_spp
-use stochy_namelist_def, only : do_shum,do_sppt,do_skeb,nssppt,nsshum,nsskeb,nsspp,nslndp,sppt_logit,    & 
+use stochy_namelist_def, only : do_shum,do_sppt,do_skeb,nssppt,nsshum,nsskeb,nsspp,nslndp,sppt_logit,    &
                                 lndp_type, n_var_lndp, n_var_spp, do_spp, spp_stddev_cutoff, spp_prt_list
 use mpi_wrapper, only: is_rootpe
 implicit none
@@ -381,7 +415,7 @@ maxlen = maxval(blksz(:))
 
 
 if ( (lndp_type==1) .and. (kdt==0) ) then ! old land pert scheme called once at start
-        write(0,*) 'calling get_random_pattern_sfc'  
+        write(0,*) 'calling get_random_pattern_sfc'
         allocate(tmpl_wts(nblks,maxlen,n_var_lndp))
         call get_random_pattern_sfc(rpattern_sfc,nlndp,gis_stochy,tmpl_wts)
         DO blk=1,nblks
@@ -434,7 +468,7 @@ if (do_skeb) then
       ENDDO
    endif
 endif
-if ( lndp_type .EQ. 2  ) then 
+if ( lndp_type .EQ. 2  ) then
     ! add time check?
   if (mod(kdt,nslndp) == 1 .or. nslndp == 1) then
     allocate(tmpl_wts(gis_stochy%nx,gis_stochy%ny,n_var_lndp))
@@ -475,42 +509,55 @@ endif
 
 end subroutine run_stochastic_physics
 
-subroutine run_stochastic_physics_ocn(sppt_wts,t_rp1,t_rp2)
-!use MOM_forcing_type, only : mech_forcing
-!use MOM_grid, only : ocean_grid_type   
+!>@brief The subroutine 'run_stochastic_physics_ocn' updates the random patterns
+!!if necessary
+!>@details It updates the AR(1) in spectral space
+!allocates and populates the necessary arrays
+subroutine run_stochastic_physics_ocn(sppt_wts, skeb_wts, t_rp1, t_rp2)
 use stochy_internal_state_mod
-use stochy_data_mod, only : nepbl,nocnsppt,rpattern_epbl1,rpattern_epbl2,rpattern_ocnsppt, gis_stochy_ocn
-use get_stochy_pattern_mod,only : get_random_pattern_scalar
+use stochy_data_mod,        only : nepbl, nocnsppt, nocnskeb, rpattern_epbl1, &
+                                   rpattern_epbl2, rpattern_ocnsppt, &
+                                   rpattern_ocnskeb, gis_stochy_ocn, &
+                                   gis_stochy_ocn_skeb
+use get_stochy_pattern_mod, only : get_random_pattern_scalar
 use stochy_namelist_def
 implicit none
-!type(ocean_grid_type),       intent(in) :: G
-real, intent(inout) :: sppt_wts(:,:),t_rp1(:,:),t_rp2(:,:)
+real(kind_dbl_prec), intent(inout) :: sppt_wts(:,:), t_rp1(:,:), t_rp2(:,:), skeb_wts(:,:)
 real(kind_dbl_prec), allocatable :: tmp_wts(:,:)
+
 if (pert_epbl .OR. do_ocnsppt) then
-   allocate(tmp_wts(gis_stochy_ocn%nx,gis_stochy_ocn%ny))
+   allocate(tmp_wts(gis_stochy_ocn%nx, gis_stochy_ocn%ny))
    if (pert_epbl) then
-      call get_random_pattern_scalar(rpattern_epbl1,nepbl,gis_stochy_ocn,tmp_wts)
-      t_rp1(:,:)=2.0/(1+exp(-1*tmp_wts))
-      call get_random_pattern_scalar(rpattern_epbl2,nepbl,gis_stochy_ocn,tmp_wts)
-      t_rp2(:,:)=2.0/(1+exp(-1*tmp_wts))
+      call get_random_pattern_scalar(rpattern_epbl1, nepbl, gis_stochy_ocn, tmp_wts)
+      t_rp1(:,:) = 2.0 / (1.0 + exp(-1 * tmp_wts))
+      call get_random_pattern_scalar(rpattern_epbl2, nepbl, gis_stochy_ocn, tmp_wts)
+      t_rp2(:,:) = 2.0 / (1.0 + exp(-1 * tmp_wts))
    else
-      t_rp1(:,:)=1.0
-      t_rp2(:,:)=1.0
+      t_rp1(:,:) = 1.0
+      t_rp2(:,:) = 1.0
    endif
    if (do_ocnsppt) then
-      call get_random_pattern_scalar(rpattern_ocnsppt,nocnsppt,gis_stochy_ocn,tmp_wts)
-      sppt_wts=2.0/(1+exp(-1*tmp_wts))
+      call get_random_pattern_scalar(rpattern_ocnsppt, nocnsppt, gis_stochy_ocn, tmp_wts)
+      sppt_wts = 2.0 / (1.0 + exp(-1 * tmp_wts))
    else
-      sppt_wts=1.0
+      sppt_wts = 1.0
    endif
    deallocate(tmp_wts)
 else
-   sppt_wts(:,:)=1.0
-   t_rp1(:,:)=1.0
-   t_rp2(:,:)=1.0
+   sppt_wts(:,:) = 1.0
+   t_rp1(:,:) = 1.0
+   t_rp2(:,:) = 1.0
+endif
+
+if (do_ocnskeb) then
+   call get_random_pattern_scalar(rpattern_ocnskeb, nocnskeb, gis_stochy_ocn_skeb, skeb_wts, normalize=.true.)
+else
+   skeb_wts(:,:) = 1.0
 endif
 
 end subroutine run_stochastic_physics_ocn
+
+
 subroutine finalize_stochastic_physics()
 use stochy_data_mod, only : nshum,rpattern_shum,rpattern_sppt,nsppt,rpattern_skeb,nskeb,&
                             vfact_sppt,vfact_shum,vfact_skeb, skeb_vwts,skeb_vpts, &
@@ -522,7 +569,7 @@ implicit none
    if (allocated(gg_lats)) deallocate (gg_lats)
    if (allocated(gg_lons)) deallocate (gg_lons)
    if (allocated(sl)) deallocate (sl)
-   if (nsppt > 0) then 
+   if (nsppt > 0) then
       if (allocated(rpattern_sppt)) deallocate(rpattern_sppt)
       if (allocated(vfact_sppt)) deallocate(vfact_sppt)
    endif
@@ -541,7 +588,7 @@ implicit none
    if (nlndp > 0) then
       if (allocated(rpattern_sfc)) deallocate(rpattern_sfc)
    endif
-   if (nspp > 0) then 
+   if (nspp > 0) then
       if (allocated(rpattern_spp)) deallocate(rpattern_spp)
       if (allocated(vfact_spp)) deallocate(vfact_spp)
    endif

@@ -50,7 +50,7 @@ integer,save :: isdnx,iednx,jsdnx,jednx
 integer,save :: iscnx,iecnx,jscnx,jecnx
 integer :: nxncells, nyncells
 integer(8) :: count, count_rate, count_max, count_trunc,nx_full
-integer(8) :: iscale = 10000000000
+integer(8) :: iscale = 10000000000_8
 integer, allocatable :: iini_g(:,:,:),ilives_g(:,:)
 integer, allocatable :: io_layout(:)
 real(kind=kind_phys), allocatable :: field_out(:,:,:), field_smooth(:,:)
@@ -167,7 +167,7 @@ k_in=1
        else
           ! don't rely on compiler to truncate integer(8) to integer(4) on
           ! overflow, do wrap around explicitly.
-          count4 = mod(((iseed_ca+7)*mytile)*(i1+nx_full*(j1-1))+ 2147483648_8, 4294967296_8) - 2147483648_8
+          count4 = int(mod(int(((iseed_ca+7)*mytile)*(i1+nx_full*(j1-1)), 8) + 2147483648_8, 4294967296_8) - 2147483648_8)
        endif
        ct=1
        do nf=1,nca
