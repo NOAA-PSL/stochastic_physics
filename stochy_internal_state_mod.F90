@@ -51,6 +51,8 @@
       real(kind_dbl_prec),allocatable ::        epsodn(:)
       real(kind_dbl_prec),allocatable ::        kenorm_e(:)
       real(kind_dbl_prec),allocatable ::        kenorm_o(:)
+      real(kind_dbl_prec),allocatable ::        gamma_e(:)
+      real(kind_dbl_prec),allocatable ::        gamma_o(:)
 
       real(kind_dbl_prec),allocatable ::       snnp1ev(:)
       real(kind_dbl_prec),allocatable ::       snnp1od(:)
