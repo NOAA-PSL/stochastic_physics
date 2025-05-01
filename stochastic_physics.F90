@@ -164,9 +164,15 @@ if (do_sppt) then
       endif
    enddo
    if (sppt_sfclimit) then
-       do k=1,7
-       vfact_sppt(k)=pbl_taper(k)
-       enddo
+      if (levs .le. 7) then
+         do k=1,levs
+            vfact_sppt(k)=pbl_taper(k)
+         enddo
+      else
+         do k=1,7
+            vfact_sppt(k)=pbl_taper(k)
+         enddo
+      endif
    endif
    if (is_rootpe()) then
       do k=1,levs
@@ -525,34 +531,21 @@ implicit none
 real(kind_dbl_prec), intent(inout) :: sppt_wts(:,:), t_rp1(:,:), t_rp2(:,:), skeb_wts(:,:)
 real(kind_dbl_prec), allocatable :: tmp_wts(:,:)
 
-if (pert_epbl .OR. do_ocnsppt) then
-   allocate(tmp_wts(gis_stochy_ocn%nx, gis_stochy_ocn%ny))
-   if (pert_epbl) then
-      call get_random_pattern_scalar(rpattern_epbl1, nepbl, gis_stochy_ocn, tmp_wts)
-      t_rp1(:,:) = 2.0 / (1.0 + exp(-1 * tmp_wts))
-      call get_random_pattern_scalar(rpattern_epbl2, nepbl, gis_stochy_ocn, tmp_wts)
-      t_rp2(:,:) = 2.0 / (1.0 + exp(-1 * tmp_wts))
-   else
-      t_rp1(:,:) = 1.0
-      t_rp2(:,:) = 1.0
-   endif
-   if (do_ocnsppt) then
-      call get_random_pattern_scalar(rpattern_ocnsppt, nocnsppt, gis_stochy_ocn, tmp_wts)
-      sppt_wts = 2.0 / (1.0 + exp(-1 * tmp_wts))
-   else
-      sppt_wts = 1.0
-   endif
-   deallocate(tmp_wts)
-else
-   sppt_wts(:,:) = 1.0
-   t_rp1(:,:) = 1.0
-   t_rp2(:,:) = 1.0
+allocate(tmp_wts(gis_stochy_ocn%nx, gis_stochy_ocn%ny))
+if (pert_epbl) then
+  call get_random_pattern_scalar(rpattern_epbl1, nepbl, gis_stochy_ocn, tmp_wts)
+  t_rp1(:,:) = 2.0 / (1.0 + exp(-1 * tmp_wts))
+  call get_random_pattern_scalar(rpattern_epbl2, nepbl, gis_stochy_ocn, tmp_wts)
+  t_rp2(:,:) = 2.0 / (1.0 + exp(-1 * tmp_wts))
 endif
+if (do_ocnsppt) then
+  call get_random_pattern_scalar(rpattern_ocnsppt, nocnsppt, gis_stochy_ocn, tmp_wts)
+  sppt_wts = 2.0 / (1.0 + exp(-1 * tmp_wts))
+endif
+deallocate(tmp_wts)
 
 if (do_ocnskeb) then
    call get_random_pattern_scalar(rpattern_ocnskeb, nocnskeb, gis_stochy_ocn_skeb, skeb_wts, normalize=.true.)
-else
-   skeb_wts(:,:) = 1.0
 endif
 
 end subroutine run_stochastic_physics_ocn
