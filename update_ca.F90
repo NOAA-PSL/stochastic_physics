@@ -393,7 +393,7 @@ if(mod(kstep,nseed)==0. .and. (kstep >= initialize_ca .or. start_from_restart))t
       do i=1,nxc
          i1=i+(isc-1)*ncells
          if (iseed_ca <= 0) then
-            !call system_clock(count, count_rate, count_max)
+            call system_clock(count, count_rate, count_max)
             count_trunc = iscale*(count/iscale)
             count4 = count - count_trunc + mytile *( i1+nx_full*(j1-1)) ! no need to multply by 7 since time will be different in sgs
          else
@@ -704,7 +704,7 @@ if(mod(kstep,nseed) == 0)then
       do i=1,nxc
          i1=i+(isc-1)*ncells
          if (iseed_ca <= 0) then
-            !call system_clock(count, count_rate, count_max)
+            call system_clock(count, count_rate, count_max)
             count_trunc = iscale*(count/iscale)
             count4 = count - count_trunc + mytile *( i1+nx_full*(j1-1)) ! no need to multply by 7 since time will be different in sgs
          else
