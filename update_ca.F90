@@ -392,7 +392,13 @@ if(mod(kstep,nseed)==0. .and. (kstep >= initialize_ca .or. start_from_restart))t
       j1=j+(jsc-1)*ncells
       do i=1,nxc
          i1=i+(isc-1)*ncells
-         count4 = int(mod(int((iseed_ca*nf+mytile)*(i1+nx_full*(j1-1)), 8) + 2147483648_8, 4294967296_8) - 2147483648_8)
+         if (iseed_ca <= 0) then
+            call system_clock(count, count_rate, count_max)
+            count_trunc = iscale*(count/iscale)
+            count4 = count - count_trunc + mytile *( i1+nx_full*(j1-1)) ! no need to multply by 7 since time will be different in sgs
+         else
+            count4 = int(mod(int((iseed_ca*nf+mytile)*(i1+nx_full*(j1-1)), 8) + 2147483648_8, 4294967296_8) - 2147483648_8)
+         endif
          noise_b(i,j)=real(random_01_CB(kstep,count4),kind=8)
       enddo
    enddo
@@ -697,7 +703,13 @@ if(mod(kstep,nseed) == 0)then
       j1=j+(jsc-1)*ncells
       do i=1,nxc
          i1=i+(isc-1)*ncells
-         count4 = int(mod(int(iseed_ca*nf+(7*mytile)*(i1+nx_full*(j1-1)), 8) + 2147483648_8, 4294967296_8) - 2147483648_8)
+         if (iseed_ca <= 0) then
+            call system_clock(count, count_rate, count_max)
+            count_trunc = iscale*(count/iscale)
+            count4 = count - count_trunc + mytile *( i1+nx_full*(j1-1)) ! no need to multply by 7 since time will be different in sgs
+         else
+            count4 = int(mod(int(iseed_ca*nf+(7*mytile)*(i1+nx_full*(j1-1)), 8) + 2147483648_8, 4294967296_8) - 2147483648_8)
+         endif
          noise_b(i,j)=real(random_01_CB(kstep,count4),kind=8)
       enddo
    enddo
