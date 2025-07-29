@@ -366,7 +366,7 @@ do k = 1, lonf
 end do
 WLON  = gg_lons(1) - (gg_lons(2)-gg_lons(1))
 RNLAT = gg_lats(1)*2 - gg_lats(2)
-print*, 'finished ocean init'
+if (is_rootpe()) print*, 'finished ocean init'
 end subroutine init_stochastic_physics_ocn
 
 !!!!!!!!!!!!!!!!!!!!

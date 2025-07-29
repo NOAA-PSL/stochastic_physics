@@ -22,7 +22,7 @@ module get_stochy_pattern_mod
  implicit none
  private
 
- public  get_random_pattern_vector,get_random_pattern_spp 
+ public  get_random_pattern_vector,get_random_pattern_spp
  public  get_random_pattern_sfc,get_random_pattern_scalar
  public  write_stoch_restart_atm,write_stoch_restart_ocn
  logical :: first_call=.true.
@@ -92,7 +92,7 @@ subroutine get_random_pattern_sfc(rpattern,npatterns,&
 end subroutine get_random_pattern_sfc
 
 
-!>@brief The subroutine 'get_random_pattern_fv3_vect' converts spherical harmonics to a vector on gaussian grid then interpolates to the target grid 
+!>@brief The subroutine 'get_random_pattern_fv3_vect' converts spherical harmonics to a vector on gaussian grid then interpolates to the target grid
 !>@details This subroutine is for a 2-D (lat-lon) vector field
 subroutine get_random_pattern_vector(rpattern,npatterns,&
            gis_stochy,upattern_3d,vpattern_3d)
@@ -219,7 +219,7 @@ subroutine get_random_pattern_vector(rpattern,npatterns,&
   enddo
   first_call=.false.
 
-end subroutine get_random_pattern_vector   
+end subroutine get_random_pattern_vector
 
 !>@brief The subroutine 'get_random_pattern_scalar' converts spherical harmonics to the gaussian grid then interpolates to the target grid
 !>@details This subroutine is for a 2-D (lat-lon) scalar field
@@ -561,7 +561,7 @@ subroutine write_stoch_restart_ocn(sfile)
     integer :: ncid,varid1a,varid1b,varid2a,varid2b,varid3a,varid3b,varid4a,varid4b
     integer :: seed_dim_id,spec_dim_id,np_dim_id
     include 'netcdf.inc'
-    print*,'in write restart',do_ocnsppt,pert_epbl,do_ocnskeb
+    if (is_rootpe() ) print*,'in write restart',do_ocnsppt,pert_epbl,do_ocnskeb
     if ( ( .NOT. do_ocnsppt) .AND. (.NOT. pert_epbl) .AND. ( .NOT. do_ocnskeb) ) return
     stochlun=99
     if (is_rootpe()) then
@@ -680,7 +680,7 @@ subroutine write_stoch_restart_ocn(sfile)
    endif
    deallocate(pattern2d)
  end subroutine write_pattern
-!>@brief The subroutine 'vrtdivspect_to_uvgrid' converts vorticty and divergence spherical harmonics to 
+!>@brief The subroutine 'vrtdivspect_to_uvgrid' converts vorticty and divergence spherical harmonics to
 ! zonal and meridional winds on the gaussian grid
 !>@details This subroutine is for a 2-D (lat-lon) vector field
  subroutine vrtdivspect_to_uvgrid(&
