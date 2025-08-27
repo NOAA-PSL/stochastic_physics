@@ -220,7 +220,7 @@ module stochy_patterngenerator_mod
  subroutine computevarspec_r(rpattern,dataspec,var)
 !\callgraph
     ! compute globally integrated variance from spectral coefficients
-    real(kind_phys), intent(in) :: dataspec(2*ndimspec)
+    real(kind_dbl_prec), intent(in) :: dataspec(2*ndimspec)
     real(kind_phys), intent(out) ::  var
     type(random_pattern), intent(in) :: rpattern
     integer n
@@ -364,8 +364,8 @@ module stochy_patterngenerator_mod
 !! restarting from a higher-resolution pattern
  subroutine chgres_pattern(pattern2din,pattern2dout,ntruncin,ntruncout)
 !\callgraph
-   real(kind_phys), intent(in) :: pattern2din((ntruncin+1)*(ntruncin+2))
-   real(kind_phys), intent(out) :: pattern2dout((ntruncout+1)*(ntruncout+2))
+   real(kind_dbl_prec), intent(in) :: pattern2din((ntruncin+1)*(ntruncin+2))
+   real(kind_dbl_prec), intent(out) :: pattern2dout((ntruncout+1)*(ntruncout+2))
    integer, intent(in) :: ntruncin,ntruncout
    integer             :: m,n,nm,ndimsspecin,ndimsspecout
    integer,allocatable, dimension(:,:):: idxin
