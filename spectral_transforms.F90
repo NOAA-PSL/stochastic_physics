@@ -42,6 +42,8 @@ module spectral_transforms
 
 #ifdef CESMCOUPLED
       external dgemm
+#else
+      external esmf_dgemm
 #endif
 !     
       integer, intent(in)     :: nvars
