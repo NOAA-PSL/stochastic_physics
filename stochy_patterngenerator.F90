@@ -1,6 +1,6 @@
 !>@brief The module 'stochy_patterngenerator_mod' contains the derived type random_pattern
 !! which controls the characteristics of the random pattern
-!! This is a modified version of the original one stochy_patterngenerator.F90, where the 
+!! This is a modified version of the original one stochy_patterngenerator.F90, where the
 !! the random patterns are not properly normalized
 module stochy_patterngenerator_mod
 
@@ -72,11 +72,13 @@ module stochy_patterngenerator_mod
    include 'function_indlsev'
    bn_local=.false.
    if (present(bn)) bn_local=bn
-   if (present(bn)) then
-        print*,'Berner norm=',bn
-   else
-        print*,'old norm'
-   endif
+   if (is_rootpe()) then
+      if (present(bn)) then
+         print*,'Berner norm=',bn
+      else
+         print*,'old norm'
+      endif
+   end if
    nlons = nlon
    nlats = nlat
    ntrunc = jcap
@@ -205,7 +207,7 @@ module stochy_patterngenerator_mod
    enddo
  end subroutine patterngenerator_destroy
 
-!>@brief The subroutine 'computevarspec' compute the globally integrated 
+!>@brief The subroutine 'computevarspec' compute the globally integrated
 !! variance from complex spectral coefficients
 !>@details this is necessary to ensure the proper global variance
  subroutine computevarspec(rpattern,dataspec,var)
@@ -225,7 +227,7 @@ module stochy_patterngenerator_mod
     enddo
  end subroutine computevarspec
 
-!>@brief The subroutine 'computevarspec_r' compute the globally integrated 
+!>@brief The subroutine 'computevarspec_r' compute the globally integrated
 !! variance from real spectral coefficients
 !>@details this is necessary to ensure the proper global variance
  subroutine computevarspec_r(rpattern,dataspec,var)
@@ -394,7 +396,7 @@ module stochy_patterngenerator_mod
   type(random_pattern), intent(inout) :: rpattern
   integer, intent(in) :: varspect_opt
   logical, intent(in) :: new_lscale
-  logical, intent(in) :: berner_normalize 
+  logical, intent(in) :: berner_normalize
   integer :: n, nm
   complex(kind_dbl_prec) noise(ndimspec)
   real(kind_dbl_prec) var,b_jb,rerth,inv_rerth_sq,pi,gamma_sum,deltaE
@@ -404,24 +406,24 @@ module stochy_patterngenerator_mod
   !print*,'setvarspect,ntrunc',berner_normalize,ntrunc
   ! 1d variance spectrum (as a function of total wavenumber)
   if (varspect_opt == 0) then ! gaussian
-     print*, 'Gaussian variance spectrum'
+     if (is_rootpe()) print*, 'Gaussian variance spectrum'
      ! rpattern%lengthscale is interpreted as an efolding length
      ! scale, in meters.
      ! scaling factors for spectral coeffs of white noise pattern with unit variance
      if (new_lscale) then
         !fix for proper lengthscale
-        print*, 'Proper lengthscale condition'
+        if (is_rootpe()) print*, 'Proper lengthscale condition'
         rpattern%varspectrum = exp((rpattern%lengthscale*0.25)**2*rpattern%lap*inv_rerth_sq)
         do n=0,ntrunc
            rpattern%varspectrum1d(n) = exp(-(rpattern%lengthscale*0.25)**2*float(n)*(float(n)+1.)*inv_rerth_sq)
         enddo
      else
-        print*, 'Not proper lengthscale condition'
+        if (is_rootpe()) print*, 'Not proper lengthscale condition'
         rpattern%varspectrum = exp(rpattern%lengthscale**2*rpattern%lap/(4.*rerth**2))
         do n=0,ntrunc
            rpattern%varspectrum1d(n) = exp(-rpattern%lengthscale**2*(float(n)*(float(n)+1.))/(4.*rerth**2))
         enddo
-        print*,'Finished'
+        if (is_rootpe()) print*,'Finished'
      endif
   else if (varspect_opt == 1) then ! power law
      ! rpattern%lengthscale is interpreted as a power, not a length.
@@ -452,7 +454,7 @@ module stochy_patterngenerator_mod
      call computevarspec(rpattern,noise,var)
      rpattern%varspectrum = rpattern%varspectrum/sqrt(var)
      rpattern%varspectrum1d = rpattern%varspectrum1d/var
-  
+
   else if (berner_normalize) then ! normalize by Berner et al. 2009
      do n=1,len_trie_ls
          nm = rpattern%idx_e(n)

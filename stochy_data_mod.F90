@@ -1,5 +1,5 @@
 !>@brief The module 'stochy_data_mod' contains the initilization routine that read the stochastic phyiscs
-!! namelist and determins the number of random patterns.
+!! namelist and determines the number of random patterns.
 module stochy_data_mod
 
 ! set up and initialize stochastic random patterns.
@@ -32,8 +32,8 @@ module stochy_data_mod
  integer, public :: nsppt=0
  integer, public :: nshum=0
  integer, public :: nskeb=0
- integer, public :: nlndp=0 ! this is the number of different patterns (determined by the tau/lscale input) 
- integer, public :: nspp =0 ! this is the number of different patterns (determined by the tau/lscale input) 
+ integer, public :: nlndp=0 ! this is the number of different patterns (determined by the tau/lscale input)
+ integer, public :: nspp =0 ! this is the number of different patterns (determined by the tau/lscale input)
  real(kind=kind_dbl_prec), public,allocatable :: sl(:)
 
  real(kind=kind_phys),public, allocatable :: vfact_sppt(:),vfact_shum(:),vfact_skeb(:),vfact_spp(:)
@@ -52,7 +52,7 @@ module stochy_data_mod
  subroutine init_stochdata(nlevs,delt,input_nml_file,fn_nml,nlunit,iret)
 !\callgraph
 
-! initialize random patterns.  
+! initialize random patterns.
    use netcdf
    implicit none
    integer, intent(in) :: nlunit,nlevs
@@ -78,7 +78,7 @@ module stochy_data_mod
 ! read in namelist
 
    call compns_stochy (mype,size(input_nml_file,1),input_nml_file(:),fn_nml,nlunit,real(delt,kind=kind_phys),iret)
-  
+
    if (iret/=0) return  ! need to make sure that non-zero irets are being trapped.
    if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb)  .AND. (lndp_type==0) .AND. (.NOT. do_spp)) return
 
@@ -169,7 +169,7 @@ module stochy_data_mod
             end if
          endif
       endif
-     print*,'calling init',lonf,latg,jcap
+     if (is_rootpe()) print*,'calling init',lonf,latg,jcap
       call patterngenerator_init(sppt_lscale(1:nsppt),spptint,sppt_tau(1:nsppt),sppt(1:nsppt),iseed_sppt,rpattern_sppt, &
            lonf,latg,jcap,gis_stochy%ls_node,nsppt,1,0,new_lscale)
       do n=1,nsppt
@@ -359,7 +359,7 @@ module stochy_data_mod
             gis_stochy%kenorm_o(indlsod(jcap+1,l)) = 0.
          endif
       enddo
-      
+
    endif ! skeb > 0
 ! mg, sfc-perts
    if (nlndp > 0) then
@@ -485,12 +485,12 @@ module stochy_data_mod
    integer, intent(in) :: nlevs
    real(kind=kind_dbl_prec), intent(in) :: delt
    integer, intent(out) :: iret
-   
+
    integer :: nn,nm,stochlun,n,jcapin,n2
    integer :: l,jbasev,jbasod
    integer :: varid1,varid2,varid3,varid4,ierr
    real(kind=kind_dbl_prec) :: gamma_sum,pi
-   
+
    real(kind_dbl_prec),allocatable :: noise_e(:,:),noise_o(:,:)
    include 'netcdf.inc'
    stochlun=99
@@ -532,7 +532,7 @@ module stochy_data_mod
      endif
    enddo
 
-   if (nepbl > 0) then 
+   if (nepbl > 0) then
       allocate(rpattern_epbl1(nepbl))
       allocate(rpattern_epbl2(nepbl))
    endif
@@ -629,7 +629,7 @@ module stochy_data_mod
                rpattern_epbl1(n)%spec_o(nn,2,1) = rpattern_epbl1(n)%stdev*rpattern_epbl1(n)%spec_o(nn,2,1)*rpattern_epbl1(n)%varspectrum(nm)
             enddo
             call patterngenerator_advance(rpattern_epbl1(n),1,.false.)
-         
+
             call getnoise(rpattern_epbl2(n),noise_e,noise_o)
             do nn=1,len_trie_ls
                rpattern_epbl2(n)%spec_e(nn,1,1)=noise_e(nn,1)
@@ -753,7 +753,7 @@ module stochy_data_mod
                rpattern_ocnskeb(n)%spec_o(nn,1,1) = rpattern_ocnskeb(n)%stdev*rpattern_ocnskeb(n)%spec_o(nn,1,1)*rpattern_ocnskeb(n)%varspectrum(nm)
                rpattern_ocnskeb(n)%spec_o(nn,2,1) = rpattern_ocnskeb(n)%stdev*rpattern_ocnskeb(n)%spec_o(nn,2,1)*rpattern_ocnskeb(n)%varspectrum(nm)
             enddo
-            print*,'calling patterngenerator_advance norm init'
+            if (is_rootpe()) print*,'calling patterngenerator_advance norm init'
             call patterngenerator_advance_jb(rpattern_ocnskeb(n))
             !call patterngenerator_advance(rpattern_ocnskeb(n))
 !             if (is_rootpe()) then
