@@ -418,13 +418,13 @@ module stochy_data_mod
       if (is_rootpe()) then
          print *, 'Initialize random pattern for SPP-PERTS'
          if (stochini) then
-            ierr=NF90_INQ_VARID(stochlun,"spppert_seed", varid1)
+            ierr=NF90_INQ_VARID(stochlun,"spp_seed", varid1)
             if (ierr .NE. 0) then
                write(0,*) 'error inquring SPP-PERTS seed'
                iret = ierr
                return
             end if
-            ierr=NF90_INQ_VARID(stochlun,"ppcpert_spec", varid2)
+            ierr=NF90_INQ_VARID(stochlun,"spp_spec", varid2)
             if (ierr .NE. 0) then
                write(0,*) 'error inquring SPP-PERTS spec'
                iret = ierr
@@ -702,7 +702,7 @@ subroutine read_pattern(rpattern,jcapin,lunptn,k,np,varid1,varid2,slice_of_3d,ir
    type(random_pattern), intent(inout) :: rpattern
    integer, intent(in) :: lunptn,np,varid1,varid2,jcapin
    logical, intent(in) :: slice_of_3d
-   real(kind_phys),allocatable  :: pattern2d(:),pattern2din(:)
+   real(kind_dbl_prec),allocatable  :: pattern2d(:),pattern2din(:)
    real(kind_phys) :: stdevin,varin
    integer nm,nn,iret,ierr,isize,k,ndimspec2
    integer, allocatable :: isave(:)

@@ -216,8 +216,13 @@ module lndp_apply_perts_mod
                 case('smc')
                     if (do_pert_state) then
                         p=5.
-                        min_bound = smcmin(stype(nb,i))
-                        max_bound = smcmax(stype(nb,i))
+                        if (stype(nb,i) .lt. 0.0001) then ! avoid 0 index
+                          min_bound = 0
+                          max_bound = 0
+                        else
+                          min_bound = smcmin(stype(nb,i))
+                          max_bound = smcmax(stype(nb,i))
+                        end if
 
                       ! with RUC LSM perturb smc only at time step = 2, as in HRRR
                         do k=1,lsoil
@@ -360,8 +365,16 @@ module lndp_apply_perts_mod
               print*, 'error, flat-top function requires min & max to be specified'
            endif
 
-           z = -1. + 2*(state  - vmin)/(vmax - vmin) ! flat-top function
-           state =  state  + pert*(1-abs(z**p))
+           if ((vmax-vmin) .lt. 1e-30) then ! avoid divided by zero
+             state = state  + pert
+           else
+             if (abs(state) .lt. 1e10) then ! exclude missing values
+               z = -1. + 2*(state  - vmin)/(vmax - vmin) ! flat-top function
+               state =  state  + pert*(1-abs(z**p))
+             else
+               state =  state
+             end if
+           end if
        else
            state =  state  + pert
        endif

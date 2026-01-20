@@ -566,7 +566,7 @@ subroutine write_stoch_restart_ocn(sfile)
    integer, intent(in) :: np,varid1,varid2
    logical, intent(in) :: slice_of_3d
    integer, intent(out) :: iret
-   real(kind_phys), allocatable  :: pattern2d(:)
+   real(kind_dbl_prec), allocatable  :: pattern2d(:)
    integer nm,nn,arrlen,isize,ierr
    integer,allocatable :: isave(:)
    include 'netcdf.inc'
