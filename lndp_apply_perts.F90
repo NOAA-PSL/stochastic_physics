@@ -107,6 +107,9 @@ module lndp_apply_perts_mod
         real(kind=kind_phys), dimension(9), parameter :: smc_vertscale_ruc = (/1.0,0.9,0.8,0.6,0.4,0.2,0.1,0.05,0./)
         real(kind=kind_phys), dimension(9), parameter :: stc_vertscale_ruc = (/1.0,0.9,0.8,0.6,0.4,0.2,0.1,0.05,0./)
         real(kind=kind_phys), dimension(9), parameter :: zs_ruc = (/0.05, 0.15, 0.20, 0.20, 0.40, 0.60, 0.60, 0.80, 1.00/)
+        logical :: mask(size(lndp_var_list))
+        character(len=len(lndp_var_list)), allocatable :: new_list(:)
+        integer :: lndp_i, n_var_lndp_new
 
         ierr = 0
 
@@ -197,6 +200,20 @@ module lndp_apply_perts_mod
 
         call  set_printing_nb_i(blksz,xlon,xlat,print_i,print_nb)
 
+        ! skip smc/stc when kdt ne 2
+        if (kdt .ne. 2) then
+          new_list = lndp_var_list
+          n_var_lndp_new = 0
+          do lndp_i = 1, size(lndp_var_list)
+            mask(lndp_i) = (trim(lndp_var_list(lndp_i)) /= 'smc') .and. (trim(lndp_var_list(lndp_i)) /= 'stc')
+          end do
+          new_list = pack(lndp_var_list, mask)
+          n_var_lndp_new=size(new_list)
+        else
+          new_list = lndp_var_list
+          n_var_lndp_new = n_var_lndp
+        endif
+
         do nb =1,nblks
            do i = 1, blksz(nb)
 
@@ -208,8 +225,8 @@ module lndp_apply_perts_mod
                 print_flag=.false.
              endif
 
-             do v = 1,n_var_lndp
-                select case (trim(lndp_var_list(v)))
+             do v = 1,n_var_lndp_new
+                select case (trim(new_list(v)))
                 !=================================================================
                 ! State updates - performed every cycle
                 !=================================================================

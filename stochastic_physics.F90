@@ -344,7 +344,8 @@ use stochy_data_mod, only : nshum,rpattern_shum,rpattern_sppt,nsppt,rpattern_ske
 use get_stochy_pattern_mod,only : get_random_pattern_scalar,get_random_pattern_vector, & 
                                   get_random_pattern_sfc,get_random_pattern_spp
 use stochy_namelist_def, only : do_shum,do_sppt,do_skeb,nssppt,nsshum,nsskeb,nsspp,nslndp,sppt_logit,    & 
-                                lndp_type, n_var_lndp, n_var_spp, do_spp, spp_stddev_cutoff, spp_prt_list
+                                lndp_type, n_var_lndp, n_var_spp, do_spp, spp_stddev_cutoff, spp_prt_list, &
+                                lndp_var_list
 use mpi_wrapper, only: is_rootpe
 implicit none
 
@@ -364,10 +365,12 @@ real(kind_dbl_prec),allocatable :: tmp_wts(:,:),tmpu_wts(:,:,:),tmpv_wts(:,:,:),
 !D-grid
 integer :: k,v
 integer j,ierr,i
-integer :: nblks, blk, len, maxlen
+integer :: nblks, blk, len, maxlen, n_var_lndp_new, lndp_i, char_len
 character*120 :: sfile
 character*6   :: STRFH
 logical :: do_advance_pattern
+logical :: mask(size(lndp_var_list))
+character(len=:), allocatable :: new_list(:)
 
 if ( (.NOT. do_sppt) .AND. (.NOT. do_shum) .AND. (.NOT. do_skeb) .AND. (lndp_type==0 ) .AND. (n_var_spp .le. 0)) return
 
@@ -379,7 +382,7 @@ maxlen = maxval(blksz(:))
 if ( (lndp_type==1) .and. (kdt==0) ) then ! old land pert scheme called once at start
         write(0,*) 'calling get_random_pattern_sfc'  
         allocate(tmpl_wts(nblks,maxlen,n_var_lndp))
-        call get_random_pattern_sfc(rpattern_sfc,nlndp,gis_stochy,tmpl_wts)
+        call get_random_pattern_sfc(rpattern_sfc,nlndp,gis_stochy,tmpl_wts,n_var_lndp)
         DO blk=1,nblks
            len=blksz(blk)
            ! for perturbing vars or states, saved value is N(0,1)  and apply scaling later.
@@ -431,14 +434,35 @@ if (do_skeb) then
    endif
 endif
 if ( lndp_type .EQ. 2  ) then 
+
+  ! skipping smc/stc when it is not initial time
+  if (kdt .gt. 2) then
+    new_list = lndp_var_list
+    n_var_lndp_new = 0
+    do lndp_i = 1, size(lndp_var_list)
+      mask(lndp_i) = (trim(lndp_var_list(lndp_i)) /= 'smc') .and. (trim(lndp_var_list(lndp_i)) /= 'stc')
+    end do 
+    new_list = pack(lndp_var_list, mask)
+    do lndp_i =1,size(new_list)
+      if   (new_list(lndp_i) .EQ. 'XXX')   then
+        cycle
+      else
+        n_var_lndp_new=n_var_lndp_new+1
+      endif
+    end do
+  else
+    n_var_lndp_new = n_var_lndp
+    new_list = lndp_var_list
+  endif
+
     ! add time check?
   if (mod(kdt,nslndp) == 1 .or. nslndp == 1) then
-    allocate(tmpl_wts(gis_stochy%nx,gis_stochy%ny,n_var_lndp))
-    call get_random_pattern_sfc(rpattern_sfc,nlndp,gis_stochy,tmpl_wts)
+    allocate(tmpl_wts(gis_stochy%nx,gis_stochy%ny,n_var_lndp_new))
+    call get_random_pattern_sfc(rpattern_sfc,nlndp,gis_stochy,tmpl_wts,n_var_lndp_new)
     DO blk=1,nblks
        len=blksz(blk)
        ! for perturbing vars or states, saved value is N(0,1)  and apply scaling later.
-       DO k=1,n_var_lndp
+       DO k=1,n_var_lndp_new
            sfc_wts(blk,1:len,k) = tmpl_wts(1:len,blk,k)
        ENDDO
     ENDDO

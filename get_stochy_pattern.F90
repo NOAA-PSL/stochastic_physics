@@ -30,14 +30,14 @@ module get_stochy_pattern_mod
 !>@brief The subroutine 'get_random_pattern_sfc' converts spherical harmonics to the gaussian grid then interpolates to the target grid
 !>@details This subroutine is for a 2-D (lat-lon) scalar field
 subroutine get_random_pattern_sfc(rpattern,npatterns,&
-           gis_stochy,pattern_3d)
+           gis_stochy,pattern_3d,lndp_loop)
 !\callgraph
 
 ! generate a random pattern for stochastic physics
  implicit none
  type(random_pattern), intent(inout) :: rpattern(npatterns)
  type(stochy_internal_state), intent(in) :: gis_stochy
- integer,intent(in)::   npatterns
+ integer,intent(in)::   npatterns, lndp_loop
 
  integer i,j,lat,n,k
  real(kind=kind_dbl_prec), dimension(lonf,gis_stochy%lats_node_a,1):: wrk2d
@@ -50,7 +50,7 @@ subroutine get_random_pattern_sfc(rpattern,npatterns,&
  real(kind=kind_dbl_prec),intent(out) :: pattern_3d(gis_stochy%nx,gis_stochy%ny,n_var_lndp)
  real(kind=kind_dbl_prec) :: pattern_1d(gis_stochy%nx)
 
- do k=1,n_var_lndp
+ do k=1,lndp_loop
    kmsk0 = 0
    glolal = 0.
    do n=1,npatterns

@@ -250,6 +250,7 @@ module stochy_patterngenerator_mod
    noise = noise*sqrt(1./ntrunc)
    noise_e = 0.; noise_o = 0.
    ! subset
+   !$OMP PARALLEL DO PRIVATE(nm)
    do nn=1,len_trie_ls
       nm = rpattern%idx_e(nn)
       if (nm == 0) cycle
@@ -260,6 +261,9 @@ module stochy_patterngenerator_mod
         noise_e(nn,2) = 0.
       endif
    enddo
+   !$OMP END PARALLEL DO
+
+   !$OMP PARALLEL DO PRIVATE(nm)
    do nn=1,len_trio_ls
       nm = rpattern%idx_o(nn)
       if (nm == 0) cycle
@@ -270,6 +274,7 @@ module stochy_patterngenerator_mod
         noise_o(nn,2) = 0.
       endif
    enddo
+   !$OMP END PARALLEL DO
  end subroutine getnoise
 
 !>@brief The subroutine 'patterngenerator_advance' advance 1st-order autoregressive process
@@ -289,6 +294,8 @@ module stochy_patterngenerator_mod
     else
        k2=k
     endif
+
+    !$OMP PARALLEL DO PRIVATE(nm)
     do nn=1,len_trie_ls
        nm = rpattern%idx_e(nn)
        if (nm == 0) cycle
@@ -297,6 +304,9 @@ module stochy_patterngenerator_mod
        rpattern%spec_e(nn,2,k) =  rpattern%phi*rpattern%spec_e(nn,2,k2) + &
        rpattern%stdev*sqrt(1.-rpattern%phi**2)*rpattern%varspectrum(nm)*noise_e(nn,2)
     enddo
+    !$OMP END PARALLEL DO
+
+    !$OMP PARALLEL DO PRIVATE(nm)
     do nn=1,len_trio_ls
        nm = rpattern%idx_o(nn)
        if (nm == 0) cycle
@@ -305,6 +315,7 @@ module stochy_patterngenerator_mod
        rpattern%spec_o(nn,2,k) =  rpattern%phi*rpattern%spec_o(nn,2,k2) + &
        rpattern%stdev*sqrt(1.-rpattern%phi**2)*rpattern%varspectrum(nm)*noise_o(nn,2)
     enddo
+    !$OMP END PARALLEL DO
  end subroutine patterngenerator_advance
 
 !>@brief The subroutine 'setvarspect' calculates the variance spectrum
