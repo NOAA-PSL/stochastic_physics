@@ -46,7 +46,7 @@ integer, intent(out)                    :: iret
 ! Interface variables
 
 integer,                  intent(in)    :: levs, nlunit, nthreads, mpiroot
-type(MPI_Comm),           intent(in)    :: mpicomm
+type(MPI_Comm),           intent(in), optional :: mpicomm
 integer,                  intent(in)    :: blksz(:)
 real(kind=kind_phys), intent(in)    :: dtp
 real(kind=kind_phys), intent(out)   :: sppt_amp
@@ -68,6 +68,7 @@ real(kind=kind_phys), optional, dimension(:), intent(out) :: spp_stddev_cutoff_o
 
 
 ! Local variables
+type(MPI_Comm) :: comm
 real(kind=kind_dbl_prec), parameter     :: con_pi =4.0d0*atan(1.0d0)
 integer :: nblks,len
 real*8 :: PRSI(levs),PRSL(levs),dx
@@ -76,7 +77,13 @@ integer :: k,kflip,latghf,blk,k2,v,i
 character*2::proc
 
 ! Initialize MPI and OpenMP
-call mpi_wrapper_initialize(mpiroot,mpicomm)
+if (present(mpicomm)) then
+   comm = mpicomm
+else
+   comm = MPI_COMM_WORLD
+end if
+  
+call mpi_wrapper_initialize(mpiroot,comm)
 gis_stochy%nodes = npes
 gis_stochy%mype=mype
 gis_stochy%nx=maxval(blksz)

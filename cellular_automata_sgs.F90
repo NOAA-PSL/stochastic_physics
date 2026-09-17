@@ -46,7 +46,7 @@ implicit none
 !area fraction (nca_plumes=false)
 
 integer,intent(in) :: kstep,ncells,nca,nlives,nseed,nspinup,mpiroot,mytile
-type(MPI_Comm),intent(in) :: mpicomm
+type(MPI_Comm),intent(in),optional :: mpicomm
 integer(kind=kind_dbl_prec),           intent(in)    :: iseed_ca
 real(kind=kind_phys), intent(in)    :: nfracseed,dtf,nthresh
 logical,intent(in) :: restart,ca_trigger,first_time_step,ca_advect
@@ -58,6 +58,7 @@ real(kind=kind_phys), intent(inout) :: ca_turb_cpl(:,:)
 real(kind=kind_phys), intent(inout) :: ca_shal_cpl(:,:)
 type(domain2D),       intent(inout) :: domain_in
 
+type(MPI_Comm) :: comm
 type(block_control_type)          :: Atm_block
 integer :: nlon, nlat, isize,jsize,nf,nn
 integer :: inci, incj, nxc, nyc, nxch, nych, nx, ny
@@ -91,7 +92,12 @@ real                 :: dz,invgrav
 if (nca .LT. 1) return
 ! Initialize MPI and OpenMP
 if (first_time_step) then
-   call mpi_wrapper_initialize(mpiroot,mpicomm)
+   if (present(mpicomm)) then
+      comm = mpicomm
+   else
+      comm = MPI_COMM_WORLD
+   end if
+   call mpi_wrapper_initialize(mpiroot,comm)
 end if
 
 halo=3

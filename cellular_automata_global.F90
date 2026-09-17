@@ -32,7 +32,7 @@ implicit none
 !This program evolves a cellular automaton uniform over the globe 
 
 integer,              intent(in)    :: kstep,ncells,nca,nlives,nseed,nspinup,nsmooth,mpiroot
-type(MPI_Comm),       intent(in)    :: mpicomm
+type(MPI_Comm),       intent(in), optional  :: mpicomm
 integer(kind=kind_dbl_prec),  intent(in)    :: iseed_ca
 integer,              intent(in)    :: mytile
 real(kind=kind_phys), intent(in)    :: nfracseed,ca_amplitude
@@ -40,6 +40,8 @@ logical,              intent(in)    :: ca_smooth,first_time_step, restart
 integer,              intent(in)    :: nblks,isc,iec,jsc,jec,npx,npy,nlev,blocksize
 real(kind=kind_phys), intent(out)   :: ca1_cpl(:,:),ca2_cpl(:,:),ca3_cpl(:,:)
 type(domain2D),       intent(inout) :: domain_in
+
+type(MPI_Comm) :: comm
 type(block_control_type) :: Atm_block
 integer :: nlon, nlat, isize,jsize,nf,nn
 integer :: inci, incj, nxc, nyc, nxch, nych
@@ -73,6 +75,11 @@ integer              :: ct
 if (nca .LT. 1) return
 ! Initialize MPI and OpenMP
 if (first_time_step) then
+   if (present(mpicomm)) then
+      comm = mpicomm
+   else
+      comm = MPI_COMM_WORLD
+   end if
    call mpi_wrapper_initialize(mpiroot,mpicomm)
 end if
 
