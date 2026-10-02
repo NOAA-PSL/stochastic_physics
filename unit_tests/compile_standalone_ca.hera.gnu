@@ -33,7 +33,7 @@ if [ $compile_all -eq 1 ];then
    $FC ${FLAGS2} unit_tests/fv_control_stub.F90
    $FC ${FLAGS2} unit_tests/atmosphere_stub.F90
    $FC ${FLAGS2} random_numbers.F90
-   $FC ${FLAGS} halo_exchange.fv3.F90
+   $FC ${FLAGS} halo_exchange_fv3.F90
    $FC ${FLAGS} mersenne_twister.F90
    $FC ${FLAGS} plumes.F90 
    $FC ${FLAGS} update_ca.F90

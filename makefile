@@ -44,7 +44,7 @@ SRCS_f   =  \
 SRCS_F90 = \
 		./kinddef.F90                               \
 		./mpi_wrapper.F90                           \
-		./halo_exchange.fv3.F90                     \
+		./halo_exchange_fv3.F90                     \
 		./spectral_layout.F90                       \
 		./getcon_spectral.F90                       \
 		./stochy_namelist_def.F90                   \
